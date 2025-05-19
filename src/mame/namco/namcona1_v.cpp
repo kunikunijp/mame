@@ -398,7 +398,7 @@ void namcona1_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, c
 
 			for (int col = 0; col < width; col++)
 			{
-				int sx = (xpos & 0x1ff) - 10;
+				int sx = (xpos & 0x1ff) - 11;
 				if (flipx)
 				{
 					sx += (width - 1 - col) << 3;
@@ -469,7 +469,7 @@ void namcona1_state::draw_background(screen_device &screen, bitmap_ind16 &bitmap
 		*/
 		const u16 *scroll = &m_scroll[which * 0x400 / 2];
 		rectangle clip = cliprect;
-		int xadjust = 0x3a - which*2;
+		int xadjust = 0x3a - which*2 + 1;
 		int scrollx = xadjust;
 		int scrolly = 0;
 
@@ -545,19 +545,19 @@ u32 namcona1_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, c
 {
 	// CRTC visible area parameters
 	// (used mostly by Numan Athletics for global screen window effects, cfr. start of events/title screen to demo mode transitions)
-	rectangle display_rect;
-	display_rect.min_x = m_vreg[0x80 / 2]-0x48;
-	display_rect.max_x = m_vreg[0x82 / 2]-0x48-1;
-	display_rect.min_y = std::max((int)m_vreg[0x84 / 2],   cliprect.min_y);
-	display_rect.max_y = std::min((int)m_vreg[0x86 / 2] - 1, cliprect.max_y);
+	rectangle display_rect = cliprect;
 
 	/* int flipscreen = m_vreg[0x98 / 2]; (TBA) */
 
 	screen.priority().fill(0, cliprect);
 
+	pen_t blackpen;
+	for (blackpen = 0; blackpen < 0x1000; blackpen++)
+		if (m_palette->pen_color(blackpen) == rgb_t::black()) break;
+
 	// guess for X-Day 2 (flames in attract), seems wrong for Emeraldia but unsure
 //  bitmap.fill(0xff, cliprect); /* background color? */
-	bitmap.fill((m_vreg[0xba / 2] & 0xf) << 8, cliprect);
+	bitmap.fill(blackpen, cliprect);
 
 	if (m_vreg[0x8e / 2] && screen_enabled(display_rect) == true)
 	{
@@ -570,6 +570,9 @@ u32 namcona1_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, c
 				update_palette(which);
 			}
 			m_palette_is_dirty = 0;
+
+			for (blackpen = 0; blackpen < 0x1000; blackpen++)
+				if (m_palette->pen_color(blackpen) == rgb_t::black()) break;
 		}
 
 		for (int priority = 0; priority < 8; priority++)
@@ -593,6 +596,26 @@ u32 namcona1_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, c
 		} /* next priority level */
 
 		draw_sprites(screen, bitmap, display_rect);
+
+		/* draw background (sidelines) */
+		switch (m_gametype)
+		{
+			case NAMCO_BKRTMAQ:  break;
+			case NAMCO_EMERALDA: break;
+			case NAMCO_TINKLPIT: break;
+//			case NAMCO_FA:       break;
+//			case NAMCO_EXVANIA:  break;
+//			case NAMCO_CGANGPZL: break;
+//			case NAMCO_SWCOURT:  break;
+//			case NAMCO_SWCOURTB: break;
+//			case NAMCO_NUMANATH: break;
+//			case NAMCO_KNCKHEAD: break;
+//			case NAMCO_QUIZTOU:  break;
+//			case NAMCO_XDAY2:    break;
+			default:
+				for (int y = cliprect.min_y; y <= cliprect.max_y; y++)
+					for (int x1 = cliprect.min_x, x2 = cliprect.max_x - 7; x2 <= cliprect.max_x; bitmap.pix(y, x1++) = bitmap.pix(y, x2++) = blackpen);
+		}
 	} /* gfx enabled */
 	return 0;
 }
