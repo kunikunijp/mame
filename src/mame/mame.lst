@@ -18641,6 +18641,11 @@ squash
 squasha
 squashb
 thoop
+thoopa
+thoopb
+thoopna
+thoopnna
+thoopnnaa
 
 @source:gaelco/gaelco2.cpp
 aligator
@@ -37541,6 +37546,7 @@ smbp
 smbpa
 smbpb
 smbpc
+smbpv
 smbmush
 snspares
 snspares1
