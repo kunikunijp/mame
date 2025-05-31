@@ -18803,8 +18803,10 @@ ringball
 splashms
 
 @source:gaelco/targeth.cpp
+quickshts
 targeth
 targetha
+targethb
 targeth10
 
 @source:gaelco/thoop2.cpp
