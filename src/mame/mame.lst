@@ -18707,6 +18707,7 @@ footbpow12
 footbpow14
 radikalb
 radikalba
+radikalbp
 speedup
 speedup10
 speedup12
@@ -18733,8 +18734,15 @@ tuningrc
 glass
 glass10
 glass10a
+glass10b
+glass10c
+glass10d
+glassa
+glassat
 glasskr
+glasskra
 glassp
+ssplash
 
 @source:gaelco/goldart.cpp
 goldart
