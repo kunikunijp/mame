@@ -18677,7 +18677,8 @@ jungleani
 lizardhunt
 maniacsq
 maniacsqa
-maniacsqu
+maniacsqb
+maniacsqc
 maniacsqs
 play2000
 play2000_40i
@@ -18754,6 +18755,7 @@ glasskr
 glasskra
 glassp
 ssplash
+ssplash10
 
 @source:gaelco/goldart.cpp
 goldart
@@ -18810,6 +18812,8 @@ rollext
 
 @source:gaelco/splash.cpp
 funystrp
+nsplashkr
+nsplashkra
 paintlad
 puckpepl
 rebus
@@ -18817,6 +18821,7 @@ roldfrog
 roldfroga
 splash
 splash10
+splash11
 splash12
 splashkr
 splashna
@@ -18824,6 +18829,7 @@ ringball
 
 @source:gaelco/splash_ms.cpp
 splashms
+splashmsa
 
 @source:gaelco/targeth.cpp
 quickshts
@@ -18859,6 +18865,7 @@ xorworld
 
 @source:gaelco/xorworld_ms.cpp
 xorworldm
+xorworldma
 
 @source:galaxian/dambustr.cpp
 dambustr
