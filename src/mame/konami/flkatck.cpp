@@ -7,9 +7,14 @@
     Driver by:
         Manuel Abadia <emumanu+mame@gmail.com>
 
-NOTE: A USA version of Flak Attack is known to exist  - currently not dumped
+NOTE: A USA version of Flak Attack is known to exist - currently not dumped
 
 24MHz & 3.579545MHz OSCs
+
+TODO:
+- remove the bank 0 hack from get_tile_info_a. k007121 register 4 is supposed
+  to be 0xc0 on the press start screen, but if you insert a coin during demo
+  play, it won't update this register properly?
 
 ***************************************************************************/
 
@@ -192,48 +197,37 @@ void flkatck_state::vram_w(offs_t offset, uint8_t data)
 
 uint32_t flkatck_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
+	// compute clipping
 	rectangle clip[2];
-	const rectangle &visarea = screen.visible_area();
+	clip[0] = clip[1] = screen.visible_area();
 
+	if (m_k007121->flipscreen())
+	{
+		clip[0].max_x -= 40;
+		clip[1].min_x = clip[1].max_x - 39;
+	}
+	else
+	{
+		clip[0].min_x += 40;
+		clip[1].max_x = 39;
+	}
+
+	clip[0] &= cliprect;
+	clip[1] &= cliprect;
+
+	// set scroll registers
 	int scrollx = m_k007121->ctrlram_r(0);
 	int scrolly = m_k007121->ctrlram_r(2);
 
 	if (!scrollx && !scrolly)
 		machine().tilemap().mark_all_dirty();
 
-	if (m_k007121->flipscreen())
-	{
-		clip[0] = visarea;
-		clip[0].max_x -= 40;
-
-		clip[1] = visarea;
-		clip[1].min_x = clip[1].max_x - 40;
-
-		m_k007121_tilemap[0]->set_scrollx(0, scrollx - 56 );
-		m_k007121_tilemap[0]->set_scrolly(0, scrolly);
-		m_k007121_tilemap[1]->set_scrollx(0, -16);
-	}
-	else
-	{
-		clip[0] = visarea;
-		clip[0].min_x += 40;
-
-		clip[1] = visarea;
-		clip[1].max_x = 39;
-		clip[1].min_x = 0;
-
-		m_k007121_tilemap[0]->set_scrollx(0, scrollx - 40 );
-		m_k007121_tilemap[0]->set_scrolly(0, scrolly);
-		m_k007121_tilemap[1]->set_scrollx(0, 0);
-	}
-
-	// compute clipping
-	clip[0] &= cliprect;
-	clip[1] &= cliprect;
+	m_k007121_tilemap[0]->set_scrollx(0, scrollx - 40);
+	m_k007121_tilemap[0]->set_scrolly(0, scrolly);
 
 	// draw the graphics
 	m_k007121_tilemap[0]->draw(screen, bitmap, clip[0], 0, 0);
-	m_k007121->sprites_draw(bitmap, cliprect, 0, 40, 0, screen.priority(), (uint32_t)-1);
+	m_k007121->sprites_draw(bitmap, cliprect, 0, m_k007121->flipscreen() ? 16 : 40, 0, screen.priority(), (uint32_t)-1);
 	m_k007121_tilemap[1]->draw(screen, bitmap, clip[1], 0, 0);
 
 	return 0;
@@ -260,7 +254,7 @@ void flkatck_state::bankswitch_w(uint8_t data)
 
 uint8_t flkatck_state::ls138_r(offs_t offset)
 {
-	int data = 0;
+	uint8_t data = 0;
 
 	switch ((offset & 0x1c) >> 2)
 	{
@@ -301,7 +295,7 @@ void flkatck_state::ls138_w(offs_t offset, uint8_t data)
 void flkatck_state::main_map(address_map &map)
 {
 	map(0x0000, 0x0007).w(m_k007121, FUNC(k007121_device::ctrl_w));
-	map(0x0008, 0x03ff).ram();
+	map(0x0020, 0x005f).ram(); // rowscroll?
 	map(0x0400, 0x041f).rw(FUNC(flkatck_state::ls138_r), FUNC(flkatck_state::ls138_w)); // inputs, DIPS, bankswitch, counters, sound command
 	map(0x0800, 0x0bff).ram().w("palette", FUNC(palette_device::write8)).share("palette");
 	map(0x1000, 0x1fff).ram().share(m_spriteram);
