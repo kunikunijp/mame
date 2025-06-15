@@ -235,7 +235,7 @@ protected:
 
 	void screen_vblank(int state);
 
-	optional_device<input_merger_device> m_nmigate;
+	required_device<input_merger_device> m_nmigate;
 
 private:
 	TILE_GET_INFO_MEMBER(get_ghostb_fix_tile_info);
@@ -250,7 +250,6 @@ private:
 	void garyoret_map(address_map &map) ATTR_COLD;
 
 	bool m_secclr = false;
-	bool m_nmi_enable = false;
 
 	emu_timer *m_6502_timer = nullptr;
 	emu_timer *m_i8751_timer = nullptr;

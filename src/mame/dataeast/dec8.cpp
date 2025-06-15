@@ -183,16 +183,7 @@ void ghostb_state::ghostb_bank_w(u8 data)
 	if (!m_secclr)
 		m_maincpu->set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
 
-	if (m_nmigate.found())
-		m_nmigate->in_w<0>(BIT(data, 1));
-	else
-	{
-		// Ghostbusters needs to acknowledge/disable NMIs in a different way
-		m_nmi_enable = BIT(data, 1);
-		if (!m_nmi_enable)
-			m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-	}
-
+	m_nmigate->in_w<0>(BIT(data, 1));
 	flip_screen_set(BIT(data, 3));
 }
 
@@ -1211,7 +1202,7 @@ static INPUT_PORTS_START( ghostb )
 //  PORT_DIPSETTING(    0x03, DEF_STR( 1C_1C ) )
 //  PORT_DIPSETTING(    0x02, DEF_STR( 1C_2C ) )
 //  PORT_DIPSETTING(    0x01, DEF_STR( 1C_3C ) )
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("screen", FUNC(screen_device::vblank))
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("screen", FUNC(screen_device::vblank))
 //  PORT_DIPLOCATION("SW1:3") // Manual says 'Must Be Off'. Note: Turning on 3+4+5+8 does nothing on real hardware.
 	PORT_DIPUNUSED( 0x04, IP_ACTIVE_LOW )                       PORT_DIPLOCATION("SW1:4") // Manual says 'Must Be Off'. See note
 	PORT_DIPUNUSED( 0x10, IP_ACTIVE_LOW )                       PORT_DIPLOCATION("SW1:5") // Manual says 'Must Be Off'. See note
@@ -1925,8 +1916,7 @@ void ghostb_state::machine_reset()
 	lastmisn_state::machine_reset();
 
 	// reset clears LS273 latch, which disables NMI
-	if (m_nmigate.found())
-		ghostb_bank_w(0);
+	ghostb_bank_w(0);
 }
 
 
@@ -1950,13 +1940,9 @@ void csilver_state::machine_reset()
 }
 
 
-// DECO video CRTC, unverified
 void dec8_state_base::set_screen_raw_params(machine_config &config)
 {
-//  m_screen->set_refresh_hz(58);
-//  m_screen->set_vblank_time(ATTOSECONDS_IN_USEC(529)); // 58Hz, 529us Vblank duration
-//  m_screen->set_size(32*8, 32*8);
-//  m_screen->set_visarea(0*8, 32*8-1, 1*8, 31*8-1);
+	// DECO video CRTC, matches PCB measurements
 	m_screen->set_raw(12_MHz_XTAL / 2, 384, 0, 256, 272, 8, 248);
 }
 
@@ -2229,9 +2215,11 @@ void ghostb_state::ghostb(machine_config &config)
 	set_screen_raw_params(config);
 	m_screen->set_screen_update(FUNC(ghostb_state::screen_update_ghostb));
 	m_screen->screen_vblank().set(FUNC(ghostb_state::screen_vblank));
-	m_screen->screen_vblank().append([this] (int state) { if (state && m_nmi_enable) m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE); });
+	m_screen->screen_vblank().append(m_nmigate, FUNC(input_merger_device::in_w<1>));
 	m_screen->screen_vblank().append_inputline(m_mcu, MCS51_INT0_LINE);
 	m_screen->set_palette(m_palette);
+
+	INPUT_MERGER_ALL_HIGH(config, m_nmigate).output_handler().set_inputline(m_maincpu, INPUT_LINE_NMI);
 
 	GFXDECODE(config, m_gfxdecode, m_palette, gfx_ghostb);
 	DECO_RMC3(config, m_palette, 0, 1024); // xxxxBBBBGGGGRRRR with custom weighting
