@@ -44,6 +44,8 @@ bool menu_audio_effect_reverb::handle(event const *ev)
 	case IPT_UI_SELECT:
 		if(uintptr_t(ev->itemref) == PRESET) {
 			m_effect->load_preset(m_preset);
+			if(m_chain == 0xffff)
+				machine().sound().default_effect_changed(m_entry);
 			reset(reset_options::REMEMBER_POSITION);
 			return true;
 		}
@@ -302,12 +304,6 @@ bool menu_audio_effect_reverb::handle(event const *ev)
 
 	case IPT_UI_CLEAR: {
 		switch(uintptr_t(ev->itemref)) {
-		case PRESET:
-			m_preset = m_effect->default_preset();
-			m_effect->load_preset(m_preset);
-			reset(reset_options::REMEMBER_POSITION);
-			return true;
-
 		case MODE:
 			m_effect->reset_mode();
 			if(m_chain == 0xffff)
@@ -428,7 +424,7 @@ bool menu_audio_effect_reverb::handle(event const *ev)
 
 std::string menu_audio_effect_reverb::format_percent(double val)
 {
-	return util::string_format("%d%", u32(val));
+	return util::string_format("%d%%", u32(val));
 }
 
 std::string menu_audio_effect_reverb::format_freq(double val)
@@ -526,9 +522,9 @@ double menu_audio_effect_reverb::change_freq(double val, bool inc, bool shift, b
 	double step = alt ? 16000 : ctrl ? 20 : shift ? 1 : 5;
 	if(val >= 10000)
 		step *= 100;
-	else if(val >= 500)
+	else if(val >= 5000)
 		step *= 50;
-	else if(val >= 250)
+	else if(val >= 2500)
 		step *= 20;
 	else if(val >= 1000)
 		step *= 10;
@@ -582,7 +578,7 @@ void menu_audio_effect_reverb::populate()
 {
 	item_append(_(audio_effect::effect_names[audio_effect::REVERB]), FLAG_UI_HEADING | FLAG_DISABLE, nullptr);
 	item_append(_("Mode"), m_effect->mode() ? _("Active") : _("Bypass"), flag_mode(), (void *)MODE);
-	item_append(_("Load preset"), string_format("%s%s", audio_effect_reverb::preset_name(m_preset), m_preset == m_effect->default_preset() ? _(" (Default)") : ""), flag_preset(), (void *)PRESET);
+	item_append(_("Load preset"), util::string_format("%s%s", audio_effect_reverb::preset_name(m_preset), m_preset == m_effect->default_preset() ? _(" (Default)") : ""), flag_preset(), (void *)PRESET);
 	item_append(_("Dry level"), format_percent(m_effect->dry_level()), flag_percent(m_effect->dry_level(), m_effect->isset_dry_level()), (void *)DRYL);
 	item_append(_("Stereo width"), format_percent(m_effect->stereo_width()), flag_percent(m_effect->stereo_width(), m_effect->isset_stereo_width()), (void *)SW);
 
