@@ -149,6 +149,7 @@ k051960_device::k051960_device(const machine_config &mconfig, const char *tag, d
 	, m_nmi_handler(*this)
 	, m_romoffset(0)
 	, m_control(0)
+	, m_nmi_count(0)
 	, m_sprites_busy(false)
 	, m_shadow_config(0)
 {
@@ -209,6 +210,7 @@ void k051960_device::device_start()
 	// register for save states
 	save_item(NAME(m_romoffset));
 	save_item(NAME(m_control));
+	save_item(NAME(m_nmi_count));
 	save_item(NAME(m_sprites_busy));
 	save_item(NAME(m_shadow_config));
 	save_item(NAME(m_spriterombank));
@@ -238,8 +240,8 @@ TIMER_CALLBACK_MEMBER(k051960_device::scanline_callback)
 {
 	int scanline = param;
 
-	// NMI 8 times per frame
-	if ((scanline & 0x1f) == 0x10 && BIT(m_control, 2))
+	// NMI every 32 scanlines (not on 16V)
+	if ((++m_nmi_count & 3) == 3 && BIT(m_control, 2))
 		m_nmi_handler(ASSERT_LINE);
 
 	// FIRQ is when?
@@ -262,7 +264,7 @@ TIMER_CALLBACK_MEMBER(k051960_device::scanline_callback)
 		m_sprites_busy = false;
 
 	// wait for next line
-	scanline += 16;
+	scanline += 8;
 	if (scanline >= screen().height())
 		scanline = 0;
 
@@ -538,14 +540,14 @@ void k051960_device::k051960_sprites_draw( bitmap_ind16 &bitmap, const rectangle
 						gfx(0)->prio_transtable(bitmap,cliprect,
 								c,color,
 								flipx,flipy,
-								sx & 0x1ff,sy,
+								(sx & 0x1ff) - 96, sy,
 								priority_bitmap,pri,
 								drawmode_table);
 					else
 						gfx(0)->transtable(bitmap,cliprect,
 								c,color,
 								flipx,flipy,
-								sx & 0x1ff,sy,
+								(sx & 0x1ff) - 96, sy,
 								drawmode_table);
 				}
 			}
@@ -579,7 +581,7 @@ void k051960_device::k051960_sprites_draw( bitmap_ind16 &bitmap, const rectangle
 						gfx(0)->prio_zoom_transtable(bitmap,cliprect,
 								c,color,
 								flipx,flipy,
-								sx & 0x1ff,sy,
+								(sx & 0x1ff) - 96, sy,
 								(zw << 16) / 16,(zh << 16) / 16,
 								priority_bitmap,pri,
 								drawmode_table);
@@ -587,7 +589,7 @@ void k051960_device::k051960_sprites_draw( bitmap_ind16 &bitmap, const rectangle
 						gfx(0)->zoom_transtable(bitmap,cliprect,
 								c,color,
 								flipx,flipy,
-								sx & 0x1ff,sy,
+								(sx & 0x1ff) - 96, sy,
 								(zw << 16) / 16,(zh << 16) / 16,
 								drawmode_table);
 				}

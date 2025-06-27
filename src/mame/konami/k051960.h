@@ -30,6 +30,7 @@ public:
 
 	k051960_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock);
 
+	// configuration
 	auto irq_handler() { return m_irq_handler.bind(); }
 	//auto firq_handler() { return m_firq_handler.bind(); } // unused
 	auto nmi_handler() { return m_nmi_handler.bind(); }
@@ -86,6 +87,7 @@ private:
 	u8 m_spriterombank[3];
 	u8 m_romoffset;
 	u8 m_control;
+	u8 m_nmi_count;
 	bool m_sprites_busy;
 	u8 m_shadow_config;
 
