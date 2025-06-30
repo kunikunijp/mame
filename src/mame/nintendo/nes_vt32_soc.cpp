@@ -174,6 +174,11 @@ void nes_vt32_soc_device::vtfp_4a00_w(u8 data)
 }
 
 
+u8 nes_vt32_soc_device::vtfp_412c_r()
+{
+	return m_upper_read_412c_callback();
+}
+
 void nes_vt32_soc_device::vtfp_412c_extbank_w(u8 data)
 {
 	m_upper_write_412c_callback(data);
@@ -287,7 +292,7 @@ void nes_vt32_soc_device::scrambled_8000_w(u16 offset, u8 data)
 					if (BIT(m_mmc1_control, 4))
 						break;
 					m_mmc1_shift_reg |= 1;
-					[[fall_through]];
+					[[fallthrough]];
 
 				case 0x4000:
 					for (int i = 0; i < 4; i++)
@@ -421,7 +426,7 @@ void nes_vt32_soc_device::nes_vt32_soc_map(address_map &map)
 
 	map(0x414a, 0x414a).r(FUNC(nes_vt32_soc_device::vthh_414a_r));
 
-	map(0x412c, 0x412c).w(FUNC(nes_vt32_soc_device::vtfp_412c_extbank_w)); // GPIO
+	map(0x412c, 0x412c).rw(FUNC(nes_vt32_soc_device::vtfp_412c_r), FUNC(nes_vt32_soc_device::vtfp_412c_extbank_w)); // GPIO
 	map(0x412d, 0x412d).r(FUNC(nes_vt32_soc_device::vtfp_412d_r)).nopw(); // GPIO
 
 	map(0x4141, 0x4141).nopw(); // ??
