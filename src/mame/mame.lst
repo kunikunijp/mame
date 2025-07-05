@@ -42442,6 +42442,7 @@ koikois
 mayjinsn
 mayjisn2
 nratechu
+premline
 renju
 
 @source:seta/speedatk.cpp
@@ -44253,6 +44254,7 @@ victor6b
 bishjan
 expcard
 humlan
+jgaoshou
 mtrain
 mtraina
 new2001
@@ -44518,6 +44520,7 @@ fieldday
 undoukai
 
 @source:taito/arkanoid.cpp
+arkaboot
 ark1ball
 arkangc
 arkangc2
