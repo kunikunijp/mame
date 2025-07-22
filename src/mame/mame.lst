@@ -17781,6 +17781,8 @@ mjelct3
 mjelct3a
 mjelct3b
 mjelct3bl
+mjelct3bla
+mjelct3blb
 mjelctrb
 mjelctrn
 mjembase
@@ -19252,6 +19254,7 @@ drivfrcb
 drivfrcg
 drivfrcsg
 drivfrcsga
+drivfrcsgb
 drivfrct
 froggerv
 hexpool
@@ -21115,6 +21118,7 @@ huahuas2a
 huluw2
 jbell
 jinhuang
+jinhuang2
 jinhulu2
 jinhulu2100gi
 jinhulu2101is
@@ -43363,6 +43367,9 @@ itt9216
 @source:skeleton/jade.cpp
 jade
 
+@source:skeleton/jinhuang6.cpp
+jinhuang6
+
 @source:skeleton/jonos.cpp
 jonos
 
@@ -46722,6 +46729,7 @@ bkid218
 
 @source:tvgames/generalplus_gpl32612.cpp
 anpanm19
+arcadege
 dmnslayg
 jak_swbstrik
 jak_tmnthp
@@ -46730,6 +46738,7 @@ jak_ddhp
 jak_prhp
 kidizmb
 kidizmp
+pdcm2
 pocketmp
 pocketmr
 zippity
@@ -46759,6 +46768,9 @@ mmahjong
 @source:tvgames/monkey_king_3b.cpp
 afbp4
 rs70_648
+
+@source:tvgames/myaatari.cpp
+myaatari
 
 @source:tvgames/pubint_storyreader.cpp
 pi_stry
@@ -46837,6 +46849,7 @@ jjstrip
 jouet
 knd
 lexiart
+lexibds
 lpetshop
 lxairjet
 lxspidaj
@@ -46987,7 +47000,10 @@ pdc100
 pdc150t
 pdc200
 tmntpdc
+vjpp1
 vjpp2
+vjpp3
+vjpp4
 
 @source:tvgames/spg2xx_playvision.cpp
 pvmil
