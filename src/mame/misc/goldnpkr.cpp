@@ -1102,6 +1102,7 @@ public:
 	void icproul(machine_config &config);
 	void glfever(machine_config &config);
 	void kmhpan(machine_config &config);
+	void unkicpf40(machine_config &config);
 
 	void init_vkdlswwh();
 	void init_icp1db();
@@ -1199,6 +1200,7 @@ private:
 	void lespendu_map(address_map &map) ATTR_COLD;
 	void glfever_map(address_map &map) ATTR_COLD;
 	void kmhpan_map(address_map &map) ATTR_COLD;
+	void unkicpf40_map(address_map &map) ATTR_COLD;
 
 	required_shared_ptr<uint8_t> m_videoram;
 	required_shared_ptr<uint8_t> m_colorram;
@@ -1532,6 +1534,7 @@ uint8_t goldnpkr_state::goldnpkr_mux_port_r()
 		case 0x20: return ioport("IN0-1")->read();
 		case 0x40: return ioport("IN0-2")->read();
 		case 0x80: return ioport("IN0-3")->read();
+		case 0x00: return 0x1f;  // needed for the ICP + F40/80 DB
 
 		// royale selector writes 3F-2F-1F-0F.
 		// worth to split a whole machine driver just for this?
@@ -1995,6 +1998,21 @@ void goldnpkr_state::kmhpan_map(address_map &map)
 	//map(0x2800, 0x2800).w // SN76489AN, initialized but not present on PCB? not written during gameplay
 	map(0x4000, 0x7fff).rom();
 	map(0xc000, 0xffff).rom();  // extended rom space
+}
+
+void goldnpkr_state::unkicpf40_map(address_map &map)
+{
+	map(0x0000, 0x07ff).ram().share("nvram");   // battery backed RAM
+	map(0x0800, 0x0800).w("crtc", FUNC(mc6845_device::address_w));
+	map(0x0801, 0x0801).rw("crtc", FUNC(mc6845_device::register_r), FUNC(mc6845_device::register_w));
+	map(0x0844, 0x0847).rw("pia0", FUNC(pia6821_device::read), FUNC(pia6821_device::write));
+	map(0x0848, 0x084b).rw("pia1", FUNC(pia6821_device::read), FUNC(pia6821_device::write));
+	map(0x1000, 0x13ff).ram().w(FUNC(goldnpkr_state::goldnpkr_videoram_w)).share("videoram");
+	map(0x1800, 0x1bff).ram().w(FUNC(goldnpkr_state::goldnpkr_colorram_w)).share("colorram");
+	map(0x2000, 0x2000).portr("SWA");
+	map(0x6000, 0x7fff).rom();  // bankswitched through 74ls154
+	map(0xa000, 0xa000).portr("SWB");
+	map(0xe000, 0xffff).rom();  // bankswitched through 74ls154
 }
 
 
@@ -4681,6 +4699,85 @@ static INPUT_PORTS_START( kmhpan ) // TODO: verify inputs
 INPUT_PORTS_END
 
 
+static INPUT_PORTS_START( unkicpf40 )  // ICP-1 w/daughterboard
+	PORT_INCLUDE( goldnpkr )
+
+	PORT_MODIFY("IN0-3")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN2 )   PORT_IMPULSE(3) PORT_NAME("Note In")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_COIN1 )   PORT_IMPULSE(3) PORT_NAME("Coin In")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_MODIFY("SW1")
+	PORT_DIPNAME( 0x10, 0x00, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:1")
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:2")
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:3")
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:4")
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+
+	PORT_START("SWA")
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWA:1")
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWA:2")
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWA:3")
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWA:4")
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWA:5")
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWA:6")
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWA:7")
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWA:8")
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+
+	PORT_START("SWB")
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWB:1")
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWB:2")
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWB:3")
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWB:4")
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWB:5")
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, "Fever" )             PORT_DIPLOCATION("SWB:6")
+	PORT_DIPSETTING(    0x20, "37" )
+	PORT_DIPSETTING(    0x00, "137" )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWB:7")
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SWB:8")
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+INPUT_PORTS_END
+
+
+
 /*********************************************
 *              Graphics Layouts              *
 *********************************************/
@@ -5328,6 +5425,18 @@ void goldnpkr_state::kmhpan(machine_config &config)
 	SPEAKER(config, "mono").front_center();
 	SN76489A(config, "sn", CPU_CLOCK / 4).add_route(ALL_OUTPUTS, "mono", 0.5); // divider unknown
 }
+
+void goldnpkr_state::unkicpf40(machine_config &config)
+{
+	goldnpkr_base(config);
+
+	m_maincpu->set_addrmap(AS_PROGRAM, &goldnpkr_state::unkicpf40_map);
+
+	// sound hardware
+	SPEAKER(config, "mono").front_center();
+	DISCRETE(config, m_discrete, goldnpkr_discrete).add_route(ALL_OUTPUTS, "mono", 1.0);
+}
+
 
 void blitz_state::megadpkr(machine_config &config)
 {
@@ -12712,6 +12821,98 @@ ROM_START( kmhpan )
 	ROM_LOAD( "82s129n.bin",  0x0000, 0x0100, BAD_DUMP CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) ) // borrowed from goldnpkr for now, just to see something
 ROM_END
 
+// Unknown golden poker type game.
+// Wing 8510-A / W90-3 PCB
+ROM_START( unkwingpkr )
+	ROM_REGION( 0x10000, "maincpu", 0 )  // unknown running in Wing W90 hardware 
+	ROM_LOAD( "4.12a", 0x2000, 0x2000, CRC(119e4f06) SHA1(d520aa1a862b93d5f9d2f8acf127842bb5441831) )
+	ROM_LOAD( "5.16a", 0x4000, 0x1000, CRC(5d974b4d) SHA1(1e14a0076e59d3bfd70921d18f8ca81cfecf61e0) )
+	ROM_CONTINUE(      0x6000, 0x1000 )
+	ROM_LOAD( "6.17a", 0x5000, 0x1000, CRC(84c6a3cd) SHA1(41fda1f76318771fe8bc475edd25b3c9540b6167) )
+	ROM_CONTINUE(      0x7000, 0x1000 )
+	
+	ROM_REGION( 0x6000, "gfx1", 0 )
+	ROM_FILL(          0x0000, 0x4000, 0x0000 )
+	ROM_LOAD( "3.6a",  0x4000, 0x2000, CRC(b7425e3a) SHA1(ec118389cadc026d19f13fda8ed31b586914c7f3) )
+
+	ROM_REGION( 0x6000, "gfx2", 0 )
+	ROM_LOAD( "2.4a",  0x0000, 0x2000, CRC(f475b43e) SHA1(b09544828a75c592e27fdc69646b594cbfcf0483) ) 
+	ROM_LOAD( "1.2a",  0x2000, 0x2000, CRC(b85e1275) SHA1(1de37c634643e5ddde0a16a80a9c16625bebfb08) )
+	ROM_COPY( "gfx1",  0x4800, 0x4000, 0x0800 ) 
+
+	ROM_REGION( 0x0100, "proms", 0 )  // borrowed from parent, for now...
+	ROM_LOAD( "tbp24s10n.7d",  0x0000, 0x0100, CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) )
+
+	ROM_REGION( 0x0300, "proms2", 0 )  // the real ones...
+	ROM_LOAD( "r_82s129an.1c", 0x0000, 0x0100, CRC(2a16af3f) SHA1(4fd31a8e8c2cc4b548336438c407bb76548097ee) )
+	ROM_LOAD( "g_82s129an.2c", 0x0000, 0x0100, CRC(4b7d0f43) SHA1(523ccf38ad954d959d6bb862eb8358d180d4b4aa) )
+	ROM_LOAD( "b_82s129an.3c", 0x0000, 0x0100, CRC(8c16681d) SHA1(fb3507dfbf2bdd5552e0024152e63e3408f435eb) )
+ROM_END
+
+
+/*
+  ICP PCBs with daughterboard F40
+  (137 fever, 10 bet)
+
+  No lamps support.
+
+  TODO:
+  - Figure out the missing DIP switchs fuctions.
+  - Figure out hyperactivity on the PIA0 line CA2.
+
+*/
+ROM_START( unkicpf40 )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "137_7_10b_sub.bin",   0x6000, 0x1000, CRC(698a04c1) SHA1(f3e3cfef5ef3d517b2c1550c85d0be09f1fa17b1) )
+	ROM_LOAD( "137_8_10b_sub.bin",   0x7000, 0x1000, CRC(d5c43fce) SHA1(6797d9cd485791dba8be0d2136b6f713f9e2908e) )
+	ROM_LOAD( "r-300_f40_5_sub.bin", 0xf000, 0x1000, CRC(04c8797d) SHA1(ff20bab51ddff2cdce55a104f2ec536e38e42605) )
+
+	ROM_REGION( 0x3000, "gfx1", 0 )
+	ROM_FILL(          0x0000, 0x2000, 0x0000 ) // filling the R-G bitplanes
+	ROM_LOAD( "34.8a", 0x2000, 0x1000, CRC(52fd35d2) SHA1(ad8bf8c222ceb2e9b3b6d9033866867f1977c65f) )  // char ROM
+
+	ROM_REGION( 0x1800, "gfx2", 0 )
+	ROM_LOAD( "1.4a", 0x0000, 0x0800, CRC(f2f94661) SHA1(f37f7c0dff680fd02897dae64e13e297d0fdb3e7) )  // cards deck gfx, bitplane1
+	ROM_LOAD( "2.6a", 0x0800, 0x0800, CRC(6bbb1e2d) SHA1(51ee282219bf84218886ad11a24bc6a8e7337527) )  // cards deck gfx, bitplane2
+	ROM_COPY( "gfx1", 0x2800, 0x1000, 0x0800 )    // cards deck gfx, bitplane3. found in the 2nd quarter of the char rom
+
+	ROM_REGION( 0x0200, "proms", 0 )  // the second half has the palette for black background instead of blue.
+	ROM_LOAD( "137_82s131_bprom.bin", 0x0000, 0x0200, CRC(41ff6a5d) SHA1(a5a69b1ac6022fa2c51480250f875328ae44d7ff) )
+ROM_END
+
+/*
+  ICP PCBs with daughterboard F80
+  (137 fever, 50 bet)
+
+  No lamps support.
+
+  TODO:
+  - Figure out the missing DIP switchs fuctions.
+  - Figure out hyperactivity on the PIA0 line CA2.
+
+*/
+ROM_START( unkicpf80 )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "7_sub.bin",     0x6000, 0x1000, CRC(1075c73a) SHA1(6949b103e9a72dd688348359ce1b3c9c61911121) )
+	ROM_LOAD( "8_sub.bin",     0x7000, 0x1000, CRC(ac08a967) SHA1(1063751f8224ba66c3182d47011b9d779f06349f) )
+	ROM_LOAD( "9_f80_sub.bin", 0xf000, 0x1000, CRC(98d16359) SHA1(fa6b6da54a1bb819627073d5330c0c3e1f207bb4) )
+
+	ROM_REGION( 0x1800, "gfx1", 0 )
+	ROM_FILL(          0x0000, 0x1000, 0x0000 ) // filling the R-G bitplanes
+	ROM_LOAD( "4.8a", 0x1000, 0x0800, CRC(2c53493f) SHA1(9e71db51499294bb4b16e7d8013e5daf6f1f9d18) )  // char ROM
+
+	ROM_REGION( 0x1800, "gfx2", 0 )
+	ROM_LOAD( "1.4a", 0x0000, 0x0800, CRC(f2f94661) SHA1(f37f7c0dff680fd02897dae64e13e297d0fdb3e7) )  // cards deck gfx, bitplane1
+	ROM_LOAD( "2.6a", 0x0800, 0x0800, CRC(6bbb1e2d) SHA1(51ee282219bf84218886ad11a24bc6a8e7337527) )  // cards deck gfx, bitplane2
+	ROM_LOAD( "3.7a", 0x1000, 0x0800, CRC(6e3e9b1d) SHA1(14eb8d14ce16719a6ad7d13db01e47c8f05955f0) )  // cards deck gfx, bitplane3
+
+	ROM_REGION( 0x0200, "proms", 0 )  // the second half has the palette for black background instead of blue.
+	ROM_LOAD( "82s131.bin", 0x0000, 0x0200, CRC(41ff6a5d) SHA1(a5a69b1ac6022fa2c51480250f875328ae44d7ff) )
+//	ROM_LOAD( "82s131.bin", 0x0000, 0x0100, CRC(41ff6a5d) SHA1(a5a69b1ac6022fa2c51480250f875328ae44d7ff) )
+//	ROM_CONTINUE(           0x0000, 0x0100 )
+ROM_END
+
+
 /*********************************************
 *                Driver Init                 *
 *********************************************/
@@ -13423,6 +13624,12 @@ GAMEL( 198?, lespenduj, 0,        lespendu, lespendu, goldnpkr_state, init_lespe
 GAME(  198?, icproul,   0,        icproul,  icproul,  goldnpkr_state, empty_init,    ROT0,   "<unknown>",                "Roulette (ICP-1 PCB)",                    0 )  // password protected
 
 GAME(  199?, kmhpan,    0,        kmhpan,   kmhpan,   goldnpkr_state, empty_init,    ROT0,   "PAN Electronics",          "Kaimen Hu (PAN Electronics)",             MACHINE_NOT_WORKING )
+
+GAME(  198?, unkwingpkr,goldnpkr, goldnpkr, goldnpkr, goldnpkr_state, empty_init,    ROT0,   "<unknown>",                "Unknown poker (Wing 8510-A / W90-3 PCB)", MACHINE_NOT_WORKING )
+
+GAME(  198?, unkicpf40, 0,        unkicpf40, unkicpf40, goldnpkr_state, empty_init,  ROT0,   "<unknown>",                "ICP F40 poker (137 Fever, 10 bet)",       0 )
+GAME(  198?, unkicpf80, 0,        unkicpf40, unkicpf40, goldnpkr_state, empty_init,  ROT0,   "<unknown>",                "ICP F80 poker (137 Fever, 50 bet)",       0 )
+
 
 /*************************************** SETS W/IRQ0 ***************************************/
 
