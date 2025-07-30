@@ -54,8 +54,7 @@ System notes:
 Glitch list!
 
     All games:
-        Flip screen/Cocktail Mode is unsupported (offsetted screens, and also Irem Skins Game
-        hangs at title screen when flip is enabled), it's also unknown where exactly it's tied.
+        Flip screen/Cocktail Mode is unsupported (offsetted screens)
 
     Gunforce:
         Animated water sometimes doesn't appear on level 5 (but it
@@ -240,7 +239,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(m92_state::scanline_interrupt)
 
 /*****************************************************************************/
 
-void m92_state::coincounter_w(uint8_t data)
+void m92_state::coincounter_w(u8 data)
 {
 	machine().bookkeeping().coin_counter_w(0, data & 0x01);
 	machine().bookkeeping().coin_counter_w(1, data & 0x02);
@@ -249,27 +248,22 @@ void m92_state::coincounter_w(uint8_t data)
 	/* Bit 0x40 set in Blade Master test mode input check */
 }
 
-void m92_state::bankswitch_w(uint8_t data)
+void m92_state::bankswitch_w(u8 data)
 {
 	m_mainbank->set_entry((data & 0x06) >> 1);
 	if (data & 0xf9)
 		logerror("%05x: bankswitch %04x\n", m_maincpu->pc(), data);
 }
 
-int m92_state::sprite_busy_r()
-{
-	return m_sprite_buffer_busy;
-}
-
 template<int Layer>
-void m92_state::pf_control_w(offs_t offset, uint16_t data, uint16_t mem_mask)
+void m92_state::pf_control_w(offs_t offset, u16 data, u16 mem_mask)
 {
 	COMBINE_DATA(&m_pf_layer[Layer].control[offset]);
 }
 
 /*****************************************************************************/
 
-void m92_state::sound_reset_w(uint16_t data)
+void m92_state::sound_reset_w(u16 data)
 {
 	if (m_soundcpu)
 		m_soundcpu->set_input_line(INPUT_LINE_RESET, (data) ? CLEAR_LINE : ASSERT_LINE);
@@ -280,9 +274,9 @@ void m92_state::sound_reset_w(uint16_t data)
 void m92_state::m92_base_map(address_map &map)
 {
 	map(0xe0000, 0xeffff).ram(); // System ram
-	map(0xf8000, 0xf87ff).ram().share("spriteram");
+	map(0xf8000, 0xf87ff).rw(FUNC(m92_state::spriteram_r), FUNC(m92_state::spriteram_w));
 	map(0xf8800, 0xf8fff).rw(FUNC(m92_state::paletteram_r), FUNC(m92_state::paletteram_w));
-	map(0xf9000, 0xf900f).w(FUNC(m92_state::spritecontrol_w)).share("spritecontrol");
+	map(0xf9000, 0xf900f).w(FUNC(m92_state::dmacontrol_w)).share("dmacontrol");
 	map(0xf9800, 0xf9801).w(FUNC(m92_state::videocontrol_w));
 	map(0xffff0, 0xfffff).rom().region("maincpu", 0x7fff0);
 }
@@ -322,6 +316,7 @@ void m92_state::majtitl2_map(address_map &map)
 void nbb2b_state::nbbatman2bl_map(address_map &map)
 {
 	m92_banked_map(map);
+	map(0xf8800, 0xf8fff).rw(m_palette, FUNC(palette_device::read16), FUNC(palette_device::write16));
 
 	// disable for now, it has different sprite hardware
 	map(0xf8000, 0xf87ff).unmaprw();
@@ -352,9 +347,12 @@ void m92_state::m92_banked_portmap(address_map &map)
 	map(0x20, 0x20).w(FUNC(m92_state::bankswitch_w));
 }
 
-void m92_state::oki_bank_w(uint16_t data)
+void ppan_state::ppan_map(address_map &map)
 {
-	m_oki->set_rom_bank((data+1) & 0x3); // +1?
+	m92_map(map);
+	map(0xf8800, 0xf8fff).rw(m_palette, FUNC(palette_device::read16), FUNC(palette_device::write16));
+	map(0xf9000, 0xf900f).nopw();
+	map(0xf9800, 0xf9801).nopw();
 }
 
 void ppan_state::ppan_portmap(address_map &map)
@@ -364,7 +362,7 @@ void ppan_state::ppan_portmap(address_map &map)
 	map(0x02, 0x02).w(FUNC(ppan_state::coincounter_w));
 	map(0x04, 0x05).portr("DSW");
 	map(0x06, 0x07).portr("P3_P4");
-	map(0x10, 0x11).w(FUNC(ppan_state::oki_bank_w));
+	map(0x10, 0x10).lw8(NAME([this] (u8 data) { m_oki->set_rom_bank(data & 3); }));
 	map(0x18, 0x18).rw(m_oki, FUNC(okim6295_device::read), FUNC(okim6295_device::write));
 	map(0x40, 0x43).rw(m_upd71059c, FUNC(pic8259_device::read), FUNC(pic8259_device::write)).umask16(0x00ff);
 	map(0x80, 0x87).w(FUNC(ppan_state::pf_control_w<0>));
@@ -401,7 +399,7 @@ static INPUT_PORTS_START( m92_2player )
 	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_SERVICE )
 	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(FUNC(m92_state::sprite_busy_r))
+	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(FUNC(m92_state::dma_busy_r))
 	/* DIP switch bank 3 */
 	PORT_DIPUNKNOWN_DIPLOC( 0x0100, 0x0100, "SW3:1" )
 	PORT_DIPUNKNOWN_DIPLOC( 0x0200, 0x0200, "SW3:2" )
@@ -855,16 +853,21 @@ static const gfx_layout spritelayout2 =
 };
 
 static GFXDECODE_START( gfx_m92 )
+	GFXDECODE_ENTRY( "gfx1", 0, charlayout,   0, 512 )
+	GFXDECODE_ENTRY( "gfx2", 0, spritelayout, 0, 512 )
+GFXDECODE_END
+
+static GFXDECODE_START( gfx_psoldier )
+	GFXDECODE_ENTRY( "gfx1", 0, charlayout,    0, 512 )
+	GFXDECODE_ENTRY( "gfx2", 0, spritelayout2, 0, 512 )
+GFXDECODE_END
+
+static GFXDECODE_START( gfx_ppan )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout,   0, 128 )
 	GFXDECODE_ENTRY( "gfx2", 0, spritelayout, 0, 128 )
 GFXDECODE_END
 
-static GFXDECODE_START( gfx_psoldier )
-	GFXDECODE_ENTRY( "gfx1", 0, charlayout,    0, 128 )
-	GFXDECODE_ENTRY( "gfx2", 0, spritelayout2, 0, 128 )
-GFXDECODE_END
-
-static const gfx_layout bootleg_charlayout =
+static const gfx_layout nbbatman2bl_charlayout =
 {
 	8,8,
 	RGN_FRAC(1,1),
@@ -875,7 +878,7 @@ static const gfx_layout bootleg_charlayout =
 	8*32
 };
 
-static const gfx_layout bootleg_spritelayout =
+static const gfx_layout nbbatman2bl_spritelayout =
 {
 	16,16,
 	RGN_FRAC(1,1),
@@ -886,10 +889,9 @@ static const gfx_layout bootleg_spritelayout =
 	1024
 };
 
-
-static GFXDECODE_START( gfx_bootleg )
-	GFXDECODE_ENTRY( "gfx1", 0, bootleg_charlayout,   0, 128 )
-	GFXDECODE_ENTRY( "gfx2", 0, bootleg_spritelayout, 0, 128 )
+static GFXDECODE_START( gfx_nbbatman2bl )
+	GFXDECODE_ENTRY( "gfx1", 0, nbbatman2bl_charlayout,   0, 128 )
+	GFXDECODE_ENTRY( "gfx2", 0, nbbatman2bl_spritelayout, 0, 128 )
 GFXDECODE_END
 
 
@@ -899,12 +901,12 @@ GFXDECODE_END
 void m92_state::m92(machine_config &config)
 {
 	/* basic machine hardware */
-	V33(config, m_maincpu, XTAL(18'000'000)/2);
+	V33(config, m_maincpu, 18_MHz_XTAL / 2);
 	m_maincpu->set_addrmap(AS_PROGRAM, &m92_state::m92_map);
 	m_maincpu->set_addrmap(AS_IO, &m92_state::m92_portmap);
 	m_maincpu->set_irq_acknowledge_callback("upd71059c", FUNC(pic8259_device::inta_cb));
 
-	V35(config, m_soundcpu, XTAL(14'318'181));
+	V35(config, m_soundcpu, 14.318181_MHz_XTAL);
 	m_soundcpu->set_addrmap(AS_PROGRAM, &m92_state::sound_map);
 
 	PIC8259(config, m_upd71059c, 0);
@@ -913,16 +915,14 @@ void m92_state::m92(machine_config &config)
 	TIMER(config, "scantimer").configure_scanline(FUNC(m92_state::scanline_interrupt), "screen", 0, 1);
 
 	/* video hardware */
-	BUFFERED_SPRITERAM16(config, "spriteram");
-
 	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
-	m_screen->set_raw(XTAL(26'666'666)/4, 424, 80, 400, 262, 8, 248); /* 320 x 240 */
+	m_screen->set_raw(26.666666_MHz_XTAL / 4, 424, 80, 400, 262, 8, 248); /* 320 x 240 */
 	m_screen->set_screen_update(FUNC(m92_state::screen_update_m92));
 	m_screen->set_palette(m_palette);
 
 	GFXDECODE(config, m_gfxdecode, m_palette, gfx_m92);
 
-	PALETTE(config, m_palette).set_format(palette_device::xBGR_555, 1024);
+	PALETTE(config, m_palette).set_format(palette_device::xBGR_555, 0x2000);
 
 	/* sound hardware */
 	SPEAKER(config, "mono").front_center();
@@ -933,12 +933,12 @@ void m92_state::m92(machine_config &config)
 
 	GENERIC_LATCH_8(config, "soundlatch2").data_pending_callback().set(m_upd71059c, FUNC(pic8259_device::ir3_w));
 
-	ym2151_device &ymsnd(YM2151(config, "ymsnd", XTAL(14'318'181)/4));
+	ym2151_device &ymsnd(YM2151(config, "ymsnd", 14.318181_MHz_XTAL / 4));
 	ymsnd.irq_handler().set_inputline(m_soundcpu, NEC_INPUT_LINE_INTP0);
 	ymsnd.add_route(0, "mono", 0.40);
 	ymsnd.add_route(1, "mono", 0.40);
 
-	iremga20_device &ga20(IREMGA20(config, "irem", XTAL(14'318'181)/4));
+	iremga20_device &ga20(IREMGA20(config, "irem", 14.318181_MHz_XTAL / 4));
 	ga20.add_route(ALL_OUTPUTS, "mono", 1.0);
 }
 
@@ -947,9 +947,6 @@ void m92_state::m92_banked(machine_config &config)
 	m92(config);
 	m_maincpu->set_addrmap(AS_PROGRAM, &m92_state::m92_banked_map);
 	m_maincpu->set_addrmap(AS_IO, &m92_state::m92_banked_portmap);
-
-	// the 'banked' ROM setup also has a larger, banked palette
-	m_palette->set_format(palette_device::xBGR_555, 2048);
 }
 
 void m92_state::gunforce(machine_config &config)
@@ -1008,7 +1005,12 @@ void m92_state::hook(machine_config &config)
 void ppan_state::ppan(machine_config &config)
 {
 	m92(config);
+
+	m_maincpu->set_addrmap(AS_PROGRAM, &ppan_state::ppan_map);
 	m_maincpu->set_addrmap(AS_IO, &ppan_state::ppan_portmap);
+
+	m_palette->set_format(palette_device::xBGR_555, 0x400);
+	m_gfxdecode->set_info(gfx_ppan);
 
 	config.device_remove("soundcpu");
 	config.device_remove("soundlatch");
@@ -1036,8 +1038,6 @@ void m92_state::nbbatman(machine_config &config)
 {
 	m92_banked(config);
 	m_soundcpu->set_decryption_table(leagueman_decryption_table);
-
-	m_screen->set_screen_update(FUNC(m92_state::screen_update_nbbatman));
 }
 
 void m92_state::leaguemna(machine_config &config)
@@ -1055,7 +1055,8 @@ void nbb2b_state::nbbatman2bl(machine_config &config)
 
 	m_maincpu->set_addrmap(AS_PROGRAM, &nbb2b_state::nbbatman2bl_map);
 
-	m_gfxdecode->set_info(gfx_bootleg);
+	m_palette->set_format(palette_device::xBGR_555, 0x400);
+	m_gfxdecode->set_info(gfx_nbbatman2bl);
 
 	/* 8951 MCU as sound CPU */
 	/* OKI6295 (AD-65) as sound */
@@ -1756,13 +1757,13 @@ ROM_START( ppan )
 
 	ROM_REGION( 0x100000, "oki", 0) // OKI Samples copied here
 	ROM_COPY( "okidata",  0x000000, 0x000000, 0x20000 )
-	ROM_COPY( "okidata",  0x000000, 0x020000, 0x20000 )
+	ROM_COPY( "okidata",  0x020000, 0x020000, 0x20000 )
 	ROM_COPY( "okidata",  0x000000, 0x040000, 0x20000 )
-	ROM_COPY( "okidata",  0x020000, 0x060000, 0x20000 )
+	ROM_COPY( "okidata",  0x040000, 0x060000, 0x20000 )
 	ROM_COPY( "okidata",  0x000000, 0x080000, 0x20000 )
-	ROM_COPY( "okidata",  0x040000, 0x0a0000, 0x20000 )
+	ROM_COPY( "okidata",  0x060000, 0x0a0000, 0x20000 )
 	ROM_COPY( "okidata",  0x000000, 0x0c0000, 0x20000 )
-	ROM_COPY( "okidata",  0x060000, 0x0e0000, 0x20000 )
+	ROM_COPY( "okidata",  0x000000, 0x0e0000, 0x20000 )
 ROM_END
 
 
@@ -2569,17 +2570,9 @@ ROM_END
 /* has bankswitching */
 void m92_state::init_bank()
 {
-	uint8_t *ROM = memregion("maincpu")->base();
-
+	u8 *ROM = memregion("maincpu")->base();
 	m_mainbank->configure_entries(0, 4, &ROM[0x80000], 0x20000);
 }
-
-/* TODO: figure out actual address map and other differences from real Irem h/w */
-/*
-void ppan_state::init_ppan()
-{
-}
-*/
 
 /***************************************************************************/
 
