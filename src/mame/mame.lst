@@ -20834,6 +20834,7 @@ slqz3
 tct2p
 tripslot
 tshs
+tshs101
 tswxp
 xypdk
 zhongguo
@@ -25483,6 +25484,7 @@ yieartf
 
 @source:konami/tutankhm.cpp
 tutankhm
+tutankhmb
 tutankhms
 
 @source:konami/twin16.cpp
@@ -34312,6 +34314,7 @@ rallyxa
 rallyxeg
 rallyxm
 rallyxmr
+rallyxtd
 savanna
 tactcian
 tactcian2
@@ -43847,6 +43850,9 @@ yizhix
 
 @source:skeleton/xbase09.cpp
 xbase09
+
+@source:skeleton/xinyun.cpp
+hongmxy
 
 @source:skeleton/xor100.cpp
 xor100
