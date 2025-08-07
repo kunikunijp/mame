@@ -22423,7 +22423,7 @@ citycon
 citycona
 cruisin
 
-@source:jaleco/ddayjlc.cpp
+@source:jaleco/dday.cpp
 ddayjlc
 ddayjlca
 
@@ -28626,9 +28626,6 @@ wg3dhfe
 spyhuntsp
 spyhuntpr
 
-@source:midway/sspeedr.cpp
-sspeedr
-
 @source:midway/starrider.cpp
 starridr
 starridrp3
@@ -33002,6 +32999,10 @@ rapidfira
 rapidfire
 tickee
 tutstomb
+
+@source:misc/timelimt.cpp
+progress
+timelimt
 
 @source:misc/tmspoker.cpp
 jlasvegas
@@ -44994,6 +44995,35 @@ fightrol
 rollace
 rollace2
 
+@source:taito/roundup.cpp
+desertdn
+dockman
+dockmanb
+dockmanc
+fitter
+fitterbl
+funnymou
+intrepid
+intrepid2
+intrepidb
+intrepidb2
+intrepidb3
+machomou
+portman
+portmanj
+roundup
+rtriv
+suprmous
+thehole
+thepit
+thepitj
+thepitu1
+thepitu2
+thepitu3
+theportr
+ttfitter
+zaryavos
+
 @source:taito/sbmjb.cpp
 bubbroul
 bubbroul17
@@ -45020,6 +45050,9 @@ slapshotj
 spdheat
 spdheatj
 
+@source:taito/sspeedr.cpp
+sspeedr
+
 @source:taito/ssrj.cpp
 ssrj
 
@@ -45042,6 +45075,9 @@ sqixb2
 sqixr1
 sqixr0
 sqixu
+
+@source:taito/suprridr.cpp
+suprridr
 
 @source:taito/taito_b.cpp
 ashura
@@ -46044,39 +46080,6 @@ sapizps2
 sapizps3
 sapizps3a
 sapizps3b
-
-@source:thepit/thepit.cpp
-desertdn
-dockman
-dockmanb
-dockmanc
-fitter
-fitterbl
-funnymou
-intrepid
-intrepid2
-intrepidb
-intrepidb2
-intrepidb3
-machomou
-portman
-portmanj
-roundup
-rtriv
-suprmous
-thehole
-thepit
-thepitj
-thepitu1
-thepitu2
-thepitu3
-theportr
-ttfitter
-zaryavos
-
-@source:thepit/timelimt.cpp
-progress
-timelimt
 
 @source:thomson/thomson.cpp
 mo5
@@ -47732,9 +47735,6 @@ meteor
 meteors
 spcforc2
 spcforce
-
-@source:venture/suprridr.cpp
-suprridr
 
 @source:verifone/tranz330.cpp
 tranz330
