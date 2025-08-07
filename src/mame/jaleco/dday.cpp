@@ -7,15 +7,19 @@ D-DAY   (c)Jaleco 1984
 TODO:
 - unused upper sprite color bank;
 - improve sound comms, sometimes BGM becomes silent;
-- identify & dump MCU;
+- identify protection chip;
 
--------------------------------------------------------
+--------------------------------------------------------------------------------
 Is it 1984 or 1987 game ?
 There's text inside rom "1987.07    BY  ELS"
 
+Trivia: E.L.S. = the subcontractor that also developed Commando for Sega (the coin
+sound effect is the same as well if you overclock the AY a bit). Jaleco Top Roller
+is also by them.
+
 $842f = lives
 
--------------------------------------------------------
+--------------------------------------------------------------------------------
 
     CPU  : Z80
     Sound: Z80 AY-3-8910(x2)
@@ -81,6 +85,7 @@ public:
 		m_palette(*this, "palette"),
 		m_soundlatch(*this, "soundlatch"),
 		m_dma(*this, "dma"),
+		m_bank(*this, "bank"),
 		m_mainram(*this, "mainram"),
 		m_spriteram(*this, "spriteram"),
 		m_videoram(*this, "videoram"),
@@ -103,12 +108,12 @@ private:
 	void char_bank_w(uint8_t data);
 	void bgvram_w(offs_t offset, uint8_t data);
 	void vram_w(offs_t offset, uint8_t data);
-	void sound_nmi_w(uint8_t data);
-	void main_nmi_w(uint8_t data);
+	void sound_nmi_enable_w(uint8_t data);
+	void main_nmi_enable_w(uint8_t data);
 	void bg0_w(uint8_t data);
 	void bg1_w(uint8_t data);
 	void bg2_w(uint8_t data);
-	void sound_w(uint8_t data);
+	void sound_irq_w(uint8_t data);
 	void flip_screen_w(uint8_t data);
 	TILE_GET_INFO_MEMBER(get_tile_info_bg);
 	TILE_GET_INFO_MEMBER(get_tile_info_fg);
@@ -119,12 +124,13 @@ private:
 	void sound_map(address_map &map) ATTR_COLD;
 
 	/* devices */
-	required_device<cpu_device> m_maincpu;
-	required_device<cpu_device> m_audiocpu;
+	required_device<z80_device> m_maincpu;
+	required_device<z80_device> m_audiocpu;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<palette_device> m_palette;
 	required_device<generic_latch_8_device> m_soundlatch;
 	required_device<i8257_device> m_dma;
+	required_memory_bank m_bank;
 
 	/* memory pointers */
 	required_shared_ptr<uint8_t> m_mainram;
@@ -140,13 +146,13 @@ private:
 	int32_t    m_bgadr = 0;
 
 	/* misc */
-	bool       m_sound_nmi_enable = false;
 	bool       m_main_nmi_enable = false;
+	bool       m_sound_nmi_enable = false;
+	bool       m_sound_irq_clock = false;
 	uint8_t    m_prot_addr = 0;
 
 	uint8_t dma_mem_r(offs_t offset);
 	void dma_mem_w(offs_t offset, u8 data);
-	void hrq_w(int state);
 	u8 dma_r();
 	void dma_w(u8 data);
 	u8 m_dma_latch = 0;
@@ -250,7 +256,8 @@ uint32_t dday_state::screen_update_dday(screen_device &screen, bitmap_ind16 &bit
 /*
     Protection device
 
-    24 pin IC with scratched surface, probably a mcu
+    24 pin IC with scratched surface, not an MCU.
+	Die has label "4828A", CD4828A or TC4828A is not known not exist.
 
     Pinout:
 
@@ -301,7 +308,7 @@ void dday_state::prot_w(offs_t offset, uint8_t data)
 
 void dday_state::char_bank_w(uint8_t data)
 {
-	m_char_bank = BIT(data,0);
+	m_char_bank = BIT(data, 0);
 	m_fg_tilemap->mark_all_dirty();
 	if(data & 0xfe)
 		logerror("Warning: char_bank_w with %02x\n",data);
@@ -323,14 +330,14 @@ void dday_state::vram_w(offs_t offset, uint8_t data)
 }
 
 
-void dday_state::sound_nmi_w(uint8_t data)
+void dday_state::sound_nmi_enable_w(uint8_t data)
 {
 	m_sound_nmi_enable = BIT(data, 0);
 	if (!m_sound_nmi_enable)
 		m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 }
 
-void dday_state::main_nmi_w(uint8_t data)
+void dday_state::main_nmi_enable_w(uint8_t data)
 {
 	m_main_nmi_enable = BIT(data, 0);
 	if (!m_main_nmi_enable)
@@ -353,13 +360,15 @@ void dday_state::bg2_w(uint8_t data)
 	if (m_bgadr > 2)
 		m_bgadr = 0;
 
-	membank("bank1")->set_entry(m_bgadr);
+	m_bank->set_entry(m_bgadr);
 }
 
-void dday_state::sound_w(uint8_t data)
+void dday_state::sound_irq_w(uint8_t data)
 {
-	m_soundlatch->write(data);
-	m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff); // Z80
+	// 7474 to audiocpu irq? (pulse is too short for direct assert/clear)
+	if (!BIT(data, 0) && m_sound_irq_clock)
+		m_audiocpu->set_input_line(0, HOLD_LINE);
+	m_sound_irq_clock = BIT(data, 0);
 }
 
 void dday_state::flip_screen_w(uint8_t data)
@@ -374,10 +383,10 @@ void dday_state::main_map(address_map &map)
 	map(0x9000, 0x93ff).ram().share("spriteram");
 	map(0x9400, 0x97ff).ram().w(FUNC(dday_state::vram_w)).share("videoram");
 	map(0x9800, 0x9fff).ram().w(FUNC(dday_state::bgvram_w)).share("bgram"); /* 9800-981f - videoregs */
-	map(0xa000, 0xdfff).bankr("bank1").nopw();
+	map(0xa000, 0xdfff).bankr("bank").nopw();
 	map(0xe000, 0xe008).rw(m_dma, FUNC(i8257_device::read), FUNC(i8257_device::write));
-	map(0xf000, 0xf000).w(FUNC(dday_state::sound_w));
-	map(0xf100, 0xf100).nopw(); // sound related (f/f irq trigger?)
+	map(0xf000, 0xf000).w(m_soundlatch, FUNC(generic_latch_8_device::write));
+	map(0xf100, 0xf100).w(FUNC(dday_state::sound_irq_w));
 	map(0xf080, 0xf080).portr("P2").w(FUNC(dday_state::char_bank_w));
 	map(0xf081, 0xf081).w(FUNC(dday_state::flip_screen_w));
 	// fn originally marked "LMSR"
@@ -388,7 +397,7 @@ void dday_state::main_map(address_map &map)
 	map(0xf084, 0xf084).w(FUNC(dday_state::bg0_w));
 	map(0xf085, 0xf085).w(FUNC(dday_state::bg1_w));
 	map(0xf086, 0xf086).w(FUNC(dday_state::bg2_w));
-	map(0xf101, 0xf101).w(FUNC(dday_state::main_nmi_w));
+	map(0xf101, 0xf101).w(FUNC(dday_state::main_nmi_enable_w));
 	map(0xf102, 0xf105).w(FUNC(dday_state::prot_w));
 	map(0xf000, 0xf000).portr("P1");
 	map(0xf100, 0xf100).portr("SYSTEM");
@@ -405,26 +414,26 @@ void dday_state::sound_map(address_map &map)
 	map(0x4000, 0x4000).w("ay1", FUNC(ay8910_device::address_w));
 	map(0x5000, 0x5000).rw("ay2", FUNC(ay8910_device::data_r), FUNC(ay8910_device::data_w));
 	map(0x6000, 0x6000).w("ay2", FUNC(ay8910_device::address_w));
-	map(0x7000, 0x7000).w(FUNC(dday_state::sound_nmi_w));
+	map(0x7000, 0x7000).w(FUNC(dday_state::sound_nmi_enable_w));
 }
 
 static INPUT_PORTS_START( dday )
 	// TODO: uses single input side for upright, dual for cocktail
 	PORT_START("P1")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(1)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_4WAY PORT_PLAYER(1)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN ) PORT_4WAY PORT_PLAYER(1)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_4WAY PORT_PLAYER(1)
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_JOYSTICK_LEFT ) PORT_4WAY PORT_PLAYER(1)
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_PLAYER(1)
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_PLAYER(1)
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_UNUSED )
 
 	PORT_START("P2")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(2) PORT_COCKTAIL
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(2) PORT_COCKTAIL
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(2) PORT_COCKTAIL
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(2) PORT_COCKTAIL
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_4WAY PORT_PLAYER(2) PORT_COCKTAIL
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN ) PORT_4WAY PORT_PLAYER(2) PORT_COCKTAIL
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_4WAY PORT_PLAYER(2) PORT_COCKTAIL
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_JOYSTICK_LEFT ) PORT_4WAY PORT_PLAYER(2) PORT_COCKTAIL
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_PLAYER(2) PORT_COCKTAIL
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_PLAYER(2) PORT_COCKTAIL
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_UNUSED )
@@ -479,17 +488,6 @@ static INPUT_PORTS_START( dday )
 	PORT_DIPSETTING(    0xf8, DEF_STR( On ) )
 INPUT_PORTS_END
 
-static const gfx_layout charlayout =
-{
-	8,8,
-	RGN_FRAC(1,2),
-	2,
-	{ RGN_FRAC(0,2), RGN_FRAC(1,2) },
-	{ 0, 1, 2, 3, 4, 5, 6, 7 },
-	{ 0*8,1*8,2*8,3*8,4*8,5*8,6*8,7*8 },
-	8*8
-};
-
 static const gfx_layout spritelayout =
 {
 	16,16,
@@ -502,9 +500,9 @@ static const gfx_layout spritelayout =
 };
 
 static GFXDECODE_START( gfx_dday )
-	GFXDECODE_ENTRY( "gfx1", 0, spritelayout,   0x000, 16 ) // upper 16 colors are unused
-	GFXDECODE_ENTRY( "gfx2", 0, charlayout,     0x000, 16 )
-	GFXDECODE_ENTRY( "gfx3", 0, charlayout,     0x100, 16 )
+	GFXDECODE_ENTRY( "gfx1", 0, spritelayout,     0x000, 16 ) // upper 16 colors are unused
+	GFXDECODE_ENTRY( "gfx2", 0, gfx_8x8x2_planar, 0x000, 16 )
+	GFXDECODE_ENTRY( "gfx3", 0, gfx_8x8x2_planar, 0x100, 16 )
 GFXDECODE_END
 
 void dday_state::vblank_irq(int state)
@@ -521,9 +519,11 @@ void dday_state::machine_start()
 {
 	save_item(NAME(m_char_bank));
 	save_item(NAME(m_bgadr));
-	save_item(NAME(m_sound_nmi_enable));
 	save_item(NAME(m_main_nmi_enable));
+	save_item(NAME(m_sound_nmi_enable));
+	save_item(NAME(m_sound_irq_clock));
 	save_item(NAME(m_prot_addr));
+	save_item(NAME(m_dma_latch));
 }
 
 void dday_state::machine_reset()
@@ -532,7 +532,9 @@ void dday_state::machine_reset()
 	m_bgadr = 0;
 	m_sound_nmi_enable = false;
 	m_main_nmi_enable = false;
+	m_sound_irq_clock = false;
 	m_prot_addr = 0;
+	m_dma_latch = 0;
 }
 
 void dday_state::dday_palette(palette_device &palette) const
@@ -572,14 +574,6 @@ void dday_state::dma_mem_w(offs_t offset, u8 data)
 	program.write_byte(offset, data);
 }
 
-void dday_state::hrq_w(int state)
-{
-	m_maincpu->set_input_line(Z80_INPUT_LINE_BUSRQ, state);
-
-	// TODO: why we need this?
-	m_dma->hlda_w(state);
-}
-
 u8 dday_state::dma_r()
 {
 	return m_dma_latch;
@@ -595,6 +589,7 @@ void dday_state::dday(machine_config &config)
 	/* basic machine hardware */
 	Z80(config, m_maincpu, 12_MHz_XTAL / 3);
 	m_maincpu->set_addrmap(AS_PROGRAM, &dday_state::main_map);
+	m_maincpu->busack_cb().set(m_dma, FUNC(i8257_device::hlda_w));
 
 	Z80(config, m_audiocpu, 12_MHz_XTAL / 4);
 	m_audiocpu->set_addrmap(AS_PROGRAM, &dday_state::sound_map);
@@ -602,7 +597,7 @@ void dday_state::dday(machine_config &config)
 	config.set_maximum_quantum(attotime::from_hz(6000));
 
 	I8257(config, m_dma, 12_MHz_XTAL / 3);
-	m_dma->out_hrq_cb().set(FUNC(dday_state::hrq_w));
+	m_dma->out_hrq_cb().set_inputline(m_maincpu, Z80_INPUT_LINE_BUSRQ);
 	m_dma->in_memr_cb().set(FUNC(dday_state::dma_mem_r));
 	m_dma->out_memw_cb().set(FUNC(dday_state::dma_mem_w));
 	m_dma->in_ior_cb<1>().set(FUNC(dday_state::dma_r));
@@ -628,9 +623,9 @@ void dday_state::dday(machine_config &config)
 
 	ay8910_device &ay1(AY8910(config, "ay1", 12_MHz_XTAL / 8));
 	ay1.port_a_read_callback().set(m_soundlatch, FUNC(generic_latch_8_device::read));
-	ay1.add_route(ALL_OUTPUTS, "mono", 1.0);
+	ay1.add_route(ALL_OUTPUTS, "mono", 0.5);
 
-	AY8910(config, "ay2", 12_MHz_XTAL / 8).add_route(ALL_OUTPUTS, "mono", 1.0);
+	AY8910(config, "ay2", 12_MHz_XTAL / 8).add_route(ALL_OUTPUTS, "mono", 0.5);
 }
 
 
@@ -651,14 +646,14 @@ ROM_START( ddayjlc )
 	ROM_LOAD( "19", 0x6000, 0x2000, CRC(5816f947) SHA1(2236bed3e82980d3e7de3749aef0fbab042086e6) )
 
 	ROM_REGION( 0x2000, "gfx2", 0 )
-	ROM_LOAD( "14", 0x1000, 0x1000, CRC(2c0e9bbe) SHA1(e34ab774d2eb17ddf51af513dbcaa0c51f8dcbf7) )
-	ROM_LOAD( "15", 0x0000, 0x1000, CRC(a6eeaa50) SHA1(052cd3e906ca028e6f55d0caa1e1386482684cbf) )
+	ROM_LOAD( "14", 0x0000, 0x1000, CRC(2c0e9bbe) SHA1(e34ab774d2eb17ddf51af513dbcaa0c51f8dcbf7) )
+	ROM_LOAD( "15", 0x1000, 0x1000, CRC(a6eeaa50) SHA1(052cd3e906ca028e6f55d0caa1e1386482684cbf) )
 
 	ROM_REGION( 0x2000, "gfx3", 0 )
-	ROM_LOAD( "12", 0x1000, 0x1000, CRC(7f7afe80) SHA1(e8a549b8a8985c61d3ba452e348414146f2bc77e) )
-	ROM_LOAD( "13", 0x0000, 0x1000, CRC(f169b93f) SHA1(fb0617162542d688503fc6618dd430308e259455) )
+	ROM_LOAD( "12", 0x0000, 0x1000, CRC(7f7afe80) SHA1(e8a549b8a8985c61d3ba452e348414146f2bc77e) )
+	ROM_LOAD( "13", 0x1000, 0x1000, CRC(f169b93f) SHA1(fb0617162542d688503fc6618dd430308e259455) )
 
-	ROM_REGION( 0xc0000, "user1", 0 )
+	ROM_REGION( 0xc0000, "terrain", 0 )
 	ROM_LOAD( "5",  0x00000, 0x2000, CRC(299b05f2) SHA1(3c1804bccb514bada4bed68a6af08db63a8f1b19) )
 	ROM_LOAD( "6",  0x02000, 0x2000, CRC(38ae2616) SHA1(62c96f32532f0d7e2cf1606a303d81ebb4aada7d) )
 	ROM_LOAD( "7",  0x04000, 0x2000, CRC(4210f6ef) SHA1(525d8413afabf97cf1d04ee9a3c3d980b91bde65) )
@@ -671,7 +666,7 @@ ROM_START( ddayjlc )
 	ROM_LOAD( "5p.bin",  0x00100, 0x0100, CRC(4fd96b26) SHA1(0fb9928ab6c4ee937cefcf82145a4c9d43ca8517) ) // background color lower data
 	ROM_LOAD( "4m.bin",  0x00200, 0x0100, CRC(e0ab9a8f) SHA1(77010c4039f9d408f40cea079c1ef56132ddbd2b) ) // sprite color upper data
 	ROM_LOAD( "5n.bin",  0x00300, 0x0100, CRC(61d85970) SHA1(189e9da3dade54936872b80893b1318e5fbfbe5e) ) // background color upper data
-	ROM_LOAD( "3l.bin",  0x00400, 0x0100, CRC(da6fe846) SHA1(e8386cf7f552facf2d1a5b7b63ca3d2f1801d215) ) // unknown
+	ROM_LOAD( "3l.bin",  0x00400, 0x0100, CRC(da6fe846) SHA1(e8386cf7f552facf2d1a5b7b63ca3d2f1801d215) ) // foreground tile color indices
 ROM_END
 
 ROM_START( ddayjlca )
@@ -691,14 +686,14 @@ ROM_START( ddayjlca )
 	ROM_LOAD( "19", 0x6000, 0x2000, CRC(5816f947) SHA1(2236bed3e82980d3e7de3749aef0fbab042086e6) )
 
 	ROM_REGION( 0x2000, "gfx2", 0 )
-	ROM_LOAD( "14", 0x1000, 0x1000, CRC(2c0e9bbe) SHA1(e34ab774d2eb17ddf51af513dbcaa0c51f8dcbf7) )
-	ROM_LOAD( "15", 0x0000, 0x1000, CRC(a6eeaa50) SHA1(052cd3e906ca028e6f55d0caa1e1386482684cbf) )
+	ROM_LOAD( "14", 0x0000, 0x1000, CRC(2c0e9bbe) SHA1(e34ab774d2eb17ddf51af513dbcaa0c51f8dcbf7) )
+	ROM_LOAD( "15", 0x1000, 0x1000, CRC(a6eeaa50) SHA1(052cd3e906ca028e6f55d0caa1e1386482684cbf) )
 
 	ROM_REGION( 0x2000, "gfx3", 0 )
-	ROM_LOAD( "12", 0x1000, 0x1000, CRC(7f7afe80) SHA1(e8a549b8a8985c61d3ba452e348414146f2bc77e) )
-	ROM_LOAD( "13", 0x0000, 0x1000, CRC(f169b93f) SHA1(fb0617162542d688503fc6618dd430308e259455) )
+	ROM_LOAD( "12", 0x0000, 0x1000, CRC(7f7afe80) SHA1(e8a549b8a8985c61d3ba452e348414146f2bc77e) )
+	ROM_LOAD( "13", 0x1000, 0x1000, CRC(f169b93f) SHA1(fb0617162542d688503fc6618dd430308e259455) )
 
-	ROM_REGION( 0xc0000, "user1", 0 )
+	ROM_REGION( 0xc0000, "terrain", 0 )
 	ROM_LOAD( "5",  0x00000, 0x2000, CRC(299b05f2) SHA1(3c1804bccb514bada4bed68a6af08db63a8f1b19) )
 	ROM_LOAD( "6",  0x02000, 0x2000, CRC(38ae2616) SHA1(62c96f32532f0d7e2cf1606a303d81ebb4aada7d) )
 	ROM_LOAD( "7",  0x04000, 0x2000, CRC(4210f6ef) SHA1(525d8413afabf97cf1d04ee9a3c3d980b91bde65) )
@@ -711,7 +706,7 @@ ROM_START( ddayjlca )
 	ROM_LOAD( "5p.bin",  0x00100, 0x0100, CRC(4fd96b26) SHA1(0fb9928ab6c4ee937cefcf82145a4c9d43ca8517) ) // background color lower data
 	ROM_LOAD( "4m.bin",  0x00200, 0x0100, CRC(e0ab9a8f) SHA1(77010c4039f9d408f40cea079c1ef56132ddbd2b) ) // sprite color upper data
 	ROM_LOAD( "5n.bin",  0x00300, 0x0100, CRC(61d85970) SHA1(189e9da3dade54936872b80893b1318e5fbfbe5e) ) // background color upper data
-	ROM_LOAD( "3l.bin",  0x00400, 0x0100, CRC(da6fe846) SHA1(e8386cf7f552facf2d1a5b7b63ca3d2f1801d215) ) // unknown
+	ROM_LOAD( "3l.bin",  0x00400, 0x0100, CRC(da6fe846) SHA1(e8386cf7f552facf2d1a5b7b63ca3d2f1801d215) ) // foreground tile color indices
 ROM_END
 
 
@@ -729,8 +724,8 @@ void dday_state::init_dday()
 		dst[newadr] = src[oldaddr];
 	}
 
-	membank("bank1")->configure_entries(0, 3, memregion("user1")->base(), 0x4000);
-	membank("bank1")->set_entry(0);
+	m_bank->configure_entries(0, 3, memregion("terrain")->base(), 0x4000);
+	m_bank->set_entry(0);
 }
 
 } // anonymous namespace

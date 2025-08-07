@@ -20807,6 +20807,7 @@ cjtljp
 extradrw
 fruitpar
 fruitpar206us
+gonefsh
 gonefsh2
 jhg3d
 jking02
@@ -31134,6 +31135,7 @@ moviecrd
 swisspkr
 
 @source:misc/goldnpkr.cpp
+137dash
 adpoker
 animpkr
 bchancep
@@ -31171,6 +31173,9 @@ bsuertev
 caspoker
 caspokera
 caspokerb
+dynchance
+dynchancf
+dynplus
 falcnwld
 falcnwlda
 falcnwldb
@@ -31200,6 +31205,7 @@ jokercar
 kmhpan
 lespendu
 lespenduj
+lfhouse
 maverik
 maxidpkr
 megadpkr
