@@ -16954,11 +16954,15 @@ caractn2
 cookrace
 disco
 discof
+dommy
+eggs
 lnc
 mmonkey
 mmonkeyj
 protenn
 protennb
+rockduck
+scregg
 sdtennis
 tisland
 wtennis
@@ -17377,12 +17381,6 @@ wizdfirea
 wizdfireu
 wolffang
 hangzo
-
-@source:dataeast/scregg.cpp
-dommy
-eggs
-rockduck
-scregg
 
 @source:dataeast/shootout.cpp
 shootout
