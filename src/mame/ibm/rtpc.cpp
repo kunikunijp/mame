@@ -98,6 +98,8 @@
 // busses and connectors
 #include "bus/isa/isa.h"
 #include "bus/isa/isa_cards.h"
+#include "bus/isa/amgda.h"
+#include "bus/isa/ega.h"
 #include "bus/isa/fdc.h"
 #include "bus/isa/ide.h"
 #include "bus/isa/mda.h"
@@ -141,7 +143,7 @@ public:
 
 protected:
 	virtual void machine_start() override ATTR_COLD;
-	virtual void machine_reset() override ATTR_COLD;
+	virtual void device_reset() override ATTR_COLD;
 
 	void iocc_mem_map(address_map &map);
 	template <bool SCC> void iocc_pio_map(address_map &map) ATTR_COLD;
@@ -262,8 +264,11 @@ void rtpc_state::machine_start()
 	m_crrb = 0xff;
 }
 
-void rtpc_state::machine_reset()
+void rtpc_state::device_reset()
 {
+	offs_t const mask = m_ipl.bytes() - 1;
+
+	m_cpu->space(AS_PROGRAM).install_rom(0, mask, 0x00ff'ffff & ~mask, m_ipl);
 }
 
 void rtpc_state::init_common()
@@ -806,13 +811,16 @@ void rtpc_state::common(machine_config &config)
 void rtpc_isa8_cards(device_slot_interface &device)
 {
 	device.option_add("mda", ISA8_MDA);
+	device.option_add("ega", ISA8_EGA);
+	device.option_add("fdc", ISA8_FDC_AT);
 }
 
 void rtpc_isa16_cards(device_slot_interface &device)
 {
-	// FIXME: need 16-bit combined hdc/fdc card
-	device.option_add("fdc", ISA8_FDC_AT);
+	device.option_add("amgda", ISA16_AMGDA);
 	device.option_add("ide", ISA16_IDE);
+
+	rtpc_isa8_cards(device);
 }
 
 void rtpc_state::ibm6150(machine_config &config)
