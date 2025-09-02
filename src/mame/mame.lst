@@ -20642,6 +20642,8 @@ magoddsd
 match98
 mbs2euro
 megaline
+missbingo
+missbingoc
 moonlght
 moonlghta
 moonlghtb
@@ -42468,6 +42470,9 @@ stinger2
 wiz
 wizt
 wizta
+
+@source:sequential/prophet5.cpp
+prophet5rev30
 
 @source:sequential/prophet600.cpp
 prpht600
