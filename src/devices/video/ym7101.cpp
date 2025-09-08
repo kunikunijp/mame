@@ -107,6 +107,8 @@ void ym7101_device::device_reset()
 	m_command.address = 0;
 	m_command.code = 0;
 
+	m_vr = false;
+	m_vram_mask = 0xffff;
 	m_de = false;
 	m_ie0 = false;
 	m_vint_pending = 0;
@@ -257,7 +259,7 @@ u16 ym7101_device::data_port_r(offs_t offset, u16 mem_mask)
 	}
 
 	m_command.address += m_auto_increment;
-	m_command.address &= 0x1ffff;
+	m_command.address &= m_vram_mask;
 
 	return res;
 }
@@ -309,7 +311,7 @@ void ym7101_device::data_port_w(offs_t offset, u16 data, u16 mem_mask)
 	}
 
 	m_command.address += m_auto_increment;
-	m_command.address &= 0x1ffff;
+	m_command.address &= m_vram_mask;
 }
 
 // https://gendev.spritesmind.net/forum/viewtopic.php?t=768
@@ -450,6 +452,10 @@ void ym7101_device::regs_map(address_map &map)
 		{
 			m_vint_callback(0);
 		}
+
+		// teradrive pzlcnst enables 128 KB mode
+		// sspinj tends to write out of bounds in normal 64 KB mode
+		m_vram_mask = (m_vr << 16) | 0xffff;
 		LOGREGS("\tVR: %d DE: %d IE0: %d M1: %d M2: %d M5: %d\n"
 			, m_vr
 			, m_de
@@ -488,6 +494,7 @@ void ym7101_device::regs_map(address_map &map)
 		);
 	}));
 	map(6, 6).lw8(NAME([this] (u8 data) {
+		// tile bank
 		LOGREGS("#06: 128kB Sprite Table %02x (%d)\n", data , BIT(data, 5));
 	}));
 	map(7, 7).lw8(NAME([this] (u8 data) {
@@ -726,8 +733,8 @@ void ym7101_device::prepare_sprite_line(int scanline)
 			//   with X and Y at max values (0xffff).
 			//   Looks just a quick way to draw nothing that works by chance.
 			// - rambo3 references link = 80 during attract.
-			if (link != 0x7f)
-				popmessage("ym7101: attempt to access link $%d, aborted", link);
+			//if (link != 0x7f)
+			//	popmessage("ym7101: attempt to access link $%d, aborted", link);
 			break;
 		}
 
@@ -772,23 +779,30 @@ void ym7101_device::prepare_tile_line(int scanline)
 	const u16 window_h_page = h40_mode ? 64 : 32;
 	const u16 window_v_page = 32;
 
-	const int min_y = m_down ? m_wvp * 8 : 0;
-	const int max_y = m_down ? 223 : (m_wvp * 8) - 1;
+	const int win_min_y = m_down ? m_wvp * 8 : 0;
+	const int win_max_y = m_down ? 223 : (m_wvp * 8) - 1;
 
-	const bool is_window_y_layer = scanline == std::clamp(scanline, min_y, max_y);
+	// window is mutually exclusive (i.e. WVP has priority over WHP)
+	// cfr. "Window Test by Fonzie" test ROM
+	const bool is_window_y_layer = scanline == std::clamp(scanline, win_min_y, win_max_y);
 
-	int min_x = -1;
-	int max_x = -1;
+	int win_min_x = -2;
+	int win_max_x = -2;
 
 	if (is_window_y_layer)
 	{
-		// TODO: this is intentionally reversed, until I understand what's happening here
-		min_x = m_rigt ? 0 : m_whp * 2;
-		max_x = m_rigt ? m_whp * 2 : 40;
+		win_min_x = 0;
+		win_max_x = char_num;
 	}
-
-//	if (min_x != -1 && max_x != -1)
-//		popmessage("X %d %d Y %d %d", min_x, max_x, min_y, max_y);
+	else
+	{
+		// TODO: mark first tile with hscroll window bug
+		win_min_x = m_rigt ? m_whp * 2 : 0;
+		win_max_x = m_rigt ? char_num : m_whp * 2 - 1;
+		// disable window layer
+		if (win_min_x >= win_max_x)
+			win_min_x = win_max_x = -2;
+	}
 
 	// mode 1 is <prohibited>, used by d_titov2
 	const u16 scroll_x_mode_masks[] = { 0, 0x7, 0xf8, 0xff };
@@ -807,13 +821,13 @@ void ym7101_device::prepare_tile_line(int scanline)
 		u16 scrollx_a_frac;
 		u16 scrolly_a_frac;
 
-		if (is_window_y_layer && x == std::clamp(x, min_x, max_x))
+		if (x == std::clamp(x, win_min_x, win_max_x))
 		{
 			const u16 vcolumn_a = scanline & ((window_v_page * 8) - 1);
 			const u32 tile_offset_a = (x & ((window_h_page * 1) - 1)) + ((vcolumn_a >> 3) * (window_h_page >> 0));
 			scrolly_a_frac = 0;
 			scrollx_a_frac = 0;
-			id_flags_a = m_vram[((m_window_name_table >> 1) + tile_offset_a) & 0x1ffff];
+			id_flags_a = m_vram[((m_window_name_table >> 1) + tile_offset_a) & m_vram_mask];
 			tile_a = id_flags_a & vram_mask;
 			flipx_a = BIT(id_flags_a, 11) ? 4 : 3;
 			flipy_a = BIT(id_flags_a, 12) ? 7 : 0;
@@ -829,7 +843,7 @@ void ym7101_device::prepare_tile_line(int scanline)
 			scrolly_a_frac = scrolly_a & 7;
 			scrollx_a_frac = scrollx_a & 7;
 
-			id_flags_a = m_vram[((m_plane_a_name_table >> 1) + tile_offset_a) & 0x1ffff];
+			id_flags_a = m_vram[((m_plane_a_name_table >> 1) + tile_offset_a) & m_vram_mask];
 			tile_a = id_flags_a & vram_mask;
 			flipx_a = BIT(id_flags_a, 11) ? 4 : 3;
 			flipy_a = BIT(id_flags_a, 12) ? 7 : 0;
@@ -843,7 +857,7 @@ void ym7101_device::prepare_tile_line(int scanline)
 		const u16 scrolly_b_frac = scrolly_b & 7;
 		const u16 vcolumn_b = (scrolly_b + scanline) & ((v_page * 8) - 1);
 		const u32 tile_offset_b = ((x - (scrollx_b >> 3)) & ((h_page * 1) - 1)) + ((vcolumn_b >> 3) * (h_page >> 0));
-		const u16 id_flags_b = m_vram[((m_plane_b_name_table >> 1) + tile_offset_b) & 0x1ffff];
+		const u16 id_flags_b = m_vram[((m_plane_b_name_table >> 1) + tile_offset_b) & m_vram_mask];
 		const u16 tile_b = id_flags_b & vram_mask;
 		const u8 flipx_b = BIT(id_flags_b, 11) ? 4 : 3;
 		const u8 flipy_b = BIT(id_flags_b, 12) ? 7 : 0;
@@ -985,7 +999,7 @@ TIMER_CALLBACK_MEMBER(ym7101_device::dma_callback)
 	const u8 code_dest = m_dma.mode == VRAM_COPY ? AS_VDP_VRAM : (m_command.code >> 1) & 3;
 	assert(code_dest != 3);
 
-	const u32 mask_values[] = { 0x1ffff, 0x7f, 0x7f, 0 };
+	const u32 mask_values[] = { m_vram_mask, 0x7f, 0x7f, 0 };
 	u32 mask = mask_values[code_dest];
 	const u32 src = m_dma.source_address;
 	const u32 dst = m_command.address;
@@ -1015,7 +1029,7 @@ TIMER_CALLBACK_MEMBER(ym7101_device::dma_callback)
 
 	m_dma.source_address = (m_dma.source_address & 0xfe0000) | ((m_dma.source_address + 2) & 0x1ffff);
 	m_command.address += m_auto_increment;
-	m_command.address &= 0x1ffff;
+	m_command.address &= m_vram_mask;
 
 	m_dma.length --;
 	if (m_dma.length == 0)
