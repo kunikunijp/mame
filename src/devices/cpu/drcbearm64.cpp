@@ -104,8 +104,6 @@ subroutine calls at SP + 0x08, SP + 0x18, SP + 0x28, etc. until reaching
 the location FP points to.
 
 TODO:
-* The rounding mode set with SETFMOD should be applied for floating point
-  arithmetic.
 * Some operations do not clear the upper bits of integer registers when
   they should (e.g. 32-bit MOV with the same register as source and
   destination).
@@ -506,6 +504,7 @@ private:
 
 	struct near_state
 	{
+		uint64_t saved_fpcr;
 		uint32_t emulated_flags;
 	};
 
@@ -1628,7 +1627,10 @@ void drcbe_arm64::reset()
 	a.emitProlog(frame);
 
 	get_imm_absolute(a, BASE_REG, uintptr_t(m_baseptr));
+
+	a.mrs(SCRATCH_REG1, a64::Predicate::SysReg::kFPCR);
 	emit_ldr_mem(a, FLAGS_REG.w(), &m_near.emulated_flags);
+	emit_str_mem(a, SCRATCH_REG1, &m_near.saved_fpcr);
 
 	a.emitArgsAssignment(frame, args);
 
@@ -1637,6 +1639,9 @@ void drcbe_arm64::reset()
 	// generate exit point
 	m_exit = dst + a.offset();
 	a.bind(a.newNamedLabel("exit_point"));
+
+	emit_ldr_mem(a, SCRATCH_REG1, &m_near.saved_fpcr);
+	a.msr(a64::Predicate::SysReg::kFPCR, SCRATCH_REG1);
 
 	a.mov(a64::sp, a64::x29);
 
@@ -2256,7 +2261,11 @@ void drcbe_arm64::op_setfmod(a64::Assembler &a, const uml::instruction &inst)
 		a.and_(scratch, src, 3);
 	}
 
+	a.mrs(TEMP_REG2, a64::Predicate::SysReg::kFPCR);
 	emit_strb_mem(a, scratch.w(), &m_state.fmod);
+	a.sub(scratch.w(), scratch.w(), 1);
+	a.bfi(TEMP_REG2, scratch.x(), 22, 2);
+	a.msr(a64::Predicate::SysReg::kFPCR, TEMP_REG2);
 }
 
 void drcbe_arm64::op_getfmod(a64::Assembler &a, const uml::instruction &inst)
