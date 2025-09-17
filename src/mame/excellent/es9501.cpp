@@ -24,10 +24,11 @@ Undumped games known to run on this PCB:
 * Multi Spin
 
 TODO
-- stuck at EEPROM error;
 - IRQs are wrong;
-- inputs, outputs, NVRAM once running;
-- verify colors and possible third layer once running;
+- EEPROM write doesn't work;
+- outputs, hopper;
+- verify colors and possible third layer;
+- d9flower needs correct EEPROM;
 - device-ify ES-9409 and share with excellent/dblcrown.cpp.
 */
 
@@ -36,6 +37,7 @@ TODO
 #include "cpu/m68000/m68000.h"
 #include "machine/bankdev.h"
 #include "machine/eepromser.h"
+#include "machine/nvram.h"
 #include "machine/watchdog.h"
 #include "sound/ay8910.h"
 #include "sound/ymz280b.h"
@@ -197,7 +199,7 @@ void es9501_state::program_map(address_map &map)
 {
 	map.unmap_value_high();
 	map(0x000000, 0x07ffff).rom();
-	map(0x3fc000, 0x3fffff).ram();
+	map(0x3fc000, 0x3fffff).ram().share("nvram");
 	map(0x400000, 0x401fff).m(m_vram_bank[0], FUNC(address_map_bank_device::amap8)).umask16(0xff00);
 	map(0x402000, 0x403fff).m(m_vram_bank[1], FUNC(address_map_bank_device::amap8)).umask16(0xff00);
 	map(0x404000, 0x405fff).ram(); // third layer?
@@ -207,10 +209,11 @@ void es9501_state::program_map(address_map &map)
 	map(0x407e00, 0x407e00).lr8(NAME([this] () -> uint8_t { return m_vram_bank_entry[1]; })).w(FUNC(es9501_state::vram_bank_w<1>));
 	map(0x407e02, 0x407e02).lr8(NAME([this] () -> uint8_t { return m_vram_bank_entry[0]; })).w(FUNC(es9501_state::vram_bank_w<0>));
 	// map(0x407e08, 0x407e09).ram(); // ?
-	map(0x407e0a, 0x407e0b).lr8(NAME([this] () -> uint16_t { return machine().rand() & 0x00ff; })); // TODO: IRQ related?
-	map(0x600000, 0x600001).portr("IN0");
-	map(0x600002, 0x600003).portr("IN1");
-	map(0x600004, 0x600005).portr("DSW");
+	map(0x407e0a, 0x407e0b).lr8(NAME([this] () -> uint16_t { return machine().rand() & 0x00ff; })).nopw(); // TODO: IRQ related?
+	map(0x600000, 0x600001).portr("IN0"); // w are outputs
+	map(0x600002, 0x600003).portr("IN1"); // w are outputs
+	map(0x600004, 0x600005).portr("IN2"); // w are outputs
+	map(0x600006, 0x600007).portr("DSW");
 	map(0x600008, 0x600009).portr("EEPROM_IN");
 	map(0x600008, 0x600008).w(FUNC(es9501_state::watchdog_eeprom_w));
 	map(0x700000, 0x700003).rw("ymz", FUNC(ymz280b_device::read), FUNC(ymz280b_device::write)).umask16(0xff00); // ??
@@ -223,55 +226,57 @@ void es9501_state::vram_map(address_map &map)
 }
 
 
+// inputs according to test mode
+// PCB has one bank of switches but settings are done via software
 static INPUT_PORTS_START( specd9 )
 	PORT_START("IN0")
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00ff, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_START1 )
+	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_GAMBLE_BET )
+	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_GAMBLE_TAKE )
+	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_GAMBLE_D_UP )
+	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_GAMBLE_LOW ) // Small
+	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_GAMBLE_HIGH ) // Big
+	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN ) // no effect in test mode
+	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_CUSTOM ) // TODO: hopper line in
 
 	PORT_START("IN1")
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00ff, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_UNKNOWN ) // no effect in test mode
+	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_UNKNOWN ) // no effect in test mode
+	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_UNKNOWN ) // no effect in test mode
+	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_UNKNOWN ) // no effect in test mode
+	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_UNKNOWN ) // no effect in test mode
+	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_UNKNOWN ) // no effect in test mode
+	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_GAMBLE_KEYIN )
+	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_GAMBLE_KEYOUT )
+
+	PORT_START("IN2")
+	PORT_BIT( 0x00ff, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_COIN1 )
+	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_COIN2 )
+	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_COIN3 )
+	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_SERVICE1 )
+	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_GAMBLE_BOOK )
+	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_GAMBLE_PAYOUT )
+	PORT_SERVICE_NO_TOGGLE( 0x4000, IP_ACTIVE_LOW )
+	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_MEMORY_RESET )
 
 	PORT_START("DSW")
-	PORT_DIPUNKNOWN_DIPLOC(0x01, 0x01, "SW1:1")
-	PORT_DIPUNKNOWN_DIPLOC(0x02, 0x02, "SW1:2")
-	PORT_DIPUNKNOWN_DIPLOC(0x04, 0x04, "SW1:3")
-	PORT_DIPUNKNOWN_DIPLOC(0x08, 0x08, "SW1:4")
-	PORT_DIPUNKNOWN_DIPLOC(0x10, 0x10, "SW1:5")
-	PORT_DIPUNKNOWN_DIPLOC(0x20, 0x20, "SW1:6")
-	PORT_DIPUNKNOWN_DIPLOC(0x40, 0x40, "SW1:7")
-	PORT_DIPUNKNOWN_DIPLOC(0x80, 0x80, "SW1:8")
-	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT(                      0x00ff, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_DIPNAME(          0x0100, 0x0100, "Win Rate Configuration Screen" ) PORT_DIPLOCATION( "SW1:1" )
+	PORT_DIPSETTING(               0x0100, DEF_STR( Off ) )
+	PORT_DIPSETTING(               0x0000, DEF_STR( On ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0200, 0x0200, "SW1:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0400, 0x0400, "SW1:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0800, 0x0800, "SW1:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x1000, 0x1000, "SW1:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x2000, 0x2000, "SW1:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x4000, 0x4000, "SW1:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x8000, 0x8000, "SW1:8" )
 
 	PORT_START("EEPROM_IN")
+	PORT_BIT( 0x7fff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x8000, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", FUNC(eeprom_serial_93cxx_device::do_read))
 INPUT_PORTS_END
 
@@ -300,6 +305,8 @@ void es9501_state::es9501(machine_config &config)
 	m_maincpu->set_vblank_int("screen", FUNC(es9501_state::irq1_line_hold));
 
 	EEPROM_93C56_16BIT(config, m_eeprom);
+
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
 	WATCHDOG_TIMER(config, m_watchdog).set_time(attotime::from_msec(1000));
 
@@ -372,9 +379,9 @@ ROM_START( specd9 )
 	ROM_LOAD16_BYTE( "3.u33", 0x00000, 0x40000, CRC(682daf75) SHA1(822b5e9443bf7e1b752da85e879a8b0994f23fdf) )
 	ROM_LOAD16_BYTE( "1.u31", 0x00001, 0x40000, CRC(90b10562) SHA1(d1d3d50027e84cc028cd30d2dd74a4f6666387cb) )
 
-	ROM_REGION( 0x280000, "gfx", 0 )
+	ROM_REGION( 0x200000, "gfx", 0 )
 	ROM_LOAD( "t58.u50", 0x000000, 0x200000, CRC(7a572d9e) SHA1(9a1d842ac78fea6047242c405aaf81c827dc2358) ) // contains Multi Spin logo
-	ROM_LOAD( "u51.u51", 0x200000, 0x080000, CRC(a213c33b) SHA1(42b4c3d3cb2db50ea0fad06509e3e73b81f3db4c) ) // TODO: this is an EPROM, contains Special Dream 9 logo, should be overlayed on the mask ROM contents, IGS style
+	ROM_LOAD( "u51.u51", 0x000000, 0x080000, CRC(a213c33b) SHA1(42b4c3d3cb2db50ea0fad06509e3e73b81f3db4c) ) // this is an EPROM, contains Special Dream 9 logo, overlayed on the mask ROM contents
 
 	ROM_REGION( 0x200000, "ymz", 0 )
 	ROM_LOAD( "t59.u23", 0x000000, 0x200000, CRC(b11857b4) SHA1(c0a6478fd8a8ef1ed35cfbfa9fd2af44eb258725) )
@@ -391,9 +398,9 @@ ROM_START( specd9105g )
 	ROM_LOAD16_BYTE( "3.u33", 0x00000, 0x40000, CRC(e4b00f37) SHA1(4c33912b7c38399ba2ca5e4dc0335458d929bd52) ) // SLDH
 	ROM_LOAD16_BYTE( "2.u31", 0x00001, 0x40000, CRC(620bc09e) SHA1(fce0e9c7394aa782d0b6f1558a3b4c76c5c1e787) )
 
-	ROM_REGION( 0x280000, "gfx", 0 )
+	ROM_REGION( 0x200000, "gfx", 0 )
 	ROM_LOAD( "t58.u50", 0x000000, 0x200000, CRC(7a572d9e) SHA1(9a1d842ac78fea6047242c405aaf81c827dc2358) ) // contains Multi Spin logo
-	ROM_LOAD( "u51.u51", 0x200000, 0x080000, CRC(a213c33b) SHA1(42b4c3d3cb2db50ea0fad06509e3e73b81f3db4c) ) // TODO: this is an EPROM, contains Special Dream 9 logo, should be overlayed on the mask ROM contents, IGS style
+	ROM_LOAD( "u51.u51", 0x000000, 0x080000, CRC(a213c33b) SHA1(42b4c3d3cb2db50ea0fad06509e3e73b81f3db4c) ) // this is an EPROM, contains Special Dream 9 logo, overlayed on the mask ROM contents
 
 	ROM_REGION( 0x200000, "ymz", 0 )
 	ROM_LOAD( "t59.u23", 0x000000, 0x200000, CRC(b11857b4) SHA1(c0a6478fd8a8ef1ed35cfbfa9fd2af44eb258725) )
@@ -410,15 +417,15 @@ ROM_START( starball )
 	ROM_LOAD16_BYTE( "3.u33", 0x00000, 0x40000, CRC(43f751ca) SHA1(b3e50f7bc939e25167da98ab51f16b23436a581e) ) // SLDH
 	ROM_LOAD16_BYTE( "2.u31", 0x00001, 0x40000, CRC(d9c1088d) SHA1(d5b86d33db838418e2bb94da04c902d0059c673e) )
 
-	ROM_REGION( 0x280000, "gfx", 0 )
+	ROM_REGION( 0x200000, "gfx", 0 )
 	ROM_LOAD( "t58.u50", 0x000000, 0x200000, CRC(7a572d9e) SHA1(9a1d842ac78fea6047242c405aaf81c827dc2358) ) // contains Multi Spin logo
-	ROM_LOAD( "1.u51",   0x200000, 0x080000, CRC(f7e97d23) SHA1(9aa86e545e9438ab693d8f9b1c137dada86be5cc) ) // TODO: this is an EPROM, contains Star Ball logo, should be overlayed on the mask ROM contents, IGS style
+	ROM_LOAD( "1.u51",   0x000000, 0x080000, CRC(f7e97d23) SHA1(9aa86e545e9438ab693d8f9b1c137dada86be5cc) ) // this is an EPROM, contains Special Dream 9 logo, overlayed on the mask ROM contents
 
 	ROM_REGION( 0x200000, "ymz", 0 )
 	ROM_LOAD( "t59.u23", 0x000000, 0x200000, CRC(b11857b4) SHA1(c0a6478fd8a8ef1ed35cfbfa9fd2af44eb258725) )
 
 	ROM_REGION16_BE( 0x100, "eeprom", 0 )
-	ROM_LOAD16_WORD_SWAP( "93c56.u12", 0x000, 0x100, CRC(dba91cd8) SHA1(dfbe41e3a8d7e8ad7068d25afe10a1d93bf3cc4d) )
+	ROM_LOAD16_WORD_SWAP( "93c56.u12", 0x000, 0x100, BAD_DUMP CRC(8ff3a4a6) SHA1(c96936221ef584b69022637e3368525fc3ac4add) ) // handcrafted
 
 	ROM_REGION( 0x117, "plds", 0 )
 	ROM_LOAD( "3.u37", 0x000, 0x117, CRC(bea4cb24) SHA1(09987e6b903cc3bd202a9d933474b36bdbb99d9a) ) // PALCE16V8H
