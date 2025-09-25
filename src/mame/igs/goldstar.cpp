@@ -326,7 +326,6 @@ public:
 	void ladylinr(machine_config &config) ATTR_COLD;
 	void ladylinrb(machine_config &config) ATTR_COLD;
 	void kkotnoli(machine_config &config) ATTR_COLD;
-	void megaline(machine_config &config) ATTR_COLD;
 	void moonlght(machine_config &config) ATTR_COLD;
 	void super9(machine_config &config) ATTR_COLD;
 	void wcherry(machine_config &config) ATTR_COLD;
@@ -410,8 +409,6 @@ private:
 	void feverch_portmap(address_map &map) ATTR_COLD;
 	void kkotnoli_map(address_map &map) ATTR_COLD;
 	void ladylinr_map(address_map &map) ATTR_COLD;
-	void megaline_map(address_map &map) ATTR_COLD;
-	void megaline_portmap(address_map &map) ATTR_COLD;
 	void super9_map(address_map &map) ATTR_COLD;
 	void super9_portmap(address_map &map) ATTR_COLD;
 	void wcherry_map(address_map &map) ATTR_COLD;
@@ -614,6 +611,7 @@ public:
 	void luckylad(machine_config &config) ATTR_COLD;
 	void magodds(machine_config &config) ATTR_COLD;
 	void mbstar(machine_config &config) ATTR_COLD;
+	void megaline(machine_config &config) ATTR_COLD;
 	void nd8lines(machine_config &config) ATTR_COLD;
 	void super972(machine_config &config) ATTR_COLD;
 	void superdrg(machine_config &config) ATTR_COLD;
@@ -631,8 +629,10 @@ public:
 	void init_lucky8r() ATTR_COLD;
 	void init_lucky8s() ATTR_COLD;
 	void init_magoddsc() ATTR_COLD;
+	void init_mbs2() ATTR_COLD;
 	void init_luckylad() ATTR_COLD;
 	void init_nd8lines() ATTR_COLD;
+	void init_skch() ATTR_COLD;
 	void init_super972() ATTR_COLD;
 	void init_wcat() ATTR_COLD;
 	void init_wcat3() ATTR_COLD;
@@ -667,6 +667,7 @@ private:
 	uint32_t screen_update_bingowng(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_magical(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_mbstar(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update_megaline(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 	void masked_irq(int state);
 
@@ -702,6 +703,8 @@ private:
 	void luckybar_map(address_map &map) ATTR_COLD;
 	void magodds_map(address_map &map) ATTR_COLD;
 	void mbstar_map(address_map &map) ATTR_COLD;
+	void megaline_map(address_map &map) ATTR_COLD;
+	void megaline_portmap(address_map &map) ATTR_COLD;
 	void nd8lines_map(address_map &map) ATTR_COLD;
 	void superdrg_map(address_map &map) ATTR_COLD;
 	void superdrg_opcodes_map(address_map &map) ATTR_COLD;
@@ -1074,7 +1077,6 @@ void goldstar_state::goldstar_fa00_w(uint8_t data)
 
 	m_ticket_dispenser->motor_w(BIT(data, 7));
 }
-
 
 
 uint32_t goldstar_state::screen_update_goldstar(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
@@ -1474,6 +1476,52 @@ uint32_t wingco_state::screen_update_bingowng(screen_device &screen, bitmap_rgb3
 	{
 		m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	}
+
+	return 0;
+}
+
+uint32_t wingco_state::screen_update_megaline(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
+{
+	bitmap.fill(rgb_t::black(), cliprect);
+
+	if (!(m_enable_reg & 0x01))
+		return 0;
+
+	if (m_enable_reg & 0x08)
+	{
+		if (m_vidreg & 2)
+		{
+			for (int i = 0; i < 64; i++)
+			{
+				// only one reels tilemap
+				m_reel_tilemap[0]->set_scrolly(i, m_reel_scroll[0][i]);
+			}
+
+			const rectangle visible1(0*8, (14+48)*8-1,  8*8,  (8+7)*8-1);
+			m_reel_tilemap[0]->draw(screen, bitmap, visible1, 0, 0);
+		}
+		else
+		{
+			for (int i = 0; i < 64; i++)
+			{
+				// all three reels tilemaps
+				m_reel_tilemap[0]->set_scrolly(i, m_reel_scroll[0][i]);
+				m_reel_tilemap[1]->set_scrolly(i, m_reel_scroll[1][i]);
+				m_reel_tilemap[2]->set_scrolly(i, m_reel_scroll[2][i]);
+			}
+
+			const rectangle visible1(0*8, (14+48)*8-1,  4*8,  (4+7)*8-1);
+			const rectangle visible2(0*8, (14+48)*8-1, 12*8, (12+7)*8-1);
+			const rectangle visible3(0*8, (14+48)*8-1, 20*8, (20+7)*8-1);
+
+			m_reel_tilemap[0]->draw(screen, bitmap, visible1, 0, 0);
+			m_reel_tilemap[1]->draw(screen, bitmap, visible2, 0, 0);
+			m_reel_tilemap[2]->draw(screen, bitmap, visible3, 0, 0);
+		}
+	}
+
+	if (m_enable_reg & 0x02)
+		m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	return 0;
 }
@@ -3460,7 +3508,7 @@ void unkch_state::unkch_portmap(address_map &map)
 }
 
 
-void goldstar_state::megaline_map(address_map &map)
+void wingco_state::megaline_map(address_map &map)
 {
 	map(0x0000, 0x9fff).rom();
 
@@ -3473,10 +3521,10 @@ void goldstar_state::megaline_map(address_map &map)
 	map(0xdc00, 0xddff).ram().w(FUNC(goldstar_state::reel_ram_w<2>)).share(m_reel_ram[2]);
 	map(0xde00, 0xdfff).ram();
 
-	map(0xe000, 0xe7ff).ram().w(FUNC(goldstar_state::fg_vidram_w)).share(m_fg_vidram);
-	map(0xe800, 0xefff).ram().w(FUNC(goldstar_state::fg_atrram_w)).share(m_fg_atrram);
-	map(0xf000, 0xf7ff).ram();
-	map(0xf800, 0xffff).ram();
+	map(0xe000, 0xe7ff).ram().w(FUNC(wingco_state::fg_vidram_w)).share(m_fg_vidram);
+	map(0xe800, 0xefff).ram().w(FUNC(wingco_state::fg_atrram_w)).share(m_fg_atrram);
+	map(0xf000, 0xffff).ram().share("nvram");
+//	map(0xf800, 0xffff).ram();
 }
 
 /* unknown I/O byte R/W
@@ -3484,19 +3532,19 @@ void goldstar_state::megaline_map(address_map &map)
   PSGs:    A0 - C0 - E0
 
 */
-void goldstar_state::megaline_portmap(address_map &map)  // TODO: verify everything. Strange reads at 0x0f and 0x07
+void wingco_state::megaline_portmap(address_map &map)  // TODO: verify everything. Strange reads at 0x0f and 0x07
 {
 	map.global_mask(0xff);
-	map(0x20, 0x20).portr("IN0").nopw();  // ??
-	map(0x40, 0x40).portr("IN1").nopw();  // ??
-	map(0x60, 0x60).portr("IN2").nopw();  // ??
-	map(0x80, 0x80).portr("IN3").nopw();  // ??
-	map(0xa0, 0xa0).portr("IN4").w("sn1", FUNC(sn76489_device::write));
-	map(0xc0, 0xc0).portr("DSW1").w("sn2", FUNC(sn76489_device::write));
-	map(0xe0, 0xe0).portr("DSW2").w("sn3", FUNC(sn76489_device::write));
-	map(0xe1, 0xe1).portr("DSW3");
-	map(0xe2, 0xe2).portr("DSW4");
-	//map(0xe3, 0xe3).portr("DSW5");
+	//map(0x20, 0x20).portr("IN0").nopw();  // ??
+	map(0x40, 0x40).portr("IN0").nopw();  // ??
+	map(0x60, 0x60).portr("IN1").nopw();  // ??
+	map(0x80, 0x80).portr("IN2").nopw();  // ??
+	map(0xa0, 0xa0).portr("IN3").w("sn1", FUNC(sn76489_device::write));
+	map(0xc0, 0xc0).portr("IN4").w("sn2", FUNC(sn76489_device::write));
+	map(0xe0, 0xe0).portr("DSW1").w("sn3", FUNC(sn76489_device::write));
+	map(0xe1, 0xe1).portr("DSW2");
+	map(0xe2, 0xe2).portr("DSW3");
+	map(0xe3, 0xe3).portr("DSW4");
 }
 
 
@@ -7572,17 +7620,17 @@ INPUT_PORTS_END
 static INPUT_PORTS_START( mbstar )
 	PORT_START("IN0")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_1) PORT_NAME("IN0-1")
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_2) PORT_NAME("Increment top's 'S' (bet?)")  // Increment top's 'S' (looks like bet)
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_3) PORT_NAME("IN0-3")
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_4) PORT_NAME("IN0-4")
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_5) PORT_NAME("Collect")  // Collect. Also used to blank the BK.
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_3) PORT_NAME("Collect2")  // Also Increment top's 'S' (looks like bet)
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_8_PAD) PORT_NAME("IN0-3")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_2_PAD) PORT_NAME("IN0-4")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_4) PORT_NAME("Collect")  // Collect. Also used to blank the BK.
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_6) PORT_NAME("IN0-6")
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_7) PORT_NAME("Bookkeeping: Down")  // BK: down.
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_8) PORT_NAME("Bookkeeping: Set/Enter - Start")  // BK: enter. (start?)
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_1_PAD) PORT_NAME("Hold 1 / Bookkeeping: Down")  // BK: down. 
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_2_PAD) PORT_NAME("Bookkeeping: Set/Enter - Start")  // BK: enter. (start?)
 
 	PORT_START("IN1")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_Q) PORT_NAME("IN1-1")
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_W) PORT_NAME("IN1-2")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_M) PORT_NAME("IN1-1")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_O) PORT_NAME("IN1-2")
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_E) PORT_NAME("IN1-3")
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_R) PORT_NAME("IN1-4")
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_T) PORT_NAME("IN1-5")
@@ -7604,21 +7652,21 @@ static INPUT_PORTS_START( mbstar )
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_Z) PORT_NAME("IN3-1")
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_X) PORT_NAME("IN3-2")
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_C) PORT_NAME("IN3-3")
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_V) PORT_NAME("Coin 1") PORT_IMPULSE(2)    // coin 1
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_B) PORT_NAME("Coin 2") PORT_IMPULSE(2)    // coin 2
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_N) PORT_NAME("Note")      // note acceptor
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_M) PORT_NAME("Remote")    // remote credits
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_L) PORT_NAME("Coin 3 (tokens)")    // coin 3 (tokens)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_5) PORT_NAME("Coin 1") PORT_IMPULSE(2)    // coin 1
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_6) PORT_NAME("Coin 2") PORT_IMPULSE(2)    // coin 2
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_7) PORT_NAME("Note")      // note acceptor
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_Q) PORT_NAME("Remote")    // remote credits
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_8) PORT_NAME("Coin 3 (tokens)")    // coin 3 (tokens)
 
 	PORT_START("IN4")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_1_PAD) PORT_NAME("IN4-1")
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_2_PAD) PORT_NAME("Operator Bookkeeping")  // operator bookkeeping
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_3_PAD) PORT_NAME("IN4-3")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_9) PORT_NAME("Operator Bookkeeping")  // operator bookkeeping
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("hopper", FUNC(ticket_dispenser_device::line_r))	// grull - Set 2025
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_4_PAD) PORT_NAME("IN4-4")
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_5_PAD) PORT_NAME("Payout")  // payout?
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_W) PORT_NAME("Keyout")  // payout?
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_6_PAD) PORT_NAME("IN4-6")
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_7_PAD) PORT_NAME("IN4-7")
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_8_PAD) PORT_NAME("Supervisor Bookkeeping")  // supervisor bookkeeping
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_0) PORT_NAME("Supervisor Bookkeeping")  // supervisor bookkeeping
 
 	PORT_START("DSW1")
 	PORT_DIPNAME( 0x01, 0x01, "DSW1")
@@ -7656,9 +7704,9 @@ static INPUT_PORTS_START( mbstar )
 	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x00, DEF_STR( Unknown ) )  // enter in a different mode, and no attract.
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x00, "Mode" )  // enter in a different mode, and no attract.
+	PORT_DIPSETTING(    0x08, "Mode alt (slow)" )
+	PORT_DIPSETTING(    0x00, "Mode Atract OK" )
 	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
 	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
@@ -9837,7 +9885,11 @@ static INPUT_PORTS_START( magoddsc )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 INPUT_PORTS_END
 
+
 static INPUT_PORTS_START( megaline )
+
+	PORT_INCLUDE( cmv4_player )
+/*
 	PORT_START("IN0")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_1) PORT_NAME("IN0-1")
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_2) PORT_NAME("IN0-2")
@@ -9847,7 +9899,7 @@ static INPUT_PORTS_START( megaline )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_6) PORT_NAME("IN0-6")
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_7) PORT_NAME("IN0-7")
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_8) PORT_NAME("IN0-8")
-
+*/
 	PORT_START("IN1")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_Q) PORT_NAME("IN1-1")
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_W) PORT_NAME("IN1-2")
@@ -9869,6 +9921,15 @@ static INPUT_PORTS_START( megaline )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_K) PORT_NAME("IN2-8")
 
 	PORT_START("IN3")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN2 ) PORT_IMPULSE(2) PORT_NAME("Coin B")  // Service coin in some cases
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_COIN4 ) PORT_IMPULSE(2) PORT_NAME("Coin D")
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_COIN3 ) PORT_IMPULSE(2) PORT_NAME("Coin C")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_GAMBLE_KEYIN )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN1 ) PORT_IMPULSE(2) PORT_NAME("Coin A")
+/*	
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_Z) PORT_NAME("IN3-1")
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_X) PORT_NAME("IN3-2")
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_C) PORT_NAME("IN3-3")
@@ -9877,7 +9938,7 @@ static INPUT_PORTS_START( megaline )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_N) PORT_NAME("IN3-6")
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_M) PORT_NAME("IN3-7")
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_L) PORT_NAME("IN3-8")
-
+*/
 	PORT_START("IN4")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_1_PAD) PORT_NAME("IN4-1")
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_2_PAD) PORT_NAME("IN4-2")
@@ -9885,8 +9946,8 @@ static INPUT_PORTS_START( megaline )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_4_PAD) PORT_NAME("IN4-4")
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_5_PAD) PORT_NAME("IN4-5")
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_6_PAD) PORT_NAME("IN4-6")
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_7_PAD) PORT_NAME("IN4-7")
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_8_PAD) PORT_NAME("IN4-8")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_9) PORT_NAME("Test")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_0) PORT_NAME("Meters")
 
 	PORT_START("DSW1")
 	PORT_DIPNAME( 0x01, 0x01, "DSW1" )
@@ -13367,23 +13428,23 @@ void cmaster_state::eldoraddoa(machine_config &config)
 	m_maincpu->set_addrmap(AS_IO, &cmaster_state::eldoraddoa_portmap);
 }
 
-void goldstar_state::megaline(machine_config &config)
+void wingco_state::megaline(machine_config &config)
 {
 	// basic machine hardware
 	Z80(config, m_maincpu, CPU_CLOCK);
-	m_maincpu->set_addrmap(AS_PROGRAM, &goldstar_state::megaline_map);
-	m_maincpu->set_addrmap(AS_IO, &goldstar_state::megaline_portmap);
+	m_maincpu->set_addrmap(AS_PROGRAM, &wingco_state::megaline_map);
+	m_maincpu->set_addrmap(AS_IO, &wingco_state::megaline_portmap);
 
 	// video hardware
 	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
 	screen.set_refresh_hz(60);
 	screen.set_size(64*8, 32*8);
 	screen.set_visarea(0*8, 64*8-1, 2*8, 30*8-1);
-	screen.set_screen_update(FUNC(goldstar_state::screen_update_goldstar));
+	screen.set_screen_update(FUNC(wingco_state::screen_update_megaline));
 	screen.screen_vblank().set_inputline(m_maincpu, INPUT_LINE_NMI);
 
 	GFXDECODE(config, m_gfxdecode, m_palette, gfx_megaline);
-	PALETTE(config, m_palette, FUNC(goldstar_state::lucky8_palette), 256);
+	PALETTE(config, m_palette, FUNC(wingco_state::lucky8_palette), 256);
 //  NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
 	// sound hardware
@@ -15913,15 +15974,15 @@ ROM_START( cutylinea )  // bootleg PCB, DYNA QL-1 V8.05C string in ROM
 	ROM_LOAD( "rom2.3h", 0x4000, 0x2000, CRC(955d0517) SHA1(3662f97996f80ef9093936dfe0a73de5f6850294) )
 	ROM_LOAD( "rom1.2h", 0x6000, 0x2000, CRC(188fc72b) SHA1(501afe548dc279c5f77d9827d0a073875fa7a64f) )
 
-	ROM_REGION( 0x10000, "user1", 0 )  // girl bitmaps... dump not included, but present on PCB pic
-	ROM_LOAD( "rom8.10c", 0x0000, 0x10000, BAD_DUMP CRC(e92443d3) SHA1(4b6ca4521841610054165f085ae05510e77af191) )
+	ROM_REGION( 0x10000, "user1", ROMREGION_ERASE00 )
+	// inexistent in the PCB
 
-	ROM_REGION( 0x200, "proms", 0 )  // dump not included, but present on PCB pic
-	ROM_LOAD( "b12.16c", 0x0000, 0x0100, BAD_DUMP CRC(0489b760) SHA1(78f8632b17a76335183c5c204cdec856988368b0) )
-	ROM_LOAD( "b12.15c", 0x0100, 0x0100, BAD_DUMP CRC(21eb5b19) SHA1(9b8425bdb97f11f4855c998c7792c3291fd07470) )
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "82s129.u84", 0x0000, 0x0100, CRC(0489b760) SHA1(78f8632b17a76335183c5c204cdec856988368b0) )
+	ROM_LOAD( "82s129.u79", 0x0100, 0x0100, CRC(21eb5b19) SHA1(9b8425bdb97f11f4855c998c7792c3291fd07470) )
 
-	ROM_REGION( 0x100, "proms2", 0 )  // dump not included, but present on PCB pic
-	ROM_LOAD( "b11.9e", 0x0000, 0x0100, BAD_DUMP CRC(50ec383b) SHA1(ae95b92bd3946b40134bcdc22708d5c6b0f4c23e) )
+	ROM_REGION( 0x100, "proms2", 0 )
+	ROM_LOAD( "82s129.u46", 0x0000, 0x0100, CRC(50ec383b) SHA1(ae95b92bd3946b40134bcdc22708d5c6b0f4c23e) )
 ROM_END
 
 ROM_START( cutylineb )  // bootleg PCB, DYNA QL-1 V7C.14 string in ROM
@@ -15947,15 +16008,49 @@ ROM_START( cutylineb )  // bootleg PCB, DYNA QL-1 V7C.14 string in ROM
 	ROM_LOAD( "rom2.3h", 0x4000, 0x2000, CRC(955d0517) SHA1(3662f97996f80ef9093936dfe0a73de5f6850294) )
 	ROM_LOAD( "rom1.2h", 0x6000, 0x2000, CRC(188fc72b) SHA1(501afe548dc279c5f77d9827d0a073875fa7a64f) )
 
-	ROM_REGION( 0x10000, "user1", 0 )  // girl bitmaps... dump not included, but present on PCB pic
-	ROM_LOAD( "rom8.10c", 0x0000, 0x10000, BAD_DUMP CRC(e92443d3) SHA1(4b6ca4521841610054165f085ae05510e77af191) )
+	ROM_REGION( 0x10000, "user1", ROMREGION_ERASE00 )
+	// inexistent in the PCB
 
-	ROM_REGION( 0x200, "proms", 0 )  // dump not included, but present on PCB pic
-	ROM_LOAD( "b12.16c", 0x0000, 0x0100, BAD_DUMP CRC(0489b760) SHA1(78f8632b17a76335183c5c204cdec856988368b0) )
-	ROM_LOAD( "b12.15c", 0x0100, 0x0100, BAD_DUMP CRC(21eb5b19) SHA1(9b8425bdb97f11f4855c998c7792c3291fd07470) )
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "82s129.u84", 0x0000, 0x0100, CRC(0489b760) SHA1(78f8632b17a76335183c5c204cdec856988368b0) )
+	ROM_LOAD( "82s129.u79", 0x0100, 0x0100, CRC(21eb5b19) SHA1(9b8425bdb97f11f4855c998c7792c3291fd07470) )
 
-	ROM_REGION( 0x100, "proms2", 0 )  // dump not included, but present on PCB pic
-	ROM_LOAD( "b11.9e", 0x0000, 0x0100, BAD_DUMP CRC(50ec383b) SHA1(ae95b92bd3946b40134bcdc22708d5c6b0f4c23e) )
+	ROM_REGION( 0x100, "proms2", 0 )
+	ROM_LOAD( "82s129.u46", 0x0000, 0x0100, CRC(50ec383b) SHA1(ae95b92bd3946b40134bcdc22708d5c6b0f4c23e) )
+ROM_END
+
+ROM_START( cutylinec )  // DYNA QL-1 V7.07 string in ROM
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "ql-1_ v7.07.15f", 0x0000, 0x1000, CRC(ae0487e0) SHA1(ef9a14e837075df8b0d0dd8f9966b3663c97697d) )
+	ROM_CONTINUE(                0x4000, 0x1000 )
+	ROM_CONTINUE(                0x3000, 0x1000 )
+	ROM_CONTINUE(                0x7000, 0x1000 )
+	ROM_CONTINUE(                0x1000, 0x1000 )
+	ROM_CONTINUE(                0x6000, 0x1000 )
+	ROM_CONTINUE(                0x2000, 0x1000 )
+	ROM_CONTINUE(                0x5000, 0x1000 )
+	ROM_CONTINUE(                0x8000, 0x8000 )
+
+	ROM_REGION( 0x18000, "gfx1", 0 )
+	ROM_LOAD( "rom7.3e", 0x00000, 0x8000, CRC(1fa8d85e) SHA1(963570178dfb359c6ef4c322791de8f08306eb0c) )
+	ROM_LOAD( "rom6.2e", 0x08000, 0x8000, CRC(36dfbbcb) SHA1(8dee44f4b007a41b67e2d4eb75b88b02b9118be0) )
+	ROM_LOAD( "rom5.1e", 0x10000, 0x8000, CRC(2350e482) SHA1(03c4a83fb5b544d061378db319ff652a2c053062) )
+
+	ROM_REGION( 0x8000, "gfx2", 0 )
+	ROM_LOAD( "rom4.3f", 0x0000, 0x2000, CRC(2d044e6b) SHA1(7ca60cca8de2c368ca43f1ce54a5140a3dd1ee37) )
+	ROM_LOAD( "rom3.2f", 0x2000, 0x2000, CRC(e7e300c2) SHA1(b21926d41aa9d27c78fbf28efd86ac070891a7bb) )
+	ROM_LOAD( "rom2.3h", 0x4000, 0x2000, CRC(955d0517) SHA1(3662f97996f80ef9093936dfe0a73de5f6850294) )
+	ROM_LOAD( "rom1.2h", 0x6000, 0x2000, CRC(188fc72b) SHA1(501afe548dc279c5f77d9827d0a073875fa7a64f) )
+
+	ROM_REGION( 0x10000, "user1", ROMREGION_ERASE00 )
+	// inexistent in the PCB
+
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "82s129.u84", 0x0000, 0x0100, CRC(0489b760) SHA1(78f8632b17a76335183c5c204cdec856988368b0) )
+	ROM_LOAD( "82s129.u79", 0x0100, 0x0100, CRC(21eb5b19) SHA1(9b8425bdb97f11f4855c998c7792c3291fd07470) )
+
+	ROM_REGION( 0x100, "proms2", 0 )
+	ROM_LOAD( "82s129.u46", 0x0000, 0x0100, CRC(50ec383b) SHA1(ae95b92bd3946b40134bcdc22708d5c6b0f4c23e) )
 ROM_END
 
 /*
@@ -23357,6 +23452,7 @@ ROM_END
 
 
 *****************************************************************************************/
+
 ROM_START( megaline )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "18.r1",  0x00000, 0x10000, CRC(37234cca) SHA1(f991bc55fbfc69594573608ca03a9001ccf2f73b) )
@@ -23366,8 +23462,10 @@ ROM_START( megaline )
 	ROM_LOAD( "12.d1",  0x10000, 0x10000, CRC(054c6ee7) SHA1(6e91223c8f6a2dc93a39a1e6453ccd9c731b8b45) )
 
 	ROM_REGION( 0x10000, "gfx2", 0 )
-	ROM_LOAD( "13.j1",  0x0000, 0x8000, CRC(5676ccb3) SHA1(36794c365c0b7490a9046422c0b334a3cdc15b8e) )
-	ROM_LOAD( "14.k1",  0x8000, 0x8000, CRC(81acfc59) SHA1(b6f94ade557a2d3ba5e358d33e83016a210890e7) )
+	ROM_LOAD( "13.j1",  0x4000, 0x4000, CRC(5676ccb3) SHA1(36794c365c0b7490a9046422c0b334a3cdc15b8e) )
+	ROM_CONTINUE(       0x0000, 0x4000)
+	ROM_LOAD( "14.k1",  0xc000, 0x4000, CRC(81acfc59) SHA1(b6f94ade557a2d3ba5e358d33e83016a210890e7) )
+	ROM_CONTINUE(       0x8000, 0x4000)
 
 	ROM_REGION( 0x200, "proms", 0 )
 	ROM_LOAD( "tbp24s10.f4", 0x0000, 0x0100, CRC(d864b6f1) SHA1(6edc1941fe49cf53f073bf4acc466cd28b788146) )
@@ -23385,13 +23483,17 @@ ROM_START( skillch )  // same PCB as megaline
 	ROM_LOAD( "16.r1",  0x00000, 0x10000, CRC(c0fee794) SHA1(0f0c268dc4e9370929948e66e4db4fb95108a00b) )
 
 	ROM_REGION( 0x20000, "gfx1", 0 )
-	ROM_LOAD( "1.b1",  0x00000, 0x10000, CRC(c2554538) SHA1(ecb5ab7f611b937a5ff6dc26c6b0cb18b82acd93) )
-	ROM_LOAD( "2.d1",  0x10000, 0x10000, CRC(a7eb57bf) SHA1(1346b03f9540d9235c5ca41f328c39b9ac9c3b17) )
+	ROM_LOAD( "1.b1",  0x08000, 0x08000, CRC(c2554538) SHA1(ecb5ab7f611b937a5ff6dc26c6b0cb18b82acd93) )
+	ROM_CONTINUE(      0x00000, 0x08000)
+	ROM_LOAD( "2.d1",  0x18000, 0x08000, CRC(a7eb57bf) SHA1(1346b03f9540d9235c5ca41f328c39b9ac9c3b17) )
+	ROM_CONTINUE(      0x10000, 0x08000)
 
 	ROM_REGION( 0x10000, "gfx2", 0 )
-	ROM_LOAD( "3.j1",  0x0000, 0x8000, CRC(1cbaaae6) SHA1(d56bb5a6a466bc74d5bbb2ba6f52a5ae8b0748a3) )  // 1ST AND 2ND HALF IDENTICAL
+	ROM_LOAD( "3.j1",  0x4000, 0x4000, CRC(1cbaaae6) SHA1(d56bb5a6a466bc74d5bbb2ba6f52a5ae8b0748a3) )  // 1ST AND 2ND HALF IDENTICAL
+	ROM_CONTINUE(      0x0000, 0x4000)
 	ROM_IGNORE(                0x8000 )
-	ROM_LOAD( "4.k1",  0x8000, 0x8000, CRC(9640841d) SHA1(421c78148884029e15a126652679fde990a24064) )  // 1ST AND 2ND HALF IDENTICAL
+	ROM_LOAD( "4.k1",  0xc000, 0x4000, CRC(9640841d) SHA1(421c78148884029e15a126652679fde990a24064) )  // 1ST AND 2ND HALF IDENTICAL
+	ROM_CONTINUE(      0x8000, 0x4000)
 	ROM_IGNORE(                0x8000 )
 
 	ROM_REGION( 0x200, "proms", 0 )
@@ -23410,13 +23512,17 @@ ROM_START( skillcha )  // same PCB as megaline
 	ROM_LOAD( "16.r1",  0x00000, 0x10000, CRC(7364624f) SHA1(55b54d92bc76060d88f78aca98e935953a7c9e22) )
 
 	ROM_REGION( 0x20000, "gfx1", 0 )
-	ROM_LOAD( "1.b1",  0x00000, 0x10000, CRC(c2554538) SHA1(ecb5ab7f611b937a5ff6dc26c6b0cb18b82acd93) )
-	ROM_LOAD( "2.d1",  0x10000, 0x10000, CRC(a7eb57bf) SHA1(1346b03f9540d9235c5ca41f328c39b9ac9c3b17) )
+	ROM_LOAD( "1.b1",  0x08000, 0x08000, CRC(c2554538) SHA1(ecb5ab7f611b937a5ff6dc26c6b0cb18b82acd93) )
+	ROM_CONTINUE(      0x00000, 0x08000)
+	ROM_LOAD( "2.d1",  0x18000, 0x08000, CRC(a7eb57bf) SHA1(1346b03f9540d9235c5ca41f328c39b9ac9c3b17) )
+	ROM_CONTINUE(      0x10000, 0x08000)
 
 	ROM_REGION( 0x10000, "gfx2", 0 )
-	ROM_LOAD( "3.j1",  0x0000, 0x8000, CRC(1cbaaae6) SHA1(d56bb5a6a466bc74d5bbb2ba6f52a5ae8b0748a3) )  // 1ST AND 2ND HALF IDENTICAL
+	ROM_LOAD( "3.j1",  0x4000, 0x4000, CRC(1cbaaae6) SHA1(d56bb5a6a466bc74d5bbb2ba6f52a5ae8b0748a3) )  // 1ST AND 2ND HALF IDENTICAL
+	ROM_CONTINUE(      0x0000, 0x4000)
 	ROM_IGNORE(                0x8000 )
-	ROM_LOAD( "4.k1",  0x8000, 0x8000, CRC(9640841d) SHA1(421c78148884029e15a126652679fde990a24064) )  // 1ST AND 2ND HALF IDENTICAL
+	ROM_LOAD( "4.k1",  0xc000, 0x4000, CRC(9640841d) SHA1(421c78148884029e15a126652679fde990a24064) )  // 1ST AND 2ND HALF IDENTICAL
+	ROM_CONTINUE(      0x8000, 0x4000)
 	ROM_IGNORE(                0x8000 )
 
 	ROM_REGION( 0x200, "proms", 0 )
@@ -26180,6 +26286,14 @@ void wingco_state::init_super972()
 		rom[i] = bitswap<8>(rom[i], 7, 2, 5, 0, 3, 6, 1, 4);
 }
 
+void wingco_state::init_mbs2()
+{
+	uint8_t *rom = memregion("maincpu")->base();
+
+	rom[0xd6b1] = 0x97;
+}
+
+
 void cmaster_state::init_nfb96sea()
 {
 	uint8_t *rom = memregion("maincpu")->base();
@@ -27103,6 +27217,18 @@ void cmaster_state::init_rm7b()
 
 }
 
+void wingco_state::init_skch()
+{
+	uint8_t *rom = memregion("maincpu")->base();
+
+	rom[0x3415] = 0xc9;
+	rom[0x45e4] = 0xc9;
+	rom[0x6296] = 0x00;
+	rom[0x6297] = 0x00;
+	rom[0x6298] = 0x00;
+
+}
+
 
 } // anonymous namespace
 
@@ -27187,9 +27313,10 @@ GAMEL( 1991, cmasterk,   cmaster,  cm,       cmasterb, cmaster_state,  init_cmv4
 GAMEL( 1991, cmasterl,   cmaster,  cm,       cmasterb, cmaster_state,  init_cmv4,      ROT0, "Dyna",              "Cherry Master I (ver.1.01, set 12)",          0,                 layout_cmasterb )
 GAMEL( 1991, skillmst,   cmaster,  cm,       cmasterb, cmaster_state,  init_cmv4,      ROT0, "bootleg",           "Skill Master (ver.fst v5.0)",                 0,                 layout_cmasterb )
 GAMEL( 1991, skillmsta,  cmaster,  cm,       cmasterb, cmaster_state,  init_cmv4,      ROT0, "bootleg",           "Skill Master (Ver.fst v3.0)",                 0,                 layout_cmasterb )
-GAMEL( 1991, cutyline,   0,        cm,       cmasterb, cmaster_state,  init_cmv4,      ROT0, "Dyna",              "Cuty Line (ver.1.01)",                        0,                 layout_cmasterb )
+GAMEL( 1991, cutyline,   0,        cm,       cmasterb, cmaster_state,  init_cmv4,      ROT0, "Dyna",              "Cuty Line (LC-88, ver.1.01)",                 0,                 layout_cmasterb )
 GAMEL( 1991, cutylinea,  cutyline, cm,       cmasterb, cmaster_state,  init_cmv4,      ROT0, "bootleg",           "Cuty Line (LC-88 bootleg, ver.8.05C)",        MACHINE_NOT_WORKING, layout_cmasterb ) // needs correct memory map
 GAMEL( 1991, cutylineb,  cutyline, cutylineb,cmasterb, cmaster_state,  init_cmv4,      ROT0, "bootleg",           "Cuty Line (LC-88 bootleg, ver.7C.14)",        MACHINE_NOT_WORKING, layout_cmasterb ) // needs correct memory map
+GAMEL( 1991, cutylinec,  cutyline, cm,       cmasterb, cmaster_state,  init_cmv4,      ROT0, "bootleg",           "Cuty Line (LC-88 bootleg, ver.7.07C)",        MACHINE_NOT_WORKING, layout_cmasterb ) // needs correct memory map
 GAMEL( 1991, lonestar,   cmaster,  cm,       cmasterh, cmaster_state,  init_cmv4,      ROT0, "bootleg",           "Lonestar Roundup (set 1)",                    0,                 layout_cmasterb )
 GAMEL( 1991, lonestara,  cmaster,  cm,       cmasterh, cmaster_state,  init_cmv4,      ROT0, "bootleg",           "Lonestar Roundup (set 2)",                    0,                 layout_cmasterb )
 GAMEL( 1991, skdelux2k,  cmaster,  cm,       cmasterb, cmaster_state,  init_cmv4,      ROT0, "bootleg",           "Florida Skill Deluxe 2K (FBV2 ver.T)",        0,                 layout_cmasterb )
@@ -27309,7 +27436,7 @@ GAME(  1985, luckylad,   0,        luckylad, luckylad, wingco_state,   empty_ini
 GAMEL( 1993, bingowng,   0,        bingowng, bingowng, wingco_state,   empty_init,     ROT0, "Wing Co., Ltd.",    "Bingo (set 1)",                                            0,                     layout_bingowng )
 GAMEL( 1993, bingownga,  bingowng, bingownga,bingownga,wingco_state,   empty_init,     ROT0, "Wing Co., Ltd.",    "Bingo (set 2)",                                            0,                     layout_bingowng )
 
-GAME(  2002, mbs2euro,   0,        mbstar,   mbstar,   wingco_state,   empty_init,     ROT0, "Auto-Data Graz",    "Mega Bonus Star II (Euro, Millennium Edition)",            MACHINE_NOT_WORKING )  // need more work in memory map, inputs, and reels alignment.
+GAME(  2002, mbs2euro,   0,        mbstar,   mbstar,   wingco_state,   init_mbs2,      ROT0, "Auto-Data Graz",    "Mega Bonus Star II (Euro, Millennium Edition)",            MACHINE_NOT_WORKING )  // need more work in memory map, inputs, and reels alignment.
 
 
 // --- Flaming 7's hardware (W-4 derivative) ---
@@ -27327,9 +27454,9 @@ GAME(  1986, fevercha,   feverch,  feverch,  feverch,  goldstar_state, empty_ini
 GAME(  1986, feverchtw,  feverch,  feverch,  feverch,  goldstar_state, empty_init,     ROT0, "Yamate",            "Fever Chance (W-6, Taiwan)",                               MACHINE_IMPERFECT_GRAPHICS | MACHINE_NOT_WORKING )  // reels scrolling, I/O
 
 // --- Wing W-7 hardware ---
-GAME(  1986, skillch,    0,        megaline, megaline, goldstar_state, empty_init,     ROT0, "Wing Co., Ltd.",    "Skill Chance (W-7, set 1)",                                MACHINE_NOT_WORKING ) // not looked at yet
-GAME(  1986, skillcha,   skillch,  megaline, megaline, goldstar_state, empty_init,     ROT0, "Wing Co., Ltd.",    "Skill Chance (W-7, set 2)",                                MACHINE_NOT_WORKING ) // "
-GAME(  1991, megaline,   0,        megaline, megaline, goldstar_state, empty_init,     ROT0, "Fun World",         "Mega Lines",                                               MACHINE_NOT_WORKING ) // "
+GAME(  1986, skillch,    0,        megaline, megaline, wingco_state,   init_skch,      ROT0, "Wing Co., Ltd.",    "Skill Chance (W-7, set 1)",                                MACHINE_NOT_WORKING ) // not looked at yet
+GAME(  1986, skillcha,   skillch,  megaline, megaline, wingco_state,   empty_init,     ROT0, "Wing Co., Ltd.",    "Skill Chance (W-7, set 2)",                                MACHINE_NOT_WORKING ) // "
+GAME(  1991, megaline,   0,        megaline, megaline, wingco_state,   empty_init,     ROT0, "Fun World",         "Mega Lines",                                               MACHINE_NOT_WORKING ) // "
 
 // --- Wing W-8 hardware ---
 GAME(  1990, bonusch,    0,        bonusch,  bonusch,  unkch_state,    empty_init,     ROT0, "Wing Co., Ltd.",    "Bonus Chance (W-8, set 1)",                                MACHINE_NOT_WORKING )  // M80C51F MCU
