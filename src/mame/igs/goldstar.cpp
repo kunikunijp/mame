@@ -286,11 +286,13 @@
 #include "ll3.lh"
 #include "lucky8.lh"
 #include "lucky8p1.lh"
+#include "megaline.lh"
 #include "nfb96.lh"
 #include "nfb96tx.lh"
 #include "pokonl97.lh"
 #include "roypok96.lh"
 #include "skill98.lh"
+#include "skillch.lh"
 #include "tonypok.lh"
 #include "unkch.lh"
 
@@ -630,9 +632,11 @@ public:
 	void init_lucky8s() ATTR_COLD;
 	void init_magoddsc() ATTR_COLD;
 	void init_mbs2() ATTR_COLD;
+	void init_mgln() ATTR_COLD;	
 	void init_luckylad() ATTR_COLD;
 	void init_nd8lines() ATTR_COLD;
 	void init_skch() ATTR_COLD;
+	void init_skcha() ATTR_COLD;
 	void init_super972() ATTR_COLD;
 	void init_wcat() ATTR_COLD;
 	void init_wcat3() ATTR_COLD;
@@ -700,6 +704,7 @@ private:
 	uint8_t m_mcu_p1;
 
 	void animalw_map(address_map &map) ATTR_COLD;
+	void bingowng_map(address_map &map) ATTR_COLD;
 	void flaming7_map(address_map &map) ATTR_COLD;
 	void lucky8_map(address_map &map) ATTR_COLD;
 	void lucky8p_map(address_map &map) ATTR_COLD;
@@ -3081,6 +3086,30 @@ void wingco_state::lucky8_map(address_map &map)
 	map(0xf800, 0xffff).ram();
 }
 
+void wingco_state::bingowng_map(address_map &map)
+{
+	map(0x0000, 0x7fff).rom();
+	map(0x8000, 0x87ff).ram().share("nvram");
+	map(0x8800, 0x8fff).ram().w(FUNC(wingco_state::fg_vidram_w)).share(m_fg_vidram);
+	map(0x9000, 0x97ff).ram().w(FUNC(wingco_state::fg_atrram_w)).share(m_fg_atrram);
+	map(0x9800, 0x99ff).ram().w(FUNC(wingco_state::reel_ram_w<0>)).share(m_reel_ram[0]);
+	map(0xa000, 0xa1ff).ram().w(FUNC(wingco_state::reel_ram_w<1>)).share(m_reel_ram[1]);
+	map(0xa800, 0xa9ff).ram().w(FUNC(wingco_state::reel_ram_w<2>)).share(m_reel_ram[2]);
+	map(0xb040, 0xb07f).ram().share(m_reel_scroll[0]);
+	map(0xb080, 0xb0bf).ram().share(m_reel_scroll[1]);
+	map(0xb100, 0xb17f).ram().share(m_reel_scroll[2]);
+
+	map(0xb800, 0xb803).rw("ppi8255_0", FUNC(i8255_device::read), FUNC(i8255_device::write));  // Input Ports
+	map(0xb810, 0xb813).rw("ppi8255_1", FUNC(i8255_device::read), FUNC(i8255_device::write));  // Input Ports
+	map(0xb820, 0xb823).rw("ppi8255_2", FUNC(i8255_device::read), FUNC(i8255_device::write));  // Input/Output Ports
+	map(0xb830, 0xb830).rw("aysnd", FUNC(ay8910_device::data_r), FUNC(ay8910_device::data_w));
+	map(0xb840, 0xb840).w("aysnd", FUNC(ay8910_device::address_w));  // no sound... only use both ports for DSWs
+	map(0xb850, 0xb850).w(FUNC(wingco_state::p1_lamps_w));
+	map(0xb860, 0xb860).w(FUNC(wingco_state::p2_lamps_w));
+	map(0xc000, 0xf7ff).rom();
+	map(0xf800, 0xffff).ram();
+}
+
 void wingco_state::luckybar_map(address_map &map)
 {
 	lucky8_map(map);
@@ -3540,6 +3569,7 @@ void wingco_state::megaline_map(address_map &map)
 void wingco_state::megaline_portmap(address_map &map)  // TODO: verify everything. Strange reads at 0x0f and 0x07
 {
 	map.global_mask(0xff);
+	map(0x00, 0x0f).ram();
 	map(0x20, 0x20).w(FUNC(wingco_state::megaline_outputa_w));               // hopper  + video register - unknown input
 	map(0x40, 0x40).portr("IN0").w(FUNC(wingco_state::megaline_outputb_w));  // counters
 	map(0x60, 0x60).portr("IN1").w(FUNC(wingco_state::megaline_outputc_w));  // lamps player 1
@@ -9998,7 +10028,7 @@ static INPUT_PORTS_START( megaline )
 	PORT_DIPSETTING(    0x00, "50000" )
 
 	PORT_START("DSW3")
-	PORT_DIPNAME( 0x07, 0x07, "Key In" )                 PORT_DIPLOCATION("DSW3:1,2,3")
+	PORT_DIPNAME( 0x07, 0x00, "Key In" )                 PORT_DIPLOCATION("DSW3:1,2,3")
 	PORT_DIPSETTING(    0x07, "5 Credits" )
 	PORT_DIPSETTING(    0x06, "10 Credits" )
 	PORT_DIPSETTING(    0x05, "20 Credits" )
@@ -10008,7 +10038,7 @@ static INPUT_PORTS_START( megaline )
 	PORT_DIPSETTING(    0x01, "80 Credits" )
 	PORT_DIPSETTING(    0x00, "100 Credits" )
 
-	PORT_DIPNAME( 0x38, 0x38, "Coin A" )                 PORT_DIPLOCATION("DSW3:4,5,6")
+	PORT_DIPNAME( 0x38, 0x10, "Coin A" )                 PORT_DIPLOCATION("DSW3:4,5,6")
 	PORT_DIPSETTING(    0x38, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x30, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x28, DEF_STR( 1C_4C ) )
@@ -10018,7 +10048,7 @@ static INPUT_PORTS_START( megaline )
 	PORT_DIPSETTING(    0x08, "1 Coin / 25 Credits" )
 	PORT_DIPSETTING(    0x00, "1 Coin / 50 Credits" )
 
-	PORT_DIPNAME( 0xc0, 0xc0, "Hopper Capacity" )        PORT_DIPLOCATION("DSW3:7,8")
+	PORT_DIPNAME( 0xc0, 0x00, "Hopper Capacity" )        PORT_DIPLOCATION("DSW3:7,8")
 	PORT_DIPSETTING(    0xc0, "300" )
 	PORT_DIPSETTING(    0x80, "500" )
 	PORT_DIPSETTING(    0x40, "1000" )
@@ -10058,6 +10088,33 @@ static INPUT_PORTS_START( megaline )
 	PORT_DIPSETTING(    0x00, "Manual Stop" )
 
 INPUT_PORTS_END
+
+
+static INPUT_PORTS_START( skillcha )
+
+	PORT_INCLUDE( megaline )  // different DSW 
+
+	PORT_MODIFY("DSW2")
+	PORT_DIPNAME( 0x0f, 0x0f, "Main Game Percentage" )   PORT_DIPLOCATION("DSW2:1,2,3,4")
+	PORT_DIPSETTING(    0x00, "98" )
+	PORT_DIPSETTING(    0x01, "95" )
+	PORT_DIPSETTING(    0x02, "92" )
+	PORT_DIPSETTING(    0x03, "89" )
+	PORT_DIPSETTING(    0x04, "86" )
+	PORT_DIPSETTING(    0x05, "83" )
+	PORT_DIPSETTING(    0x06, "80" )
+	PORT_DIPSETTING(    0x07, "77" )
+	PORT_DIPSETTING(    0x08, "74" )
+	PORT_DIPSETTING(    0x09, "71" )
+	PORT_DIPSETTING(    0x0a, "68" )
+	PORT_DIPSETTING(    0x0b, "65" )
+	PORT_DIPSETTING(    0x0c, "62" )
+	PORT_DIPSETTING(    0x0d, "59" )
+	PORT_DIPSETTING(    0x0e, "56" )
+	PORT_DIPSETTING(    0x0f, "53" )
+
+INPUT_PORTS_END
+
 
 
 static INPUT_PORTS_START( bonusch )
@@ -12907,54 +12964,16 @@ void wingco_state::luckybar(machine_config &config)
 
 void wingco_state::bingowng(machine_config &config)
 {
+	lucky8(config);
+
 	// basic machine hardware
-	Z80(config, m_maincpu, CPU_CLOCK);
-	m_maincpu->set_addrmap(AS_PROGRAM, &wingco_state::lucky8_map);
-
-	I8255A(config, m_ppi[0]);
-	m_ppi[0]->in_pa_callback().set_ioport("IN0");
-	m_ppi[0]->in_pb_callback().set_ioport("IN1");
-	m_ppi[0]->in_pc_callback().set_ioport("IN2");
-
-	I8255A(config, m_ppi[1]);
-	m_ppi[1]->in_pa_callback().set_ioport("IN3");
-	m_ppi[1]->in_pb_callback().set_ioport("IN4");
-	m_ppi[1]->in_pc_callback().set_ioport("DSW1");
-
-	I8255A(config, m_ppi[2]);
-	m_ppi[2]->in_pa_callback().set_ioport("DSW2");
-	m_ppi[2]->out_pa_callback().set(FUNC(wingco_state::system_outputa_w));
-	m_ppi[2]->out_pb_callback().set(FUNC(wingco_state::system_outputb_w));
-	m_ppi[2]->out_pc_callback().set(FUNC(wingco_state::system_outputc_w));
-
-	// video hardware
-	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
-	screen.set_refresh_hz(60);
-	screen.set_size(64*8, 32*8);
-	screen.set_visarea(0*8, 64*8-1, 2*8, 30*8-1);
-	screen.set_screen_update(FUNC(wingco_state::screen_update_bingowng));
-	screen.screen_vblank().set(FUNC(wingco_state::masked_irq));
-
-	GFXDECODE(config, m_gfxdecode, m_palette, gfx_ncb3);
-	PALETTE(config, m_palette, FUNC(wingco_state::lucky8_palette), 256);
-	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
-
+	m_maincpu->set_addrmap(AS_PROGRAM, &wingco_state::bingowng_map);
+	subdevice<screen_device>("screen")->set_screen_update(FUNC(wingco_state::screen_update_bingowng));
+	PALETTE(config.replace(), m_palette, FUNC(wingco_state::lucky8_palette), 256);
 	MCFG_VIDEO_START_OVERRIDE(wingco_state, bingowng)
 
 	// sound hardware
-	SPEAKER(config, "mono").front_center();
-
-	SN76489(config, "snsnd", PSG_CLOCK).add_route(ALL_OUTPUTS, "mono", 0.80);
-
-	ay8910_device &aysnd(AY8910(config, "aysnd", AY_CLOCK));
-	aysnd.port_a_read_callback().set_ioport("DSW3");
-	aysnd.port_b_read_callback().set_ioport("DSW4");
-	aysnd.port_a_write_callback().set(FUNC(wingco_state::ay8910_outputa_w));
-	aysnd.port_b_write_callback().set(FUNC(wingco_state::ay8910_outputb_w));
-	aysnd.add_route(ALL_OUTPUTS, "mono", 0.50);
-
-	// payout hardware
-	TICKET_DISPENSER(config, m_ticket_dispenser, attotime::from_msec(200));
+	SN76489(config.replace(), "snsnd", 0);  // unused device
 }
 
 void wingco_state::bingownga(machine_config &config)
@@ -23514,8 +23533,10 @@ ROM_START( megaline )
 	ROM_LOAD( "18.r1",  0x00000, 0x10000, CRC(37234cca) SHA1(f991bc55fbfc69594573608ca03a9001ccf2f73b) )
 
 	ROM_REGION( 0x20000, "gfx1", 0 )
-	ROM_LOAD( "11.b1",  0x00000, 0x10000, CRC(6e7810d8) SHA1(16f1331851041b971a62f653f69b8853a2c4f868) )
-	ROM_LOAD( "12.d1",  0x10000, 0x10000, CRC(054c6ee7) SHA1(6e91223c8f6a2dc93a39a1e6453ccd9c731b8b45) )
+	ROM_LOAD( "11.b1",  0x08000, 0x08000, CRC(6e7810d8) SHA1(16f1331851041b971a62f653f69b8853a2c4f868) )
+	ROM_CONTINUE(       0x00000, 0x08000)
+	ROM_LOAD( "12.d1",  0x18000, 0x08000, CRC(054c6ee7) SHA1(6e91223c8f6a2dc93a39a1e6453ccd9c731b8b45) )
+	ROM_CONTINUE(       0x10000, 0x08000)
 
 	ROM_REGION( 0x10000, "gfx2", 0 )
 	ROM_LOAD( "13.j1",  0x4000, 0x4000, CRC(5676ccb3) SHA1(36794c365c0b7490a9046422c0b334a3cdc15b8e) )
@@ -27279,12 +27300,29 @@ void wingco_state::init_skch()
 
 	rom[0x3415] = 0xc9;
 	rom[0x45e4] = 0xc9;
+	
 	rom[0x6296] = 0x00;
 	rom[0x6297] = 0x00;
-	rom[0x6298] = 0x00;
-
 }
 
+void wingco_state::init_skcha()
+{
+	uint8_t *rom = memregion("maincpu")->base();
+
+	rom[0x3434] = 0xc9;
+	rom[0x4608] = 0xc9;
+	
+	rom[0x6298] = 0x00;
+	rom[0x6299] = 0x00;
+}
+
+void wingco_state::init_mgln()
+{
+	uint8_t *rom = memregion("maincpu")->base();
+
+	rom[0x45ec] = 0xc9;
+	rom[0x4637] = 0xc9;
+}
 
 } // anonymous namespace
 
@@ -27510,9 +27548,9 @@ GAME(  1986, fevercha,   feverch,  feverch,  feverch,  goldstar_state, empty_ini
 GAME(  1986, feverchtw,  feverch,  feverch,  feverch,  goldstar_state, empty_init,     ROT0, "Yamate",            "Fever Chance (W-6, Taiwan)",                               MACHINE_IMPERFECT_GRAPHICS | MACHINE_NOT_WORKING )  // reels scrolling, I/O
 
 // --- Wing W-7 hardware ---
-GAMEL( 1986, skillch,    0,        megaline, megaline, wingco_state,   init_skch,      ROT0, "Wing Co., Ltd.",    "Skill Chance (W-7, set 1)",                                MACHINE_NOT_WORKING, layout_cmv4 ) // not looked at yet
-GAME(  1986, skillcha,   skillch,  megaline, megaline, wingco_state,   empty_init,     ROT0, "Wing Co., Ltd.",    "Skill Chance (W-7, set 2)",                                MACHINE_NOT_WORKING ) // "
-GAME(  1991, megaline,   0,        megaline, megaline, wingco_state,   empty_init,     ROT0, "Fun World",         "Mega Lines",                                               MACHINE_NOT_WORKING ) // "
+GAMEL( 1991, megaline,   0,        megaline, megaline, wingco_state,   init_mgln,      ROT0, "Fun World",         "Mega Lines (Wing W-7 System)",                             0,          layout_megaline )
+GAMEL( 1986, skillch,    0,        megaline, megaline, wingco_state,   init_skch,      ROT0, "Wing Co., Ltd.",    "Skill Chance (W-7, set 1, 62-98 main)",                    0,          layout_skillch )
+GAMEL( 1986, skillcha,   skillch,  megaline, skillcha, wingco_state,   init_skcha,     ROT0, "Wing Co., Ltd.",    "Skill Chance (W-7, set 2, 53-98 main)",                    0,          layout_skillch )
 
 // --- Wing W-8 hardware ---
 GAME(  1990, bonusch,    0,        bonusch,  bonusch,  unkch_state,    empty_init,     ROT0, "Wing Co., Ltd.",    "Bonus Chance (W-8, set 1)",                                MACHINE_NOT_WORKING )  // M80C51F MCU
