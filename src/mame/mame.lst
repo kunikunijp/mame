@@ -30229,6 +30229,9 @@ gaialast
 rolcrush
 rolcrusha
 
+@source:misc/ds2000.cpp
+ds2000
+
 @source:misc/dwarfd.cpp
 dwarfd
 dwarfda
@@ -36324,6 +36327,9 @@ ob8
 
 @source:oberheim/xpander.cpp
 xpander
+
+@source:olivetti/att6300p.cpp
+att6300p
 
 @source:olivetti/celint2k.cpp
 celint2kss
