@@ -530,6 +530,7 @@ mmt8
 sr16
 
 @source:alesis/midiverb.cpp
+midifex
 midiverb
 
 @source:alliedleisure/ace.cpp
@@ -41700,6 +41701,9 @@ tinkerbl
 
 @source:sega/segasp.cpp
 aminosan
+arajewel
+arajewelm
+arajewels
 bingogal
 bingogala
 bingogalb
@@ -41707,6 +41711,7 @@ bingogalc
 bingogals
 bingopar
 brickppl
+btlracer
 dinoki25
 dinokich
 dinoki4
@@ -41715,6 +41720,11 @@ dinokior
 galilfac
 isshoni
 huhimage
+kazaaan
+kazaaana
+kazaaan2
+kazaaan2c
+kazaaan2o
 kingyo
 kingyoch
 loveber3
@@ -41724,6 +41734,7 @@ lovebery
 magicpop
 manpuku
 mirworld
+monomedal
 ochaken
 puyomedal
 segasp
@@ -41750,6 +41761,8 @@ ufomini
 
 @source:sega/segaufoh8.cpp
 ufo7
+ufo7a
+ufo7b
 
 @source:sega/segaxbd.cpp
 abcop
