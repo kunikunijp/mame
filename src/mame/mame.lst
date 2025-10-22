@@ -19563,6 +19563,7 @@ zackman
 @source:handheld/hh_ht11xx.cpp
 brke23p2
 ga888
+piko55
 
 @source:handheld/hh_melps4.cpp
 cfrogger
@@ -20990,6 +20991,7 @@ cjdh2a
 cjdh2b
 cjdh2c
 cjdh2d
+cjjl
 cjgdy
 dahuaxy
 hlddz
@@ -43578,6 +43580,9 @@ fanucspgm
 @source:skeleton/fc100.cpp
 fc100
 
+@source:skeleton/fdek_h8s.cpp
+battkids
+
 @source:skeleton/fk1.cpp
 fk1
 
@@ -46548,6 +46553,9 @@ gizmondo
 @source:tiki/tiki100.cpp
 kontiki
 tiki100
+
+@source:tms/vet3000.cpp
+vet3000
 
 @source:toaplan/batsugun.cpp
 batsugun
