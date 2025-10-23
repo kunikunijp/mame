@@ -19447,14 +19447,17 @@ bbl380
 dgun2953
 dphh8630
 dphh8633
+dphh8661
 mc_cb203
 pg118
+ppg118
 qpet
 ragc153
 retro150
 retro150a
 rhhc152
 supreme
+table108
 throwbck
 toumapet
 
@@ -19464,12 +19467,32 @@ chesskng
 @source:handheld/dbridgec.cpp
 dbridgec
 
+@source:handheld/evolution_handheld.cpp
+buttdtct
+evolhh
+pokexyqz
+smkatsum
+
 @source:handheld/gameking.cpp
 gamekin3
 gameking
 
+@source:handheld/generalplus_gpce4.cpp
+mapacman
+parcade
+siddr
+tagalaga
+taspinv
+taturtf
+
+@source:handheld/generalplus_gpel31xx.cpp
+tamameet
+
 @source:handheld/gmaster.cpp
 gmaster
+
+@source:handheld/gw35th.cpp
+gwsmb35
 
 @source:handheld/hh_cop400.cpp
 bshipg
@@ -19988,6 +20011,9 @@ vegaplus
 
 @source:handheld/wildfire.cpp
 wildfire
+
+@source:handheld/yuleyuan.cpp
+yuleyuan
 
 @source:hds/hds200.cpp
 hds200
@@ -35735,6 +35761,7 @@ typo240
 240in1ar
 a6plus
 d12power
+d9_500
 denv150
 dgun2561
 dgun2572
@@ -35789,7 +35816,9 @@ rbbrite
 rd5_240
 red5mam
 rtvgc300
+rtvgc300cr
 rtvgc300fz
+rtvgc300pj
 s10fake
 sealvt
 supr200
@@ -35802,6 +35831,7 @@ tup240
 unk128vt
 unkra200
 vibes240
+zl383
 zonefusn
 
 @source:nintendo/nes_vt42xx.cpp
@@ -40594,6 +40624,7 @@ mympac
 mympaca
 mypac
 mypaca
+mysf2
 mysinv
 reactmd
 sarc110
@@ -43300,6 +43331,9 @@ os214
 attache
 attache816
 
+@source:skeleton/aws.cpp
+aws220
+
 @source:skeleton/ax20.cpp
 ax20
 
@@ -43558,11 +43592,6 @@ eurit30
 eurocom2
 microtrol
 waveterm
-
-@source:skeleton/evolution_handheld.cpp
-buttdtct
-evolhh
-smkatsum
 
 @source:skeleton/extrema_m27sv.cpp
 multgmxl
@@ -43858,6 +43887,9 @@ c8002
 
 @source:skeleton/optomaxv.cpp
 optomaxv
+
+@source:skeleton/orina_stylish_plus.cpp
+orinasp
 
 @source:skeleton/p8k.cpp
 p8000
@@ -47068,7 +47100,7 @@ pokegac2y
 pokegach
 prailpls
 
-@source:tvgames/generalplus_gpl16250_spi_direct.cpp
+@source:tvgames/generalplus_gpl951xx.cpp
 fixitflx
 bfdigdug
 bfgalaga
@@ -47076,7 +47108,9 @@ bfmpac
 bfpacman
 bfspyhnt
 bftetris
+bubltea
 dsgnpal
+pokebala
 pokgoget
 punifrnd
 punij1m
@@ -47084,6 +47118,12 @@ punij1pk
 punij1pu
 punij2pk
 punirune
+segapet1
+segapet1a
+segapet2
+segapet2a
+segapet3
+segapet3a
 smkcatch
 smkguras
 smkgurasa
@@ -47099,7 +47139,12 @@ airobo
 anpanm19
 arcadege
 ardancem
+bananlap
+bandolap
+bandplap
+bandslap
 chiikpc
+dinopc
 dmnslayg
 intrtvg
 jak_swbstrik
@@ -47113,22 +47158,18 @@ neopad
 pdcm2
 pocketmp
 pocketmr
+pokepeac
 rotom2
 saikyopc
+segdis16
 smatomo
+spicanot
 sumikpc
-tamameet
+sumikpcp
+sumipc21
 tmydistb
 zippity
 zippityuk
-
-@source:tvgames/generalplus_gpl_unknown.cpp
-mapacman
-parcade
-siddr
-tagalaga
-taspinv
-taturtf
 
 @source:tvgames/generalplus_gpm453x_nand.cpp
 leapland
@@ -47442,9 +47483,11 @@ ddmmeg12
 ddmsup
 foxsport
 guitrbus
+inmotion
 lexifit
 marc101
 marc250
+wiii3spt
 wiwi18
 
 @source:tvgames/spg2xx_zone.cpp
