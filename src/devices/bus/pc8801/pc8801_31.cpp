@@ -6,7 +6,6 @@ NEC PC8801-31 CD-ROM I/F
 
 TODO:
 - Make it a slot option for PC-8801MA (does it have same ROM as the internal MC version?);
-- volume fader;
 - Document BIOS program flow (PC=1000);
 
 **************************************************************************************************/
@@ -126,19 +125,22 @@ TIMER_CALLBACK_MEMBER(pc8801_31_device::select_off_cb)
 //  READ/WRITE HANDLERS
 //**************************************************************************
 
-
+// base +$90
 void pc8801_31_device::amap(address_map &map)
 {
 	map(0x00, 0x00).rw(FUNC(pc8801_31_device::status_r), FUNC(pc8801_31_device::select_w));
 	map(0x01, 0x01).rw(FUNC(pc8801_31_device::data_r), FUNC(pc8801_31_device::data_w));
 	map(0x04, 0x04).w(FUNC(pc8801_31_device::scsi_reset_w));
-	map(0x08, 0x08).rw(FUNC(pc8801_31_device::clock_r), FUNC(pc8801_31_device::volume_control_w));
+	map(0x08, 0x08).r(FUNC(pc8801_31_device::clock_r)).w(m_cddrive, FUNC(nscsi_cdrom_pc8801_30_device::fader_control_w));
 	map(0x09, 0x09).rw(FUNC(pc8801_31_device::id_r), FUNC(pc8801_31_device::rom_bank_w));
 	map(0x0b, 0x0b).r(FUNC(pc8801_31_device::volume_meter_r<1>));
 	map(0x0d, 0x0d).r(FUNC(pc8801_31_device::volume_meter_r<0>));
-	// TODO: bit 6 also used at startup, what for?
 	map(0x0f, 0x0f).lw8(
-		NAME([this](u8 data) { m_cddrive_enable = bool(BIT(data, 0)); })
+		NAME([this](u8 data) {
+			// takabako and dioscd disables DMA for SUBQ commands to work right
+			m_dma_enable = !!(BIT(data, 6));
+			m_cddrive_enable = !!(BIT(data, 0));
+		})
 	);
 }
 
@@ -241,11 +243,6 @@ u8 pc8801_31_device::clock_r()
 	return m_clock_hb << 7;
 }
 
-void pc8801_31_device::volume_control_w(u8 data)
-{
-	logerror("%s: volume_w %02x\n", machine().describe_context(), data);
-}
-
 /*
  * I/O Port $94
  *
@@ -310,7 +307,7 @@ void pc8801_31_device::sasi_req_w(int state)
 	if (!m_sasi_req && state)
 	{
 		// IO needed otherwise it will keep running the DRQ
-		if (!m_sasi->cd_r() && !m_sasi->msg_r() && m_sasi->io_r())
+		if (m_dma_enable && !m_sasi->cd_r() && !m_sasi->msg_r() && m_sasi->io_r())
 		{
 			m_drq_cb(1);
 		}
