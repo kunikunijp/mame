@@ -17756,6 +17756,7 @@ mjmyuniv
 mjmyunivh
 mjmywrld
 mjmywrldt
+mjnigiri
 mjreach1
 mjreach1a
 mjschuka
@@ -20612,6 +20613,7 @@ cmast92
 cmast92a
 cmast97
 cmast97a
+cmast97b
 cmast97bl16
 cmast97bl18
 cmast97i
@@ -43794,6 +43796,9 @@ madmoney2
 @source:skeleton/marsvending.cpp
 apvm110
 apvm110a
+
+@source:skeleton/megacrane.cpp
+megacrane
 
 @source:skeleton/mes.cpp
 mes

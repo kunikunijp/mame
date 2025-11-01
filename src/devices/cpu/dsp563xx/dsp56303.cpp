@@ -34,6 +34,11 @@ void dsp56303_device::device_reset()
 	dsp563xx_device::device_reset();
 }
 
+void dsp56303_device::device_add_mconfig(machine_config &config)
+{
+	HI08(config, m_hi08);
+}
+
 const tiny_rom_entry *dsp56303_device::device_rom_region() const
 {
 	return ROM_NAME(dsp56303);
@@ -42,15 +47,19 @@ const tiny_rom_entry *dsp56303_device::device_rom_region() const
 
 void dsp56303_device::p_map(address_map &map)
 {
+	map(0x000000, 0x000fff).ram();
 	map(0xff0000, 0xff00bf).rom().region("boot", 0);
 }
 
 void dsp56303_device::x_map(address_map &map)
 {
+	map(0x000000, 0x0007ff).ram();
+	map(0xffffc2, 0xffffc7).m(m_hi08, FUNC(hi08_device::map));
 }
 
 void dsp56303_device::y_map(address_map &map)
 {
+	map(0x000000, 0x0007ff).ram();
 }
 
-DEFINE_DEVICE_TYPE(DSP56303, dsp56303_device, "dsp56303", "DSP 56303")
+DEFINE_DEVICE_TYPE(DSP56303, dsp56303_device, "dsp56303", "Motorola DSP56303")
