@@ -72,14 +72,15 @@ mcf5206e_device::mcf5206e_device(const machine_config &mconfig, const char *tag,
 	, m_sim(*this, "sim")
 	, m_timer(*this, "timer%u", 1U)
 	, write_chip_select(*this)
-	, m_uart(*this, "coldfire_uart%u", 1U)
+	, m_uart(*this, "uart%u", 1U)
 	, write_tx1(*this)
 	, write_tx2(*this)
+	, m_gpio_r_cb(*this, 0xff)
 	, m_gpio_w_cb(*this)
-	, m_mbus(*this, "coldfire_mbus")
+	, m_mbus(*this, "mbus")
 	, write_sda(*this)
 	, write_scl(*this)
-	, m_dma(*this, "coldfire_dma%u", 0U)
+	, m_dma(*this, "dma%u", 0U)
 {
 }
 
@@ -282,7 +283,6 @@ void mcf5206e_device::device_start()
 	save_item(NAME(m_dmcr));
 
 	save_item(NAME(m_ppddr));
-	save_item(NAME(m_ppdat_in));
 	save_item(NAME(m_ppdat_out));
 
 }
@@ -346,9 +346,9 @@ void mcf5206e_device::mbar_map(address_map &map)
 	map(0x100, 0x11f).m(m_timer[0], FUNC(coldfire_timer_device::timer_map));
 	map(0x120, 0x13f).m(m_timer[1], FUNC(coldfire_timer_device::timer_map));
 
-	// uart (mc68681 derrived)
-	map(0x140, 0x17c).rw(m_uart[0], FUNC(mcf5206e_uart_device::read), FUNC(mcf5206e_uart_device::write));
-	map(0x180, 0x1bc).rw(m_uart[1], FUNC(mcf5206e_uart_device::read), FUNC(mcf5206e_uart_device::write));
+	// uart (mc68681 derived)
+	map(0x140, 0x17f).rw(m_uart[0], FUNC(mcf5206e_uart_device::read), FUNC(mcf5206e_uart_device::write)).umask32(0xff000000);
+	map(0x180, 0x1bf).rw(m_uart[1], FUNC(mcf5206e_uart_device::read), FUNC(mcf5206e_uart_device::write)).umask32(0xff000000);
 
 	// parallel port
 	map(0x1c5, 0x1c5).rw(FUNC(mcf5206e_device::ppddr_r), FUNC(mcf5206e_device::ppddr_w));
@@ -469,18 +469,9 @@ void mcf5206e_device::dmcr_w(u16 data)
 
 /*
  * Parallel port
- * Just a 8 bit GPIO. Nothing to see here
+ * Just a 8 bit GPIO.
  */
 
-void mcf5206e_device::gpio_pin_w(int pin, int state)
-{
-	BITWRITE(m_ppdat_in, pin, state);
-}
-
-void mcf5206e_device::gpio_port_w(u8 state)
-{
-	m_ppdat_in = state;
-}
 
 void mcf5206e_device::ppddr_w(u8 data)
 {
@@ -493,11 +484,25 @@ void mcf5206e_device::ppddr_w(u8 data)
 		if(!BIT(m_sim->get_par(), 4)) mask |= 0x0f; // PP 0-3 / DDATA 0-3
 		if(!BIT(m_sim->get_par(), 5)) mask |= 0xf0; // PP 4-7 / PST 0-3
 
+		u8 ppdat_in = m_gpio_r_cb();
+
 		// GPIO pins will physically be set to the current input and output state, and masked according to PAR
-		m_gpio_w_cb(((m_ppdat_out & m_ppddr) | (m_ppdat_in & ~m_ppddr)) & mask);
+		m_gpio_w_cb(((m_ppdat_out & m_ppddr) | (ppdat_in & ~m_ppddr)) & mask);
 	}
 
 	m_ppddr = data;
+}
+
+u8 mcf5206e_device::ppddr_r()
+{
+	return m_ppddr;
+}
+
+u8 mcf5206e_device::ppdat_r()
+{
+	u8 ppdat_in = m_gpio_r_cb();
+
+	return (ppdat_in & ~m_ppddr) | (m_ppdat_out & m_ppddr);
 }
 
 void mcf5206e_device::ppdat_w(u8 data)
@@ -508,8 +513,9 @@ void mcf5206e_device::ppdat_w(u8 data)
 	u8 mask = 0;
 	if(!BIT(m_sim->get_par(), 4)) mask |= 0x0f; // PP 0-3 / DDATA 0-3
 	if(!BIT(m_sim->get_par(), 5)) mask |= 0xf0; // PP 4-7 / PST 0-3
+	u8 ppdat_in = m_gpio_r_cb();
 
-	m_gpio_w_cb(((m_ppdat_out & m_ppddr) | (m_ppdat_in & ~m_ppddr)) & mask);
+	m_gpio_w_cb(((m_ppdat_out & m_ppddr) | (ppdat_in & ~m_ppddr)) & mask);
 }
 
 
@@ -1051,7 +1057,6 @@ void mcf5206e_device::init_regs(bool first_init)
 	m_dmcr = 0x0000;
 
 	m_ppddr = 0x00;
-	m_ppdat_in = 0x00;
 	m_ppdat_out = 0x00;
 }
 
@@ -1117,6 +1122,7 @@ void coldfire_mbus_device::mbus_map(address_map &map)
 TIMER_CALLBACK_MEMBER(coldfire_mbus_device::mbus_callback)
 {
 	// TODO: Do bit transfers etc
+	// gamtor wants i2c irqs, as it runs the task based EEPROM checks there.
 }
 
 void coldfire_mbus_device::madr_w(u8 data)
@@ -1230,6 +1236,8 @@ void coldfire_dma_device::dcr_w(u16 data)
 {
 	m_dcr = data;
 	LOGMASKED(LOG_DMA, "%s: (DMA Control Register) dcr_w: %04x\n", this->machine().describe_context(), data);
+	if (BIT(data, 0))
+		popmessage("%s unemulated DMA trigger", this->tag());
 }
 
 void coldfire_dma_device::bcr_w(u16 data)
