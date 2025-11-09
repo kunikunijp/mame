@@ -3,74 +3,40 @@
 license:CC0-1.0
 copyright-holders: Roberto Fresca
 
-  Animal House (Suns) control panel.
+  Wing W7 - Skill Chance (alt) control panel.
 
 -->
 <mamelayout version="2">
 
 	<!-- define button-lamps -->
 
-	<element name="dup" defstate="0">
-		<rect state="1">
-			<color red="1.0" green="0.0" blue="0.0" />
-		</rect>
-		<rect state="0">
-			<color red="0.25" green="0.0" blue="0.0" />
-		</rect>
-		<text string="DOUBLE-UP">
-			<color red="0.0" green="0.0" blue="0.0" />
-			<bounds x="0" y="0.3" width="1" height="0.4" />
-		</text>
-	</element>
-
-	<element name="take" defstate="0">
-		<rect state="1">
-			<color red="1.0" green="0.0" blue="0.0" />
-		</rect>
-		<rect state="0">
-			<color red="0.25" green="0.0" blue="0.0" />
-		</rect>
-		<text string="TAKE">
-			<color red="0.0" green="0.0" blue="0.0" />
-			<bounds x="0" y="0.1" width="1" height="0.4" />
-		</text>
-		<text string="STOP 1">
-			<color red="0.0" green="0.0" blue="0.0" />
-			<bounds x="0" y="0.5" width="1" height="0.4" />
-		</text>
-	</element>
-
 	<element name="bet" defstate="0">
 		<rect state="1">
-			<color red="1.0" green="0.0" blue="0.0" />
+			<color red="1.0" green="0.0" blue="1.0" />
 		</rect>
 		<rect state="0">
-			<color red="0.25" green="0.0" blue="0.0" />
+			<color red="0.25" green="0.0" blue="0.25" />
 		</rect>
 		<text string="BET">
 			<color red="0.0" green="0.0" blue="0.0" />
 			<bounds x="0" y="0.1" width="1" height="0.4" />
 		</text>
-		<text string="STOP 2">
+		<text string="STOP ALL">
 			<color red="0.0" green="0.0" blue="0.0" />
 			<bounds x="0" y="0.5" width="1" height="0.4" />
 		</text>
 	</element>
 
-	<element name="small" defstate="0">
+	<element name="take" defstate="0">
 		<rect state="1">
-			<color red="1.0" green="0.0" blue="0.0" />
+			<color red="1.0" green="0.5" blue="0.0" />
 		</rect>
 		<rect state="0">
-			<color red="0.25" green="0.0" blue="0.0" />
+			<color red="0.25" green="0.12" blue="0.0" />
 		</rect>
-		<text string="SMALL/INFO">
+		<text string="TAKE">
 			<color red="0.0" green="0.0" blue="0.0" />
-			<bounds x="0" y="0.1" width="1" height="0.4" />
-		</text>
-		<text string="STOP 3">
-			<color red="0.0" green="0.0" blue="0.0" />
-			<bounds x="0" y="0.5" width="1" height="0.4" />
+			<bounds x="0" y="0.3" width="1" height="0.4" />
 		</text>
 	</element>
 
@@ -87,6 +53,32 @@ copyright-holders: Roberto Fresca
 		</text>
 	</element>
 
+	<element name="double" defstate="0">
+		<rect state="1">
+			<color red="1.0" green="0.0" blue="0.0" />
+		</rect>
+		<rect state="0">
+			<color red="0.25" green="0.0" blue="0.0" />
+		</rect>
+		<text string="DOUBLE">
+			<color red="0.0" green="0.0" blue="0.0" />
+			<bounds x="0" y="0.3" width="1" height="0.4" />
+		</text>
+	</element>
+
+	<element name="small" defstate="0">
+		<rect state="1">
+			<color red="1.0" green="0.0" blue="0.0" />
+		</rect>
+		<rect state="0">
+			<color red="0.25" green="0.0" blue="0.0" />
+		</rect>
+		<text string="SMALL">
+			<color red="0.0" green="0.0" blue="0.0" />
+			<bounds x="0" y="0.3" width="1" height="0.4" />
+		</text>
+	</element>
+
 	<element name="start" defstate="0">
 		<rect state="1">
 			<color red="0.0" green="1.0" blue="0.0" />
@@ -98,7 +90,7 @@ copyright-holders: Roberto Fresca
 			<color red="0.0" green="0.0" blue="0.0" />
 			<bounds x="0" y="0.1" width="1" height="0.4" />
 		</text>
-		<text string="STOP ALL">
+		<text string="STOP SEQ">
 			<color red="0.0" green="0.0" blue="0.0" />
 			<bounds x="0" y="0.5" width="1" height="0.4" />
 		</text>
@@ -113,7 +105,7 @@ copyright-holders: Roberto Fresca
 		</rect>
 	</element>
 
-	<element name="red_b" defstate="0">
+	<element name="big_b" defstate="0">
 		<rect state="1">
 			<color red="0.7" green="0.0" blue="0.0" />
 		</rect>
@@ -207,50 +199,50 @@ copyright-holders: Roberto Fresca
 		</element>
 
 
-		<element name="lamp1" ref="red_b" inputtag="IN0" inputmask="0x08">
+		<element name="lamp2" ref="bet_b" inputtag="IN0" inputmask="0x20">
 			<bounds x="0.05" y="3.08" width="0.50" height="0.24" />
 		</element>
-		<element name="lamp1" ref="dup" inputtag="IN0" inputmask="0x08">
+		<element name="lamp2" ref="bet" inputtag="IN0" inputmask="0x20">
 			<bounds x="0.07" y="3.10" width="0.46" height="0.20" />
 		</element>
 
 
-		<element name="lamp2" ref="red_b" inputtag="IN0" inputmask="0x10">
+		<element name="lamp1" ref="take_b" inputtag="IN0" inputmask="0x10">
 			<bounds x="0.75" y="3.08" width="0.50" height="0.24" />
 		</element>
-		<element name="lamp2" ref="take" inputtag="IN0" inputmask="0x10">
+		<element name="lamp1" ref="take" inputtag="IN0" inputmask="0x10">
 			<bounds x="0.77" y="3.10" width="0.46" height="0.20" />
 		</element>
 
 
-		<element name="lamp3" ref="red_b" inputtag="IN0" inputmask="0x20">
+		<element name="lamp0" ref="big_b" inputtag="IN0" inputmask="0x04">
 			<bounds x="1.4" y="3.08" width="0.50" height="0.24" />
 		</element>
-		<element name="lamp3" ref="bet" inputtag="IN0" inputmask="0x20">
+		<element name="lamp0" ref="big" inputtag="IN0" inputmask="0x04">
 			<bounds x="1.42" y="3.10" width="0.46" height="0.20" />
 		</element>
 
 
-		<element name="lamp4" ref="red_b" inputtag="IN0" inputmask="0x40">
+		<element name="lamp1" ref="big_b" inputtag="IN0" inputmask="0x08">
 			<bounds x="2.05" y="3.08" width="0.50" height="0.24" />
 		</element>
-		<element name="lamp4" ref="small" inputtag="IN0" inputmask="0x40">
+		<element name="lamp1" ref="double" inputtag="IN0" inputmask="0x08">
 			<bounds x="2.07" y="3.10" width="0.46" height="0.20" />
 		</element>
 
 
-		<element name="lamp0" ref="red_b" inputtag="IN0" inputmask="0x04">
+		<element name="lamp0" ref="big_b" inputtag="IN0" inputmask="0x40">
 			<bounds x="2.7" y="3.08" width="0.50" height="0.24" />
 		</element>
-		<element name="lamp0" ref="big" inputtag="IN0" inputmask="0x04">
+		<element name="lamp0" ref="small" inputtag="IN0" inputmask="0x40">
 			<bounds x="2.72" y="3.10" width="0.46" height="0.20" />
 		</element>
 
 
-		<element name="lamp5" ref="start_b" inputtag="IN0" inputmask="0x80">
+		<element name="lamp11" ref="start_b" inputtag="IN0" inputmask="0x80">
 			<bounds x="3.45" y="3.08" width="0.50" height="0.24" />
 		</element>
-		<element name="lamp5" ref="start" inputtag="IN0" inputmask="0x80">
+		<element name="lamp11" ref="start" inputtag="IN0" inputmask="0x80">
 			<bounds x="3.47" y="3.10" width="0.46" height="0.20" />
 		</element>
 
