@@ -665,6 +665,7 @@ public:
 
 	void init_cb2() ATTR_COLD;
 	void init_cbaai() ATTR_COLD;
+	void init_fl7_3121() ATTR_COLD;
 	void init_flam7_tw() ATTR_COLD;
 	void init_flaming7() ATTR_COLD;
 	void init_lucky8a() ATTR_COLD;
@@ -11302,158 +11303,153 @@ static INPUT_PORTS_START( fb2010 )  // hit 'start1' to init NVRAM for first time
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_GAMBLE_SERVICE ) PORT_NAME("Settings")
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_GAMBLE_BOOK ) PORT_NAME("Stats")
 
-	// definitions and defaults taken from manual (unknown if manual is for this exact version)
 	PORT_START("DSW1")
-	PORT_DIPNAME( 0x07, 0x00, DEF_STR( Difficulty ) ) PORT_DIPLOCATION("DSW1:1,2,3")  // 'Game Level' in manual
-	PORT_DIPSETTING(    0x00, "Level 8 (Hardest)" )
-	PORT_DIPSETTING(    0x01, "Level 7" )
-	PORT_DIPSETTING(    0x02, "Level 6" )
-	PORT_DIPSETTING(    0x03, "Level 5" )
-	PORT_DIPSETTING(    0x04, "Level 4" )
-	PORT_DIPSETTING(    0x05, "Level 3" )
-	PORT_DIPSETTING(    0x06, "Level 2" )
-	PORT_DIPSETTING(    0x07, "Level 1 (Easiest)" )
-	PORT_DIPNAME( 0x38, 0x00, "Max Play" )            PORT_DIPLOCATION("DSW1:4,5,6")
-	// "left" set at DSW5:5
-	PORT_DIPSETTING(    0x00, "8" )  PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
-	PORT_DIPSETTING(    0x08, "16" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
-	PORT_DIPSETTING(    0x10, "24" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
-	PORT_DIPSETTING(    0x18, "32" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
-	// "right" set at DSW5:5
-	PORT_DIPSETTING(    0x00, "10" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
-	PORT_DIPSETTING(    0x08, "20" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
-	PORT_DIPSETTING(    0x10, "30" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
-	PORT_DIPSETTING(    0x18, "40" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)  // duplicate of just below
-	// "left" or "right" set at DSW5:5
-	PORT_DIPSETTING(    0x20, "40" )
-	PORT_DIPSETTING(    0x28, "48" )
-	PORT_DIPSETTING(    0x30, "64" )
-	PORT_DIPSETTING(    0x38, "80" )
-	PORT_DIPNAME( 0xc0, 0x00, "Min Play for Bonus" ) PORT_DIPLOCATION("DSW1:7,8")
-	// "left" set at DSW5:5
-	PORT_DIPSETTING(    0x00, "8" )  PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
-	PORT_DIPSETTING(    0x40, "16" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
-	PORT_DIPSETTING(    0x80, "24" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
-	PORT_DIPSETTING(    0xc0, "32" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
-	// "right" set at DSW5:5
-	PORT_DIPSETTING(    0x00, "10" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
-	PORT_DIPSETTING(    0x40, "20" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
-	PORT_DIPSETTING(    0x80, "30" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
-	PORT_DIPSETTING(    0xc0, "40" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
+	PORT_DIPNAME( 0x07, 0x03, "Game Level (Difficulty)" )	PORT_DIPLOCATION("DSW1:!1,!2,!3")
+	PORT_DIPSETTING(	0x07, "90% Level 1 (Easiest)" )
+	PORT_DIPSETTING(	0x06, "85% Level 2" )
+	PORT_DIPSETTING(	0x05, "80% Level 3" )
+	PORT_DIPSETTING(	0x04, "75% Level 4" )
+	PORT_DIPSETTING(	0x03, "70% Level 5" )
+	PORT_DIPSETTING(	0x02, "65% Level 6" )
+	PORT_DIPSETTING(	0x01, "60% Level 7" )
+	PORT_DIPSETTING(	0x00, "55% Level 8 (Hardest)" )
+	PORT_DIPNAME( 0x38, 0x38, "Maximum Play" )				PORT_DIPLOCATION("DSW1:!4,!5,!6")
+	PORT_DIPSETTING(	0x00, "10" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
+	PORT_DIPSETTING(	0x08, "20" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
+	PORT_DIPSETTING(	0x10, "30" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
+	PORT_DIPSETTING(	0x18, "40" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
+	PORT_DIPSETTING(	0x00, "8" ) 	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0x08, "16" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0x10, "24" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0x18, "32" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0x20, "40" )
+	PORT_DIPSETTING(	0x28, "48" )
+	PORT_DIPSETTING(	0x30, "64" )
+	PORT_DIPSETTING(	0x38, "80" )
+	PORT_DIPNAME( 0xc0, 0x00, "Minimum Play for Bonus" )	PORT_DIPLOCATION("DSW1:!7,!8")
+	PORT_DIPSETTING(	0x00, "10" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
+	PORT_DIPSETTING(	0x40, "20" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
+	PORT_DIPSETTING(	0x80, "30" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
+	PORT_DIPSETTING(	0xc0, "40" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
+	PORT_DIPSETTING(	0x00, "8" ) 	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0x40, "16" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0x80, "24" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0xc0, "32" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
 
 	PORT_START("DSW2")
-	PORT_DIPNAME( 0x01, 0x01, "Double Up" )        PORT_DIPLOCATION("DSW2:1")  // 'Double Game' in manual
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x01, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, "Skill Spin" )       PORT_DIPLOCATION("DSW2:2")  // 'Non-Stop Spinning' in manual
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x02, DEF_STR( On ) )
-	PORT_DIPNAME( 0x1c, 0x00, "Coin In" )          PORT_DIPLOCATION("DSW2:3,4,5")
-	PORT_DIPSETTING(    0x00, DEF_STR( 1C_1C ) )
-	PORT_DIPSETTING(    0x04, DEF_STR( 1C_2C ) )
-	PORT_DIPSETTING(    0x08, DEF_STR( 1C_4C ) )
-	PORT_DIPSETTING(    0x0c, DEF_STR( 1C_5C ) )
-	PORT_DIPSETTING(    0x10, DEF_STR( 1C_10C ) )
-	PORT_DIPSETTING(    0x14, DEF_STR( 1C_20C ) )
-	PORT_DIPSETTING(    0x18, DEF_STR( 1C_25C ) )
-	PORT_DIPSETTING(    0x1c, DEF_STR( 1C_100C ) )
-	PORT_DIPNAME( 0x60, 0x00, "Note In" )          PORT_DIPLOCATION("DSW2:6,7")
-	PORT_DIPSETTING(    0x00, "100" )
-	PORT_DIPSETTING(    0x20, "200" )
-	PORT_DIPSETTING(    0x40, "500" )
-	PORT_DIPSETTING(    0x60, "1000" )
-	PORT_DIPNAME( 0x80, 0x00, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW2:8")  // 'Warning: this switch must be always off' in manual
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
+	PORT_DIPNAME( 0x01, 0x01, "Double Up Game" )		PORT_DIPLOCATION("DSW2:!1")
+	PORT_DIPSETTING(	0x00, DEF_STR( No ) )
+	PORT_DIPSETTING(	0x01, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x02, 0x00, "Skill Spinning" )		PORT_DIPLOCATION("DSW2:!2")
+	PORT_DIPSETTING(	0x00, DEF_STR( No ) )
+	PORT_DIPSETTING(	0x02, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x1c, 0x10, "Coin In" )				PORT_DIPLOCATION("DSW2:!3,!4,!5")
+	PORT_DIPSETTING(	0x00, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(	0x04, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(	0x08, DEF_STR( 1C_4C ) )
+	PORT_DIPSETTING(	0x0c, DEF_STR( 1C_5C ) )
+	PORT_DIPSETTING(	0x10, DEF_STR( 1C_10C ) )
+	PORT_DIPSETTING(	0x14, DEF_STR( 1C_20C ) )
+	PORT_DIPSETTING(	0x18, DEF_STR( 1C_25C ) )
+	PORT_DIPSETTING(	0x1c, DEF_STR( 1C_100C ) )
+	PORT_DIPNAME( 0x60, 0x00, "Note In Value" ) 		PORT_DIPLOCATION("DSW2:!6,!7")
+	PORT_DIPSETTING(	0x00, "100" )
+	PORT_DIPSETTING(	0x20, "200" )
+	PORT_DIPSETTING(	0x40, "500" )
+	PORT_DIPSETTING(	0x60, "1000" )
+	PORT_DIPNAME( 0x80, 0x00, "WARNING: Always Off" )	PORT_DIPLOCATION("DSW2:!8")  // On for TEST mode
+	PORT_DIPSETTING(	0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(	0x80, DEF_STR( On ) )
 
 	PORT_START("DSW3")
-	PORT_DIPNAME( 0x03, 0x00, "Min Play to Start" ) PORT_DIPLOCATION("DSW3:1,2")
-	PORT_DIPSETTING(    0x00, "1" )
-	// "left" set at DSW5:5
-	PORT_DIPSETTING(    0x01, "8" )  PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
-	PORT_DIPSETTING(    0x02, "16" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
-	PORT_DIPSETTING(    0x03, "24" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
-	// "right" set at DSW5:5
-	PORT_DIPSETTING(    0x01, "10" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
-	PORT_DIPSETTING(    0x02, "20" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
-	PORT_DIPSETTING(    0x03, "30" ) PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
-	PORT_DIPNAME( 0x0c, 0x00, "Coin In & Note In Limit" ) PORT_DIPLOCATION("DSW3:3,4")
-	PORT_DIPSETTING(    0x00, "5.000" )
-	PORT_DIPSETTING(    0x04, "10.000" )
-	PORT_DIPSETTING(    0x08, "50.000" )
-	PORT_DIPSETTING(    0x0c, "90.000" )
-	PORT_DIPNAME( 0xf0, 0x00, "Clear / Ticket Unit (Service In)" ) PORT_DIPLOCATION("DSW3:5,6,7,8")
-	PORT_DIPSETTING(    0x00, "1" )
-	PORT_DIPSETTING(    0x10, "4" )
-	PORT_DIPSETTING(    0x20, "5" )
-	PORT_DIPSETTING(    0x30, "10" )
-	PORT_DIPSETTING(    0x40, "15" )
-	PORT_DIPSETTING(    0x50, "20" )
-	PORT_DIPSETTING(    0x60, "25" )
-	PORT_DIPSETTING(    0x70, "30" )
-	PORT_DIPSETTING(    0x80, "40" )
-	PORT_DIPSETTING(    0x90, "50" )
-	PORT_DIPSETTING(    0xa0, "60" )
-	PORT_DIPSETTING(    0xb0, "75" )
-	PORT_DIPSETTING(    0xc0, "80" )
-	PORT_DIPSETTING(    0xd0, "100" )
-	PORT_DIPSETTING(    0xe0, "200" )
-	PORT_DIPSETTING(    0xf0, "500" )
+	PORT_DIPNAME( 0x03, 0x01, "Minimum Play to Start" ) 		PORT_DIPLOCATION("DSW3:!1,!2")
+	PORT_DIPSETTING(	0x00, "1" )
+	PORT_DIPSETTING(	0x01, "10" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
+	PORT_DIPSETTING(	0x02, "20" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
+	PORT_DIPSETTING(	0x03, "30" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
+	PORT_DIPSETTING(	0x01, "8" ) 	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0x02, "16" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0x03, "24" )	PORT_CONDITION("DSW5", 0x10, EQUALS, 0x10)
+	PORT_DIPNAME( 0x0c, 0x08, "Max Coin In & Note In Points" )	PORT_DIPLOCATION("DSW3:!3,!4")
+	PORT_DIPSETTING(	0x00, "1000" )
+	PORT_DIPSETTING(	0x04, "5000" )
+	PORT_DIPSETTING(	0x08, "10000" )
+	PORT_DIPSETTING(	0x0c, "90000" )
+	PORT_DIPNAME( 0xf0, 0x00, "Clear / Ticket Unit" )			PORT_DIPLOCATION("DSW3:!5,!6,!7,!8")
+	PORT_DIPSETTING(	0x00, "1" )
+	PORT_DIPSETTING(	0x10, "4" )
+	PORT_DIPSETTING(	0x20, "5" )
+	PORT_DIPSETTING(	0x30, "10" )
+	PORT_DIPSETTING(	0x40, "15" )
+	PORT_DIPSETTING(	0x50, "20" )
+	PORT_DIPSETTING(	0x60, "25" )
+	PORT_DIPSETTING(	0x70, "30" )
+	PORT_DIPSETTING(	0x80, "40" )
+	PORT_DIPSETTING(	0x90, "50" )
+	PORT_DIPSETTING(	0xa0, "60" )
+	PORT_DIPSETTING(	0xb0, "75" )
+	PORT_DIPSETTING(	0xc0, "80" )
+	PORT_DIPSETTING(	0xd0, "100" )
+	PORT_DIPSETTING(	0xe0, "200" )
+	PORT_DIPSETTING(	0xf0, "500" )
 
 	PORT_START("DSW4")
-	PORT_DIPNAME( 0x01, 0x00, "Check Account" ) PORT_DIPLOCATION("DSW4:1")  // turn on, go into account screen and press double and take to reset board
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x01, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x00, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW4:2")  // not shown in manual
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x02, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x00, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW4:3")  // not shown in manual
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x04, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x00, "Bonus Accumulation" ) PORT_DIPLOCATION("DSW4:4")
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x08, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x00, "Auto Ticket Dispense (Use Score)" ) PORT_DIPLOCATION("DSW4:5")
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
-	PORT_DIPNAME( 0xe0, 0x00, "Ticket Dispense Mode" ) PORT_DIPLOCATION("DSW4:6,7,8")
-	PORT_DIPSETTING(    0xe0, "Continuous" )
-	PORT_DIPSETTING(    0xc0, "Max 1 Ticket per Game" )
-	PORT_DIPSETTING(    0xa0, "Max 2 Tickets per Game" )
-	PORT_DIPSETTING(    0x80, "Max 3 Tickets per Game" )
-	PORT_DIPSETTING(    0x60, "Max 4 Tickets per Game" )
-	PORT_DIPSETTING(    0x40, "Max 5 Tickets per Game" )
-	PORT_DIPSETTING(    0x20, "Max 8 Tickets per Game" )
-	PORT_DIPSETTING(    0x00, "Max 10 Tickets per Game" )
+	PORT_DIPNAME( 0x01, 0x00, "Check Account" ) 						PORT_DIPLOCATION("DSW4:1")
+	PORT_DIPSETTING(	0x01, DEF_STR( No ) )
+	PORT_DIPSETTING(	0x00, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x02, 0x02, "Show In Confirm Screen" )				PORT_DIPLOCATION("DSW4:2")
+	PORT_DIPSETTING(	0x02, "Percentage" )
+	PORT_DIPSETTING(	0x00, "Level of Difficulty" )
+	PORT_DIPNAME( 0x04, 0x04, "Initial Bonus Settings After Reset" )	PORT_DIPLOCATION("DSW4:3")	// (need a reset after change)
+	PORT_DIPSETTING(	0x04, "Type 1" )
+	PORT_DIPSETTING(	0x00, "Type 2" )
+	PORT_DIPNAME( 0x08, 0x00, "Bonus Accumulation" )					PORT_DIPLOCATION("DSW4:4")	// (need a reset after change)
+	PORT_DIPSETTING(	0x08, DEF_STR( No ) )
+	PORT_DIPSETTING(	0x00, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x10, 0x10, "Auto Ticket Dispense" )					PORT_DIPLOCATION("DSW4:5")	// (need a reset after change)
+	PORT_DIPSETTING(	0x10, DEF_STR( No ) )
+	PORT_DIPSETTING(	0x00, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0xe0, 0xe0, "Ticket Dispense Mode" )					PORT_DIPLOCATION("DSW4:6,7,8")
+	PORT_DIPSETTING(	0xe0, "Continuous" )
+	PORT_DIPSETTING(	0xc0, "Max 1 Ticket Per Game" )
+	PORT_DIPSETTING(	0xa0, "Max 2 Ticket Per Game" )
+	PORT_DIPSETTING(	0x80, "Max 3 Ticket Per Game" )
+	PORT_DIPSETTING(	0x60, "Max 4 Ticket Per Game" )
+	PORT_DIPSETTING(	0x40, "Max 5 Ticket Per Game" )
+	PORT_DIPSETTING(	0x20, "Max 8 Ticket Per Game" )
+	PORT_DIPSETTING(	0x00, "Max 10 Ticket Per Game" )
 
 	PORT_START("DSW5")
-	PORT_DIPNAME( 0x01, 0x00, DEF_STR( Unknown ) ) PORT_DIPLOCATION("DSW5:1")  // not shown in manual
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x01, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x00, "Limit Score to 10 x Play or $5.00 Max" ) PORT_DIPLOCATION("DSW5:2")
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x02, "Off (Turn DSW4:5 on to activate this)" ) PORT_CONDITION("DSW4", 0x10, EQUALS, 0x10)
-	PORT_DIPSETTING(    0x02, DEF_STR( On ) )                           PORT_CONDITION("DSW4", 0x10, EQUALS, 0x00)
-	PORT_DIPNAME( 0x04, 0x00, "Auto Ticket Dispense Mode" ) PORT_DIPLOCATION("DSW5:3")
-	PORT_DIPSETTING(    0x00, "Direct Drive" )
-	PORT_DIPSETTING(    0x04, "Pulse Signal - Interface" )
-	PORT_DIPNAME( 0x08, 0x08, "Show Odds / Title" ) PORT_DIPLOCATION("DSW5:4")  // 'Show Odds Tables' in manual
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x08, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, "Choose Left or Right Column of DIP SW1 & DIP SW3" ) PORT_DIPLOCATION("DSW5:5")
-	PORT_DIPSETTING(    0x10, "Left" )
-	PORT_DIPSETTING(    0x00, "Right" )
-	PORT_DIPNAME( 0x20, 0x00, "Play Remain Score (When No Point Left)" ) PORT_DIPLOCATION("DSW5:6")
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x20, "Off (Turn DSW4:5 on to activate this)" )  PORT_CONDITION("DSW4", 0x10, EQUALS, 0x10)
-	PORT_DIPSETTING(    0x20, DEF_STR( On ) )                            PORT_CONDITION("DSW4", 0x10, EQUALS, 0x00)
-	PORT_DIPNAME( 0x40, 0x00, "Reset Remaining Score (When Game Over)" ) PORT_DIPLOCATION("DSW5:7")
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x40, "Off (Turn DSW4:5 on to activate this)" )  PORT_CONDITION("DSW4", 0x10, EQUALS, 0x10)
-	PORT_DIPSETTING(    0x40, DEF_STR( On ) )                            PORT_CONDITION("DSW4", 0x10, EQUALS, 0x00)
-	PORT_DIPNAME( 0x80, 0x00, "Show 'Game' Text" )                       PORT_DIPLOCATION("DSW5:8")  // 'Count Game' in manual. Causes corruption in D-Up game?
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unused ) )						PORT_DIPLOCATION("DSW5:1")
+	PORT_DIPSETTING(	0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(	0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, "Limit Score of Each Game to Max 10x Bet or $5.00" )	PORT_DIPLOCATION("DSW5:2")
+	PORT_DIPSETTING(	0x02, DEF_STR( No ) )				PORT_CONDITION("DSW4", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0x00, DEF_STR( Yes ) )				PORT_CONDITION("DSW4", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0x00, "Unused when DSW4-5 OFF" )	PORT_CONDITION("DSW4", 0x10, EQUALS, 0x00)
+	PORT_DIPSETTING(	0x02, "Unused when DSW4-5 OFF" )	PORT_CONDITION("DSW4", 0x10, EQUALS, 0x00)
+	PORT_DIPNAME( 0x04, 0x04, "Use Printer" )							PORT_DIPLOCATION("DSW5:3")
+	PORT_DIPSETTING(	0x04, "No (Use TDDD)" )
+	PORT_DIPSETTING(	0x00, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x08, 0x08, "Show Game Name & Odds Table" )			PORT_DIPLOCATION("DSW5:4")
+	PORT_DIPSETTING(	0x00, DEF_STR( No ) )
+	PORT_DIPSETTING(	0x08, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x10, 0x10, "Min-Max Bet Type" )						PORT_DIPLOCATION("DSW5:5")
+	PORT_DIPSETTING(	0x10, "Base 8" )
+	PORT_DIPSETTING(	0x00, "Base 10" )
+	PORT_DIPNAME( 0x20, 0x20, "Play Score when no point left" ) 		PORT_DIPLOCATION("DSW5:6")	// (turn the machine off/on after change)
+	PORT_DIPSETTING(	0x20, DEF_STR( No ) )		PORT_CONDITION("DSW4", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0x00, DEF_STR( Yes ) )		PORT_CONDITION("DSW4", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0x20, DEF_STR( Unused ) )	PORT_CONDITION("DSW4", 0x10, EQUALS, 0x00)
+	PORT_DIPSETTING(	0x00, DEF_STR( Unused ) )	PORT_CONDITION("DSW4", 0x10, EQUALS, 0x00)
+	PORT_DIPNAME( 0x40, 0x40, "Reset Remaining Score when Game Over" )	PORT_DIPLOCATION("DSW5:7")	// (turn the machine off/on after change)
+	PORT_DIPSETTING(	0x40, DEF_STR( No ) )		PORT_CONDITION("DSW4", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0x00, DEF_STR( Yes ) )		PORT_CONDITION("DSW4", 0x10, EQUALS, 0x10)
+	PORT_DIPSETTING(	0x40, DEF_STR( Unused ) )	PORT_CONDITION("DSW4", 0x10, EQUALS, 0x00)
+	PORT_DIPSETTING(	0x00, DEF_STR( Unused ) )	PORT_CONDITION("DSW4", 0x10, EQUALS, 0x00)
+	PORT_DIPNAME( 0x80, 0x80, "Advanced Count Game" )					PORT_DIPLOCATION("DSW5:8")	// (turn the machine off/on after change)
+	PORT_DIPSETTING(	0x80, DEF_STR( No ) )
+	PORT_DIPSETTING(	0x00, DEF_STR( Yes ) )
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( roypok96 )
@@ -15016,7 +15012,7 @@ static const gfx_layout flam7_tw_tilelayout =  // FIXME
 	256,   // 256 tiles
 	4,     // 4 bits per pixel
 	{ 0, 2, 4, 6 },
-	{ 3*8+0, 3*8+1, 2*8+0, 1*8+0, 1*8+1, 2*8+1, 0, 1 },
+	{ 3*8+0, 3*8+1, 2*8+0, 2*8+1, 1*8+0, 1*8+1, 0, 1 },
 	{ 0*8, 4*8, 8*8, 12*8, 16*8, 20*8, 24*8, 28*8,
 		32*8, 36*8, 40*8, 44*8, 48*8, 52*8, 56*8, 60*8,
 		64*8, 68*8, 72*8, 76*8, 80*8, 84*8, 88*8, 92*8,
@@ -15243,14 +15239,14 @@ static GFXDECODE_START( gfx_super9 )
 	GFXDECODE_ENTRY( "gfx2", 0, super9_tilelayout, 128,  8 )
 GFXDECODE_END
 
-static GFXDECODE_START( gfx_flaming7 )  // gfx 2 still wrong...
+static GFXDECODE_START( gfx_flaming7 )
 	GFXDECODE_ENTRY( "gfx1", 0, flaming7_charlayout,   0, 16 )
-	GFXDECODE_ENTRY( "gfx2", 0, flaming7_tilelayout, 104,  8 )
+	GFXDECODE_ENTRY( "gfx2", 0, flaming7_tilelayout, 128,  8 )
 GFXDECODE_END
 
-static GFXDECODE_START( gfx_flam7_tw )  // gfx 2 still wrong...
+static GFXDECODE_START( gfx_flam7_tw )
 	GFXDECODE_ENTRY( "gfx1", 0, flam7_tw_charlayout,   0, 16 )
-	GFXDECODE_ENTRY( "gfx2", 0, flam7_tw_tilelayout, 104,  8 )
+	GFXDECODE_ENTRY( "gfx2", 0, flam7_tw_tilelayout, 128,  8 )
 GFXDECODE_END
 
 static GFXDECODE_START( gfx_nfm )
@@ -16051,6 +16047,7 @@ void wingco_state::flaming7(machine_config &config)
 	m_maincpu->set_addrmap(AS_PROGRAM, &wingco_state::flaming7_map);
 
 	m_gfxdecode->set_info(gfx_flaming7);
+	PALETTE(config.replace(), m_palette, FUNC(wingco_state::cm_palette), 256);
 
 	// to do serial protection.
 	m_ppi[0]->out_pc_callback().set(FUNC(wingco_state::fl7w4_outc802_w));
@@ -16066,6 +16063,7 @@ void wingco_state::flam7_tw(machine_config &config)
 	m_maincpu->set_addrmap(AS_PROGRAM, &wingco_state::flaming7_map);
 
 	m_gfxdecode->set_info(gfx_flam7_tw);
+	PALETTE(config.replace(), m_palette, FUNC(wingco_state::cm_palette), 256);
 
 	// to do serial protection.
 	m_ppi[0]->out_pc_callback().set(FUNC(wingco_state::fl7w4_outc802_w));
@@ -28242,9 +28240,6 @@ ROM_START( fl7_50 )  // Serial 00000069A1C9.
 	ROM_LOAD( "am27s29.u1", 0x0000, 0x0100, CRC(3fe7e369) SHA1(cf4ae287cb58581a4bf9e9ff1994426461fb38cc) )
 	ROM_CONTINUE(           0x0000, 0x0100)  // palette data is stored in the second half.
 
-	ROM_REGION( 0x20, "proms2", 0 )
-	ROM_LOAD( "dummy", 0x0000, 0x0020, NO_DUMP )
-
 	ROM_REGION(0x8, "fl7w4_id", 0)  // Electronic Serial
 	ROM_LOAD( "eserial.bin", 0x0000, 0x0008, NO_DUMP )  // Hand built to match our ROM set
 ROM_END
@@ -28272,9 +28267,6 @@ ROM_START( fl7_500 )  // Serial 000000125873.
 	ROM_REGION( 0x200, "proms", 0 )
 	ROM_LOAD( "am27s29.u1", 0x0000, 0x0100, CRC(3fe7e369) SHA1(cf4ae287cb58581a4bf9e9ff1994426461fb38cc) )
 	ROM_CONTINUE(           0x0000, 0x0100)  // palette data is stored in the second half.
-
-	ROM_REGION( 0x20, "proms2", 0 )
-	ROM_LOAD( "dummy", 0x0000, 0x0020, NO_DUMP )
 
 	ROM_REGION(0x8, "fl7w4_id", 0)  // Electronic Serial
 	ROM_LOAD( "eserial.bin",  0x0000, 0x0008, NO_DUMP )  // Hand built to match our ROM set
@@ -28304,9 +28296,6 @@ ROM_START( fl7_2000 )  // Serial 00000063A47F.
 	ROM_LOAD( "am27s29.u1", 0x0000, 0x0100, CRC(3fe7e369) SHA1(cf4ae287cb58581a4bf9e9ff1994426461fb38cc) )
 	ROM_CONTINUE(           0x0000, 0x0100)  // palette data is stored in the second half.
 
-	ROM_REGION( 0x20, "proms2", 0 )
-	ROM_LOAD( "dummy", 0x0000, 0x0020, NO_DUMP )
-
 	ROM_REGION(0x8, "fl7w4_id", 0)  // Electronic Serial
 	ROM_LOAD( "eserial.bin", 0x0000, 0x0008, NO_DUMP )  // Hand built to match our ROM set
 ROM_END
@@ -28335,9 +28324,6 @@ ROM_START( fl7_2k16 )  // Serial 000000743111.
 	ROM_LOAD( "am27s29.u1", 0x0000, 0x0100, CRC(3fe7e369) SHA1(cf4ae287cb58581a4bf9e9ff1994426461fb38cc) )
 	ROM_CONTINUE(           0x0000, 0x0100)  // palette data is stored in the second half.
 
-	ROM_REGION( 0x20, "proms2", 0 )
-	ROM_LOAD( "dummy", 0x0000, 0x0020, NO_DUMP )
-
 	ROM_REGION(0x8, "fl7w4_id", 0)  // Electronic Serial
 	ROM_LOAD( "eserial.bin", 0x0000, 0x0008, NO_DUMP )  // Hand built to match our ROM set
 ROM_END
@@ -28350,23 +28336,40 @@ ROM_END
   Needs proper graphics ROM decryption and gfxdecode...
 
 */
-ROM_START( fl7_tw )  // Serial 00000050E9B7.
+// Flaming 7's TW - Cherry Bonus - Nevada Numbers - Diamonds 7's
+ROM_START( fl7_tw )  // Serial 00000050E9B7. 
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "27c512_tw.u20",  0x0000, 0x10000, CRC(50927a1b) SHA1(2557069f497b23f13978294f3ac108229d9db544) )  // identical halves.
 
 	ROM_REGION( 0x20000, "gfx1", 0 )
-	ROM_LOAD( "m27c1001_tw.u1", 0x00000, 0x20000, CRC(e6099723) SHA1(31e73a81166dd0d50d51ead38d348e36018d0698) )
+	ROM_LOAD( "m27c1001_tw.u1",  0x00000, 0x20000, CRC(e6099723) SHA1(31e73a81166dd0d50d51ead38d348e36018d0698) )
 
 	ROM_REGION( 0x8000, "gfx2", 0 )
-	ROM_LOAD( "27c256_tw.u3",   0x0000, 0x8000, CRC(7f163639) SHA1(607aa1e7d15423409bb2cd49895502dc2e4b3e46) )
+	ROM_LOAD( "27c256.u3",  0x0000, 0x8000, CRC(23ae8d1a) SHA1(d9b7c442b6c7c58380a84b63cab7748f1c902fba) )
 
 	// Bipolar PROM dump borrowed from main sets
 	ROM_REGION( 0x200, "proms", 0 )
 	ROM_LOAD( "am27s29.u1", 0x0000, 0x0100, CRC(3fe7e369) SHA1(cf4ae287cb58581a4bf9e9ff1994426461fb38cc) )
 	ROM_CONTINUE(           0x0000, 0x0100)  // palette data is stored in the second half.
 
-	ROM_REGION( 0x20, "proms2", 0 )
-	ROM_LOAD( "dummy", 0x0000, 0x0020, NO_DUMP )
+	ROM_REGION(0x8, "fl7w4_id", 0)  // Electronic Serial
+	ROM_LOAD( "eserial.bin", 0x0000, 0x0008, NO_DUMP )  // Hand built to match our ROM set
+ROM_END
+
+// Special 7's
+ROM_START( special7 )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "u20.bin",  0x0000, 0x10000, CRC(c20e04a0) SHA1(37045ba628cc6df313014e0e9f91fffbb4b19a06) )
+
+	ROM_REGION( 0x20000, "gfx1", 0 )
+	ROM_LOAD( "u1.bin",  0x00000, 0x20000, CRC(7e603969) SHA1(5627de945bc8edf9fc73a939a763665a7e2884ae) )
+
+	ROM_REGION( 0x8000, "gfx2", 0 )
+	ROM_LOAD( "u3.bin",  0x0000, 0x8000, CRC(63498f59) SHA1(d0607a4f85b37a525e6f03604e678836dee5e277) )
+
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "ws57c291_prom.bin", 0x0000, 0x0200, CRC(7437acfb) SHA1(3a96dc6585cf39696c4157790920091f6fff813d) )
+	ROM_IGNORE(                            0x0600 )
 
 	ROM_REGION(0x8, "fl7w4_id", 0)  // Electronic Serial
 	ROM_LOAD( "eserial.bin", 0x0000, 0x0008, NO_DUMP )  // Hand built to match our ROM set
@@ -30831,7 +30834,20 @@ void wingco_state::init_flam7_tw()
 */
 	uint8_t *rom = memregion("maincpu")->base();
 	rom[0x60b3] = 0x05;
+}
 
+void wingco_state::init_fl7_3121()
+{
+	uint8_t *rom = memregion("proms2")->base();
+
+//	uint8_t col4 = rom[0x04];
+	uint8_t col8 = rom[0x08];
+	rom[0x04] = col8;
+	rom[0x14] = col8;
+//	rom[0x08] = col4;
+//	rom[0x18] = col4;
+
+	m_palette->update();
 }
 
 void cmaster_state::init_tcl()
@@ -31449,12 +31465,13 @@ GAME(  2002, mbs2euro,   0,        mbstar,   mbstar,   wingco_state,   init_mbs2
 
 
 // --- Flaming 7's hardware (W-4 derivative) ---
-GAME(  199?, fl7_3121,   0,        flam7_w4, flam7_w4, wingco_state,   empty_init,     ROT0, "Cyberdyne Systems", "Flaming 7 (W4 Hardware, Red, White & Blue 7's + Hollywood Nights)",          0 )
+GAME(  199?, fl7_3121,   0,        flam7_w4, flam7_w4, wingco_state,   init_fl7_3121,  ROT0, "Cyberdyne Systems", "Flaming 7 (W4 Hardware, Red, White & Blue 7's + Hollywood Nights)",          0 )
 GAME(  199?, fl7_50,     0,        flaming7, flaming7, wingco_state,   init_flaming7,  ROT0, "Cyberdyne Systems", "Flaming 7 (Custom Hardware, Main, 50 Bonus)",              MACHINE_UNEMULATED_PROTECTION | MACHINE_IMPERFECT_GRAPHICS )
 GAME(  199?, fl7_500,    fl7_50,   flaming7, flaming7, wingco_state,   init_flaming7,  ROT0, "Cyberdyne Systems", "Flaming 7 (Custom Hardware, Main, 500 Bonus)",             MACHINE_UNEMULATED_PROTECTION | MACHINE_IMPERFECT_GRAPHICS )
 GAME(  199?, fl7_2000,   fl7_50,   flaming7, flaming7, wingco_state,   init_flaming7,  ROT0, "Cyberdyne Systems", "Flaming 7 (Custom Hardware, Main, 2000 Bonus)",            MACHINE_UNEMULATED_PROTECTION | MACHINE_IMPERFECT_GRAPHICS )
-GAME(  199?, fl7_2k16,   fl7_50,   flaming7, flaming7, wingco_state,   init_flaming7,  ROT0, "Cyberdyne Systems", "Flaming 7 (Custom Hardware, Egyptian Gold, 2000 Bonus)",   MACHINE_UNEMULATED_PROTECTION | MACHINE_IMPERFECT_GRAPHICS )
-GAME(  199?, fl7_tw,     fl7_50,   flam7_tw, flaming7, wingco_state,   init_flam7_tw,  ROT0, "Cyberdyne Systems", "Flaming 7 (Taiwanese Hardware, unknown version)",          MACHINE_UNEMULATED_PROTECTION | MACHINE_IMPERFECT_GRAPHICS )  // needs proper reels gfx ROMs decryption.
+GAME(  199?, fl7_2k16,   fl7_50,   flaming7, flaming7, wingco_state,   init_flaming7,  ROT0, "Cyberdyne Systems", "Flaming 7 (Custom Hardware, Egyptian Gold, 2000 Bonus)",   MACHINE_UNEMULATED_PROTECTION | MACHINE_IMPERFECT_GRAPHICS )  // needs bg layer and window, and scroll ram fix
+GAME(  199?, fl7_tw,     fl7_50,   flam7_tw, flaming7, wingco_state,   init_flam7_tw,  ROT0, "Cyberdyne Systems", "Flaming 7 (Taiwanese Hardware, unknown version)",          MACHINE_UNEMULATED_PROTECTION | MACHINE_IMPERFECT_GRAPHICS )  // needs bg layer and window
+GAME(  199?, special7,   0,        flam7_tw, flaming7, wingco_state,   init_flam7_tw,  ROT0, "unknown",           "Special 7 (Taiwanese Hardware, encrypted)",                MACHINE_UNEMULATED_PROTECTION | MACHINE_NOT_WORKING )  // needs prg decryption, bg layer and window
 
 
 // --- Wing W-6 hardware ---
