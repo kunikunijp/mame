@@ -853,7 +853,8 @@ protected:
 private:
 	required_shared_ptr_array<uint8_t, 3> m_reel_attrram;
 
-	void enable_w(uint8_t data);
+	void enablebg_w(uint8_t data);
+	void enablerl_w(uint8_t data);
 	void coincount_w(uint8_t data);
 
 	template <uint8_t Which> void reel_attrram_w(offs_t offset, uint8_t data);
@@ -2096,30 +2097,40 @@ uint32_t sanghopm_state::screen_update_sangho(screen_device &screen, bitmap_rgb3
 {
 	bitmap.fill(rgb_t::black(), cliprect);
 
-	m_bg_tilemap->set_scrolly(0, -16);
-	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
-
-	// enable reels (render all the five layers)
-	if (!(m_enable_reg & 0x01))
+	if (m_enable_reg & 0x04)
 	{
-		for (int i = 0; i < 64; i++)
+		if (m_reel_ena & 0x01)
 		{
-			m_reel_tilemap[0]->set_scrolly(i, m_reel_scroll[0][i]);
-			m_reel_tilemap[1]->set_scrolly(i, m_reel_scroll[1][i]);
-			m_reel_tilemap[2]->set_scrolly(i, m_reel_scroll[2][i]);
+			// title ( bg + fg )
+			m_bg_tilemap->set_scrolly(0, -16);
+			m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 		}
+		else
+		{
+			// playfield ( reels + fg )
+			for (int i = 0; i < 64; i++)
+			{
+				m_reel_tilemap[0]->set_scrolly(i, m_reel_scroll[0][i]);
+				m_reel_tilemap[1]->set_scrolly(i, m_reel_scroll[1][i]);
+				m_reel_tilemap[2]->set_scrolly(i, m_reel_scroll[2][i]);
+			}
 
-		// are these hardcoded, or registers?
-		rectangle const visible1(0*8, (15+48)*8-1,  4*8,  (4+7)*8-1);
-		rectangle const visible2(0*8, (15+48)*8-1, 12*8, (12+7)*8-1);
-		rectangle const visible3(0*8, (15+48)*8-1, 20*8, (20+7)*8-1);
+			// are these hardcoded, or registers?
+			rectangle const visible1(11*8, (11+52)*8-1,  4*8,  (4+7)*8-1);
+			rectangle const visible2(11*8, (11+52)*8-1, 12*8, (12+7)*8-1);
+			rectangle const visible3(11*8, (11+52)*8-1, 20*8, (20+7)*8-1);
 
-		m_reel_tilemap[0]->draw(screen, bitmap, visible1, 0, 0);
-		m_reel_tilemap[1]->draw(screen, bitmap, visible2, 0, 0);
-		m_reel_tilemap[2]->draw(screen, bitmap, visible3, 0, 0);
+			m_reel_tilemap[0]->draw(screen, bitmap, visible1, 0, 0);
+			m_reel_tilemap[1]->draw(screen, bitmap, visible2, 0, 0);
+			m_reel_tilemap[2]->draw(screen, bitmap, visible3, 0, 0);
+		}
 	}
 
-	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	// common ( fg )
+	if (m_enable_reg & 0x01)
+	{
+		m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	}
 
 	return 0;
 }
@@ -2183,9 +2194,9 @@ uint32_t unkch_state::screen_update_unkchx(screen_device &screen, bitmap_rgb32 &
 
 	if (m_enable_reg & 0x08)
 	{
-		if(m_vidreg==0)  // nuevo registro
+		if(m_vidreg == 0)
 		{
-			for (int i= 0; i < 32; i++)
+			for (int i = 0; i < 32; i++)
 			{
 				m_reel_tilemap[0]->set_scrolly(i, m_reel_scroll[0][i*2]);
 				m_reel_tilemap[1]->set_scrolly(i, m_reel_scroll[1][i*2]);
@@ -2707,9 +2718,16 @@ void sanghopm_state::coincount_w(uint8_t data)
 	machine().bookkeeping().coin_counter_w(4, data & 0x01);  // counter5 payout
 }
 
-void sanghopm_state::enable_w(uint8_t data)
+void sanghopm_state::enablebg_w(uint8_t data)
+{
+	m_reel_ena = data;
+//	logerror("enablebg: %02x\n", data);
+}
+
+void sanghopm_state::enablerl_w(uint8_t data)
 {
 	m_enable_reg = data;
+//	logerror("enablerl: %02x\n", data);
 }
 
 void cmaster_state::coincount_w(uint8_t data)
@@ -3644,13 +3662,14 @@ void sanghopm_state::star100_readport(address_map &map)
 	map(0x20, 0x20).portr("DSW4-0");  // the first 4 bits map to DSW4 1 to 4.
 	map(0x21, 0x21).portr("DSW4-1");  // the first 4 bits map to DSW4 5 to 8.
 
+	map(0x23, 0x23).w(FUNC(sanghopm_state::enablerl_w));   // enable/disable reels-fg register.
 	map(0x24, 0x24).w(FUNC(sanghopm_state::coincount_w));  // coin counters.
 
 	map(0x25, 0x25).portr("DSW2");
 	map(0x26, 0x26).portr("DSW3");
 
-	map(0xe0, 0xe0).nopw();           // Writing 0's and 1's constantly.  Watchdog feeder?
-	map(0xe1, 0xe1).w(FUNC(sanghopm_state::enable_w));     // enable/disable reels register.
+	map(0xe0, 0xe0).nopw();                                // bit0 = watchdog feeder
+	map(0xe1, 0xe1).w(FUNC(sanghopm_state::enablebg_w));   // enable/disable bg register.
 
 }
 
@@ -5711,127 +5730,132 @@ INPUT_PORTS_END
 static INPUT_PORTS_START( eldoradoa )
 	PORT_INCLUDE( animalhs )
 
+	PORT_MODIFY("IN1")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_IMPULSE(2) PORT_CODE(KEYCODE_6) PORT_NAME("Service In")
+
 	PORT_MODIFY("DSW1")
-	PORT_DIPNAME( 0x01, 0x01, "DSW1" )                  PORT_DIPLOCATION("DSW1:1")
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW1:2")
+	PORT_DIPNAME( 0x01, 0x01, "Show Stats" )                PORT_DIPLOCATION("DSW1:1")
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )          PORT_DIPLOCATION("DSW1:2")
 	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW1:3")
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW1:4")
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW1:5")
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x00, "Double Up Feature")      PORT_DIPLOCATION("DSW1:6")
+	PORT_DIPNAME( 0x04, 0x00, "Payout Mode" )               PORT_DIPLOCATION("DSW1:3")
+	PORT_DIPSETTING(    0x00, "Payout Switch" )
+	PORT_DIPSETTING(    0x04, "Automatic" )
+	PORT_DIPNAME( 0x08, 0x08, "Double Up Game on 7" )       PORT_DIPLOCATION("DSW1:4")
+	PORT_DIPSETTING(    0x00, "Lose" )
+	PORT_DIPSETTING(    0x08, "Even" )
+	PORT_DIPNAME( 0x10, 0x00, "Double Up Game Pay Rate" )   PORT_DIPLOCATION("DSW1:5")
+	PORT_DIPSETTING(    0x00, "80%" )
+	PORT_DIPSETTING(    0x10, "90%" )
+	PORT_DIPNAME( 0x20, 0x00, "Double Up Game" )            PORT_DIPLOCATION("DSW1:6")
 	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW1:7")
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW1:8")
-	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0xc0, 0xc0, "Max Bet" )                   PORT_DIPLOCATION("DSW1:7,8")
+	PORT_DIPSETTING(    0x00, "8" )
+	PORT_DIPSETTING(    0x40, "16" )
+	PORT_DIPSETTING(    0x80, "32" )
+	PORT_DIPSETTING(    0xc0, "64" )
 
 	PORT_MODIFY("DSW2")
-	PORT_DIPNAME( 0x01, 0x01, "DSW2" )                  PORT_DIPLOCATION("DSW2:1")
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW2:2")
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW2:3")
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW2:4")
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW2:5")
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW2:6")
+	PORT_DIPNAME( 0x07, 0x05, "Main Game Rate" )    PORT_DIPLOCATION("DSW2:1,2,3")
+	PORT_DIPSETTING(    0x07, "55%" )
+	PORT_DIPSETTING(    0x06, "60%" )
+	PORT_DIPSETTING(    0x05, "65%" )
+	PORT_DIPSETTING(    0x04, "70%" )
+	PORT_DIPSETTING(    0x03, "75%" )
+	PORT_DIPSETTING(    0x02, "80%" )
+	PORT_DIPSETTING(    0x01, "85%" )
+	PORT_DIPSETTING(    0x00, "90%" )
+	PORT_DIPNAME( 0x18, 0x18, "Hopper Limit" )      PORT_DIPLOCATION("DSW2:4,5")
+	PORT_DIPSETTING(    0x00, "300" )
+	PORT_DIPSETTING(    0x08, "500" )
+	PORT_DIPSETTING(    0x10, "1000" )
+	PORT_DIPSETTING(    0x18, "Unlimited" )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )  PORT_DIPLOCATION("DSW2:6")
 	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW2:7")
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW2:8")
+	PORT_DIPNAME( 0x40, 0x40, "Type Of Key In" )    PORT_DIPLOCATION("DSW2:7")
+	PORT_DIPSETTING(    0x40, "Key In Type A" )
+	PORT_DIPSETTING(    0x00, "Key In Type B" )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )  PORT_DIPLOCATION("DSW2:8")
 	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 
 	PORT_MODIFY("DSW3")
-	PORT_DIPNAME( 0x01, 0x01, "DSW3" )                  PORT_DIPLOCATION("DSW3:1")
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW3:2")
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW3:3")
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW3:4")
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW3:5")
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW3:6")
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW3:7")
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW3:8")
-	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x03, 0x03, "Key In Rate (A Type)" )     PORT_DIPLOCATION("DSW3:1,2")
+	PORT_DIPSETTING(    0x00, DEF_STR( 1C_10C ) )          PORT_CONDITION("DSW2",0x40,EQUALS,0x40)  // A-Type
+	PORT_DIPSETTING(    0x01, DEF_STR( 1C_20C ) )          PORT_CONDITION("DSW2",0x40,EQUALS,0x40)
+	PORT_DIPSETTING(    0x02, DEF_STR( 1C_50C ) )          PORT_CONDITION("DSW2",0x40,EQUALS,0x40)
+	PORT_DIPSETTING(    0x03, DEF_STR( 1C_100C ) )         PORT_CONDITION("DSW2",0x40,EQUALS,0x40)
+	PORT_DIPSETTING(    0x00, DEF_STR( 1C_5C ) )           PORT_CONDITION("DSW2",0x40,EQUALS,0x00)  // B-Type
+	PORT_DIPSETTING(    0x01, DEF_STR( 1C_10C ) )          PORT_CONDITION("DSW2",0x40,EQUALS,0x00)
+	PORT_DIPSETTING(    0x02, DEF_STR( 1C_25C ) )          PORT_CONDITION("DSW2",0x40,EQUALS,0x00)
+	PORT_DIPSETTING(    0x03, DEF_STR( 1C_50C ) )          PORT_CONDITION("DSW2",0x40,EQUALS,0x00)
+	PORT_DIPNAME( 0x0c, 0x00, "Coin A Rate" )              PORT_DIPLOCATION("DSW3:3,4")
+	PORT_DIPSETTING(    0x00, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( 1C_5C ) )
+	PORT_DIPSETTING(    0x0c, DEF_STR( 1C_10C ) )
+	PORT_DIPNAME( 0x30, 0x30, "Coin D Rate & Hopper Out" ) PORT_DIPLOCATION("DSW3:5,6")
+	PORT_DIPSETTING(    0x00, DEF_STR( 1C_5C ) )           PORT_CONDITION("DSW4",0x10,EQUALS,0x00)  // A-Type
+	PORT_DIPSETTING(    0x10, DEF_STR( 1C_10C ) )          PORT_CONDITION("DSW4",0x10,EQUALS,0x00)
+	PORT_DIPSETTING(    0x20, DEF_STR( 1C_25C ) )          PORT_CONDITION("DSW4",0x10,EQUALS,0x00)
+	PORT_DIPSETTING(    0x30, DEF_STR( 1C_50C ) )          PORT_CONDITION("DSW4",0x10,EQUALS,0x00)
+	PORT_DIPSETTING(    0x00, DEF_STR( 1C_2C ) )           PORT_CONDITION("DSW4",0x10,EQUALS,0x10)  // B-Type
+	PORT_DIPSETTING(    0x10, DEF_STR( 1C_1C ) )           PORT_CONDITION("DSW4",0x10,EQUALS,0x10)
+	PORT_DIPSETTING(    0x20, DEF_STR( 2C_1C ) )           PORT_CONDITION("DSW4",0x10,EQUALS,0x10)
+	PORT_DIPSETTING(    0x30, DEF_STR( 5C_1C ) )           PORT_CONDITION("DSW4",0x10,EQUALS,0x10)
+	PORT_DIPNAME( 0xc0, 0x80, "Coin C Rate" )              PORT_DIPLOCATION("DSW3:7,8")
+	PORT_DIPSETTING(    0x00, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( 1C_5C ) )
+	PORT_DIPSETTING(    0xc0, DEF_STR( 1C_10C ) )
 
 	PORT_MODIFY("DSW4")
-	PORT_DIPNAME( 0x01, 0x01, "DSW4" )                  PORT_DIPLOCATION("DSW4:1")
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW4:2")
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW4:3")
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW4:4")
+	PORT_DIPNAME( 0x07, 0x04, "Credit Limit" )            PORT_DIPLOCATION("DSW4:1,2,3")
+	PORT_DIPSETTING(    0x07, "5,000" )
+	PORT_DIPSETTING(    0x06, "10,000" )
+	PORT_DIPSETTING(    0x05, "20,000" )
+	PORT_DIPSETTING(    0x04, "30,000" )
+	PORT_DIPSETTING(    0x03, "40,000" )
+	PORT_DIPSETTING(    0x02, "50,000" )
+	PORT_DIPSETTING(    0x01, "100,000" )
+	PORT_DIPSETTING(    0x00, "Unlimited" )
+	PORT_DIPNAME( 0x08, 0x00, "Display Of Payout Limit" ) PORT_DIPLOCATION("DSW4:4")
 	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW4:5")
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW4:6")
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW4:7")
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW4:8")
+	PORT_DIPNAME( 0x10, 0x00, "Type Of Coin D" )          PORT_DIPLOCATION("DSW4:5")
+	PORT_DIPSETTING(    0x00, "A-Type" )
+	PORT_DIPSETTING(    0x10, "B-Type" )
+	PORT_DIPNAME( 0x20, 0x00, "Min. Bet For Bonus Play" ) PORT_DIPLOCATION("DSW4:6")
+	PORT_DIPSETTING(    0x00, "8" )
+	PORT_DIPSETTING(    0x20, "16" )
+	PORT_DIPNAME( 0x40, 0x00, "Reel Speed" )              PORT_DIPLOCATION("DSW4:7")
+	PORT_DIPSETTING(    0x40, DEF_STR( Low ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( High ) )
+	PORT_DIPNAME( 0x80, 0x80, "Hopper Out By Coin A" )    PORT_DIPLOCATION("DSW4:8")
 	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 
 	PORT_MODIFY("DSW5")
-	PORT_DIPNAME( 0x01, 0x01, "DSW5" )                  PORT_DIPLOCATION("DSW5:1")
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW5:2")
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW5:3")
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW5:4")
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x00, "Show Girls" )            PORT_DIPLOCATION("DSW5:5")
+	PORT_DIPNAME( 0x03, 0x02, "Credits In Limit" )              PORT_DIPLOCATION("DSW5:1,2")
+	PORT_DIPSETTING(    0x03, "1,000" )
+	PORT_DIPSETTING(    0x02, "5,000" )
+	PORT_DIPSETTING(    0x01, "10,000" )
+	PORT_DIPSETTING(    0x00, "20,000" )
+	PORT_DIPNAME( 0x0c, 0x00, "Condition For 3 Kind Of Bonus" ) PORT_DIPLOCATION("DSW5:3,4")
+	PORT_DIPSETTING(    0x0c, "12-7-1" )
+	PORT_DIPSETTING(    0x08, "9-5-1" )
+	PORT_DIPSETTING(    0x04, "6-3-1" )
+	PORT_DIPSETTING(    0x00, "3-2-1" )
+	PORT_DIPNAME( 0x10, 0x00, "Show Girls" )                    PORT_DIPLOCATION("DSW5:5")
 	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	// 0xe0 --> skill mode / stops. same as animalhs
+	PORT_DIPNAME( 0xe0, 0x00, "Skill Mode / Stops" )            PORT_DIPLOCATION("DSW5:6,7,8")
+	PORT_DIPSETTING(    0xe0, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 
 	PORT_MODIFY("DSW6")
 	PORT_DIPNAME( 0x01, 0x01, "DSW6" )                  PORT_DIPLOCATION("DSW6:1")
@@ -6857,11 +6881,9 @@ INPUT_PORTS_END
 //   Function mapping by Code Panel Type (DSW5:1,2,3,4)
 //
 //   Type A :  TAKE = Stop 1     BIG = Stop 2     SMALL = Stop 3
-//             (Sequential stop order: Take → Big → Small)
 //             START = All Stop (only if Skill Stop = ON)
 //
 //   Type B :  TAKE = Stop 1     BET = Stop 2     SMALL = Stop 3
-//             (Sequential stop order: Take → Bet → Small)
 //             START = All Stop (only if Skill Stop = ON)
 //
 //   Type C :  BIG  = Stop 1     BIG = Stop 2    BIG = Stop 3
@@ -6869,7 +6891,6 @@ INPUT_PORTS_END
 //             START = All Stop (only if Skill Stop = ON)
 //
 //   Type D :  SMALL = Stop 1    D-UP = Stop 2    BIG = Stop 3
-//             (Sequential stop order: Small → D-UP → Big)
 //             START = All Stop (only if Skill Stop = ON)
 //
 //---------------------------------------------------------------------
@@ -7139,9 +7160,9 @@ static INPUT_PORTS_START( cmast99 )
 	PORT_DIPSETTING(    0x02, "30" )
 	PORT_DIPSETTING(    0x01, "45" )
 	PORT_DIPSETTING(    0x00, "60" )
-	PORT_DIPNAME( 0x04, 0x04, "Double Mode" )               PORT_DIPLOCATION("DSW1:3")
-	PORT_DIPSETTING(    0x00, "No (collect)" )
-	PORT_DIPSETTING(    0x04, "Yes (double)" )
+	PORT_DIPNAME( 0x04, 0x04, "Double Up" )                 PORT_DIPLOCATION("DSW1:3")
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( On ) )
 	PORT_DIPNAME( 0x18, 0x18, "Max Bet" )                   PORT_DIPLOCATION("DSW1:4,5")
 	PORT_DIPSETTING(    0x00, "15" )
 	PORT_DIPSETTING(    0x08, "30" )
@@ -9190,7 +9211,7 @@ static INPUT_PORTS_START( lucky8t )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW,  IPT_UNKNOWN )  // code checks if low to boot
 
 	PORT_MODIFY("DSW1")
-	PORT_DIPNAME( 0x01, 0x01, "Max Bet" )               PORT_DIPLOCATION("DSW1:1")
+	PORT_DIPNAME( 0x01, 0x01, "Max Bet" )                  PORT_DIPLOCATION("DSW1:1")
 	PORT_DIPSETTING(    0x01, "64" )
 	PORT_DIPSETTING(    0x00, "120" )
 	PORT_DIPNAME( 0x06, 0x06, "Bonus / Game Difficulty" )  PORT_DIPLOCATION("DSW1:2,3")
@@ -9198,27 +9219,27 @@ static INPUT_PORTS_START( lucky8t )
 	PORT_DIPSETTING(    0x02, DEF_STR( Medium ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( Hard ) )
 	PORT_DIPSETTING(    0x06, DEF_STR( Hardest ) )
-	PORT_DIPNAME( 0x18, 0x18, "Double-Up Game Pay Rate" )  PORT_DIPLOCATION("DSW1:4,5")    // OK
+	PORT_DIPNAME( 0x18, 0x18, "Double-Up Game Pay Rate" )  PORT_DIPLOCATION("DSW1:4,5")
 	PORT_DIPSETTING(    0x18, "60%" )
 	PORT_DIPSETTING(    0x10, "70%" )
 	PORT_DIPSETTING(    0x08, "80%" )
 	PORT_DIPSETTING(    0x00, "90%" )
-	PORT_DIPNAME( 0x20, 0x20, "Reel Speed" )            PORT_DIPLOCATION("DSW1:6")
+	PORT_DIPNAME( 0x20, 0x20, "Take Score Speed" )         PORT_DIPLOCATION("DSW1:6") // need to press and hold the TAKE button
 	PORT_DIPSETTING(    0x20, "Normal" )
 	PORT_DIPSETTING(    0x00, "Fast" )
-	PORT_DIPNAME( 0xc0, 0xc0, "JP Game Difficulty" )    PORT_DIPLOCATION("DSW1:7,8")
+	PORT_DIPNAME( 0xc0, 0xc0, "JP Game Difficulty" )       PORT_DIPLOCATION("DSW1:7,8")
 	PORT_DIPSETTING(    0x00, DEF_STR( Easy ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Medium ) )
 	PORT_DIPSETTING(    0x80, DEF_STR( Hard ) )
 	PORT_DIPSETTING(    0xc0, DEF_STR( Hardest ) )
 
 	PORT_MODIFY("DSW2")
-	PORT_DIPNAME( 0x03, 0x01, "Main Game Pay Rate" )    PORT_DIPLOCATION("DSW2:1,2")  // OK
+	PORT_DIPNAME( 0x03, 0x01, "Main Game Pay Rate" )       PORT_DIPLOCATION("DSW2:1,2")  // OK
 	PORT_DIPSETTING(    0x03, "60%" )
 	PORT_DIPSETTING(    0x02, "70%" )
 	PORT_DIPSETTING(    0x01, "80%" )
 	PORT_DIPSETTING(    0x00, "90%" )
-	PORT_DIPNAME( 0x04, 0x04, "Double Up Game" )        PORT_DIPLOCATION("DSW2:3")    // OK, use stop buttons to play
+	PORT_DIPNAME( 0x04, 0x04, "Double Up Game" )           PORT_DIPLOCATION("DSW2:3")    // OK, use stop buttons to play
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( On ) )
 	PORT_DIPNAME( 0x08, 0x08, "Seven Crowns Difficulty" )  PORT_DIPLOCATION("DSW2:4")
@@ -9598,14 +9619,14 @@ static INPUT_PORTS_START( f16s8l )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 
 	PORT_MODIFY("DSW4")
-	PORT_DIPNAME( 0x07, 0x06, "Key In Rate" )           PORT_DIPLOCATION("DSW4:1,2,3")
+	PORT_DIPNAME( 0x07, 0x03, "Key In Rate" )           PORT_DIPLOCATION("DSW4:1,2,3")
 	PORT_DIPSETTING(    0x00, "1 Pulse / 5 Credits" )
 	PORT_DIPSETTING(    0x04, "1 Pulse / 10 Credits" )
 	PORT_DIPSETTING(    0x02, "1 Pulse / 20 Credits" )
-	PORT_DIPSETTING(    0x06, "1 Pulse / 100 Credits" )
+	PORT_DIPSETTING(    0x03, "1 Pulse / 100 Credits" )
 	PORT_DIPSETTING(    0x01, "1 Pulse / 110 Credits" )
 	PORT_DIPSETTING(    0x05, "1 Pulse / 120 Credits" )
-	PORT_DIPSETTING(    0x03, "1 Pulse / 130 Credits" )
+	PORT_DIPSETTING(    0x06, "1 Pulse / 130 Credits" )
 	PORT_DIPSETTING(    0x07, "1 Pulse / 140 Credits" )
 	PORT_DIPNAME( 0x08, 0x08, "Double Up Type" )        PORT_DIPLOCATION("DSW4:4")  // both are hi-lo with witches
 	PORT_DIPSETTING(    0x00, "Type 1" )
@@ -11343,6 +11364,12 @@ static INPUT_PORTS_START( nfb96tx )
 	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
 INPUT_PORTS_END
 
+//----------------------------------------------------------------
+// fb2010 Soft RESET:
+// Make sure all DIP switches are set before resetting the board.
+// While the game is in attract mode, go to the ACCOUNT SCREEN,
+// then press DOUBLE and TAKE together to reset the board.
+//----------------------------------------------------------------
 static INPUT_PORTS_START( fb2010 )  // hit 'start1' to init NVRAM for first time
 	PORT_START("IN0")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNKNOWN )
@@ -11428,7 +11455,7 @@ static INPUT_PORTS_START( fb2010 )  // hit 'start1' to init NVRAM for first time
 	PORT_DIPSETTING(    0x20, "200" )
 	PORT_DIPSETTING(    0x40, "500" )
 	PORT_DIPSETTING(    0x60, "1000" )
-	PORT_DIPNAME( 0x80, 0x00, "WARNING: Always Off" )   PORT_DIPLOCATION("DSW2:!8")  // On for TEST mode
+	PORT_DIPNAME( 0x80, 0x00, "WARNING: Always Off" )   PORT_DIPLOCATION("DSW2:!8")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
 
@@ -31428,7 +31455,7 @@ GAME(  199?, goldfrui,   goldstar, goldfrui, goldstar, goldstar_state, empty_ini
 GAME(  2001, super9,     goldstar, super9,   super9,   goldstar_state, init_super9,    ROT0, "Playmark",          "Super Nove (Playmark, V. M271B)",             MACHINE_WRONG_COLORS | MACHINE_NOT_WORKING ) // needs palette, inputs / outputs checked
 GAME(  2001, super9a,    goldstar, super9,   super9,   goldstar_state, init_super9,    ROT0, "Playmark",          "Super Nove (Playmark, V. M271C)",             MACHINE_WRONG_COLORS | MACHINE_NOT_WORKING ) // needs palette, inputs / outputs checked
 GAME(  2001, wcherry,    0,        wcherry,  wcherry,  goldstar_state, init_wcherry,   ROT0, "Videostar",         "Win Cherry (ver 0.16 - 19990219)",            0 )
-GAME(  199?, star100,    0,        star100,  star100,  sanghopm_state, empty_init,     ROT0, "Sang Ho",           "Ming Xing 100 (Star 100)",                    MACHINE_IMPERFECT_COLORS )
+
 
 // are these really Dyna, or bootlegs?
 GAMEL( 199?, ncb3,       0,        ncb3,     ncb3,     cb3_state,      empty_init,     ROT0, "Dyna",              "Cherry Bonus III (ver.1.40, set 1)",          0,                 layout_cherryb3 )
@@ -31632,7 +31659,7 @@ GAME(  199?, fl7_2k16,   fl7_50,   flaming7, flaming7, wingco_state,   init_flam
 GAME(  199?, fl7_tw,     fl7_50,   flam7_tw, flaming7, wingco_state,   init_flam7_tw,  ROT0, "Cyberdyne Systems", "Flaming 7 (Taiwanese Hardware, v7.3) Set 1",               0 )
 GAME(  199?, fl7_twa,    fl7_50,   flam7_tw, flaming7, wingco_state,   init_flam7_tw,  ROT0, "Cyberdyne Systems", "Flaming 7 (Taiwanese Hardware, v6.5) Set 2",               0 )
 GAME(  199?, fl7_twb,    fl7_50,   flam7_tw, flaming7, wingco_state,   init_flam7_tw,  ROT0, "Cyberdyne Systems", "Flaming 7 (Taiwanese Hardware, v7.5) Set 3",               MACHINE_NOT_WORKING ) // encrypted
-GAME(  199?, special7,   0,        flam7_tw, flaming7, wingco_state,   init_special7,  ROT0, "unknown",           "Special 7 (Taiwanese Hardware, encrypted)",                MACHINE_UNEMULATED_PROTECTION )
+GAME(  199?, special7,   0,        flam7_tw, flaming7, wingco_state,   init_special7,  ROT0, "unknown",           "Special 7 (Taiwanese Hardware, encrypted)",                0 )
 
 
 // --- Wing W-6 hardware ---
@@ -31733,36 +31760,41 @@ GAME( 2006, halltsk,     0,        nfm,      nfm,       cmaster_state,  init_tsk
 
 
 // Super Cherry Master sets...
-GAMEL(1994, scmaster,    0,         unkch,    unkch4,    unkch_state,    init_unkch4,    ROT0, "bootleg", "Super Cherry Master (v1.1)",                                   0,    layout_unkch )
-GAMEL(1994, scmastera,   scmaster,  unkch,    unkch4,    unkch_state,    init_unkch4,    ROT0, "bootleg", "Super Cherry Master (v1.0)",                                   0,    layout_unkch )
-GAMEL(1994, animalhsb,   scmaster,  rolling,  unkch4,    unkch_state,    init_unkch4,    ROT0, "bootleg", "Animal House (set 3)",                                         0,    layout_unkch )
-GAMEL(1994, animalhsc,   scmaster,  rolling,  unkch4,    unkch_state,    init_unkch4,    ROT0, "bootleg", "Animal House (set 4)",                                         0,    layout_unkch )
+GAMEL( 1994, scmaster,    0,         unkch,    unkch4,    unkch_state,    init_unkch4,    ROT0, "bootleg", "Super Cherry Master (v1.1)",                                   0,    layout_unkch )
+GAMEL( 1994, scmastera,   scmaster,  unkch,    unkch4,    unkch_state,    init_unkch4,    ROT0, "bootleg", "Super Cherry Master (v1.0)",                                   0,    layout_unkch )
+GAMEL( 1994, animalhsb,   scmaster,  rolling,  unkch4,    unkch_state,    init_unkch4,    ROT0, "bootleg", "Animal House (set 3)",                                         0,    layout_unkch )
+GAMEL( 1994, animalhsc,   scmaster,  rolling,  unkch4,    unkch_state,    init_unkch4,    ROT0, "bootleg", "Animal House (set 4)",                                         0,    layout_unkch )
 
 // these have 'cherry 1994' in the program roms, but also "Super Cherry / New Cherry Gold '99".
 // Probably hacks of a 1994 version of Super Cherry Master.
-GAMEL(1999, unkch1,      scmaster,  unkch,    unkch,     unkch_state,    init_unkch1,    ROT0, "bootleg", "New Cherry Gold '99 (bootleg of Super Cherry Master) (set 1)", 0,    layout_unkch )
-GAMEL(1999, unkch2,      scmaster,  unkch,    unkch,     unkch_state,    init_unkch1,    ROT0, "bootleg", "Super Cherry Gold (bootleg of Super Cherry Master)",           0,    layout_unkch )
-GAMEL(1999, unkch3,      scmaster,  unkch,    unkch3,    unkch_state,    init_unkch3,    ROT0, "bootleg", "New Cherry Gold '99 (bootleg of Super Cherry Master) (set 2)", 0,    layout_unkch ) // cards have been hacked to look like barrels, girl removed?
-GAMEL(1999, unkch4,      scmaster,  unkch,    unkch4,    unkch_state,    init_unkch4,    ROT0, "bootleg", "Grand Cherry Master (bootleg of Super Cherry Master)",         0,    layout_unkch ) // by 'Toy System' Hungary
+GAMEL( 1999, unkch1,      scmaster,  unkch,    unkch,     unkch_state,    init_unkch1,    ROT0, "bootleg", "New Cherry Gold '99 (bootleg of Super Cherry Master) (set 1)", 0,    layout_unkch )
+GAMEL( 1999, unkch2,      scmaster,  unkch,    unkch,     unkch_state,    init_unkch1,    ROT0, "bootleg", "Super Cherry Gold (bootleg of Super Cherry Master)",           0,    layout_unkch )
+GAMEL( 1999, unkch3,      scmaster,  unkch,    unkch3,    unkch_state,    init_unkch3,    ROT0, "bootleg", "New Cherry Gold '99 (bootleg of Super Cherry Master) (set 2)", 0,    layout_unkch ) // cards have been hacked to look like barrels, girl removed?
+GAMEL( 1999, unkch4,      scmaster,  unkch,    unkch4,    unkch_state,    init_unkch4,    ROT0, "bootleg", "Grand Cherry Master (bootleg of Super Cherry Master)",         0,    layout_unkch ) // by 'Toy System' Hungary
 
-GAMEL(1996, cherry96,    0,         unkchx,   unkch5,    unkch_state,    init_unkch4,    ROT0, "bootleg", "New Cherry '96 (1997/01/04, bootleg)",                         0,    layout_unkchx )
-GAMEL(1996, cherry96a,   cherry96,  unkchx,   unkch5,    unkch_state,    init_unkch4,    ROT0, "bootleg", "New Cherry '96 (1996/06/01, bootleg)",                         0,    layout_unkchx )
+GAMEL( 1996, cherry96,    0,         unkchx,   unkch5,    unkch_state,    init_unkch4,    ROT0, "bootleg", "New Cherry '96 (1997/01/04, bootleg)",                         0,    layout_unkchx )
+GAMEL( 1996, cherry96a,   cherry96,  unkchx,   unkch5,    unkch_state,    init_unkch4,    ROT0, "bootleg", "New Cherry '96 (1996/06/01, bootleg)",                         0,    layout_unkchx )
 
-GAME( 1998, rolling,     scmaster,  rolling,  unkch4,    unkch_state,    empty_init,     ROT0, "bootleg", "Rolling",                                                      MACHINE_NOT_WORKING ) // inputs, outputs
+GAME(  1998, rolling,     scmaster,  rolling,  unkch4,    unkch_state,    empty_init,     ROT0, "bootleg", "Rolling",                                                      MACHINE_NOT_WORKING ) // inputs, outputs
 
-GAMEL(1997, cmast97bl18, cmast97,   unkchx,   unkchx,    unkch_state,    empty_init,     ROT0, "bootleg", "Cherry Master '97 (v1.8, bootleg)",                            0,    layout_unkchx )
-GAMEL(1997, cmast97bl16, cmast97,   unkchx,   unkchx,    unkch_state,    empty_init,     ROT0, "bootleg", "Cherry Master '97 (v1.6, bootleg)",                            0,    layout_unkchx )
+GAMEL( 1997, cmast97bl18, cmast97,   unkchx,   unkchx,    unkch_state,    empty_init,     ROT0, "bootleg", "Cherry Master '97 (v1.8, bootleg)",                            0,    layout_unkchx )
+GAMEL( 1997, cmast97bl16, cmast97,   unkchx,   unkchx,    unkch_state,    empty_init,     ROT0, "bootleg", "Cherry Master '97 (v1.6, bootleg)",                            0,    layout_unkchx )
 
-GAMEL(1998, cherry98,    0,         unkchx,   unkch5,    unkch_state,    empty_init,     ROT0, "bootleg", "New Cherry '98 (v4.3 1998/09/07, Gamemax bootleg, set 1)",     0,    layout_unkchx )
-GAMEL(1998, cherry98a,   cherry98,  unkchx,   unkch5,    unkch_state,    empty_init,     ROT0, "bootleg", "New Cherry '98 (v4.3 1998/09/07, Gamemax bootleg, set 2)",     0,    layout_unkchx )
+GAMEL( 1998, cherry98,    0,         unkchx,   unkch5,    unkch_state,    empty_init,     ROT0, "bootleg", "New Cherry '98 (v4.3 1998/09/07, Gamemax bootleg, set 1)",     0,    layout_unkchx )
+GAMEL( 1998, cherry98a,   cherry98,  unkchx,   unkch5,    unkch_state,    empty_init,     ROT0, "bootleg", "New Cherry '98 (v4.3 1998/09/07, Gamemax bootleg, set 2)",     0,    layout_unkchx )
 
+
+// Sang-Ho custom HW (RAMDAC)
+GAME(  199?, star100,     0,         star100,  star100,   sanghopm_state, empty_init,     ROT0, "Sang Ho",             "Ming Xing 100 (Star 100)",                         0 )
+GAMEL( 1997, crazybon,    0,         crazybon, crazybon,  cmaster_state,  empty_init,     ROT0, "bootleg (Crazy Co.)", "Crazy Bonus 2002 (Ver. 1, Sang-Ho HW, set 1)",     0,    layout_crazybon ) // Windows ME desktop...
+GAMEL( 1997, crazybona,   crazybon,  crazybon, crazybon,  cmaster_state,  empty_init,     ROT0, "bootleg (Crazy Co.)", "Crazy Bonus 2002 (Ver. 1, Sang-Ho HW, set 2)",     0,    layout_crazybon ) // Windows ME desktop...
 
 
 // ******************* Stealth sets *******************
 // These have hidden games inside that can be switched
 // to avoid inspections, police or whatever purposes
 
-//    YEAR  NAME         PARENT    MACHINE    INPUT     STATE           INIT            ROT   COMPANY                    FULLNAME                                                                    FLAGS                                           LAYOUT
+//     YEAR  NAME        PARENT    MACHINE    INPUT     STATE           INIT            ROT   COMPANY                    FULLNAME                                                                    FLAGS                                           LAYOUT
 GAMEL( 198?, cmpacman,   0,        cm,        cmpacman, cmaster_state,  init_cm,        ROT0, "<unknown>",               "Super Pacman (v1.2) + Cherry Master (Corsica, v8.31, unencrypted, set 1)", 0,                                              layout_cmpacman ) // need to press K to switch between games...
 GAMEL( 198?, cmpacmana,  cmpacman, cm,        cmpacman, cmaster_state,  init_cm,        ROT0, "<unknown>",               "Super Pacman (v1.2) + Cherry Master (Corsica, v8.31, unencrypted, set 2)", 0,                                              layout_cmpacman ) // need to press K to switch between games...
 GAMEL( 198?, cmpacmanb,  cmpacman, cm,        cmpacman, cmaster_state,  init_cmpacmanb, ROT0, "<unknown>",               "Super Pacman (v1.2) + Cherry Master (Corsica, v8.31, encrypted)",          0,                                              layout_cmpacman ) // need to press K to switch between games...
@@ -31775,8 +31807,6 @@ GAMEL( 198?, cmtetrise,  cmtetris, cm,        cmtetris, cmaster_state,  empty_in
 GAMEL( 198?, cmtetrisf,  cmtetris, cm,        cmtetris, cmaster_state,  empty_init,     ROT0, "bootleg",                 "Tetris + Cherry Master (unencrypted bootleg, set 2)",                      0,                                              layout_cmpacman ) // seems to have been hacked to run the slot game as default, see 0x8ba8
 GAMEL( 198?, cmtetriskr, cmtetris, cmtetriskr,cmtetris, cmaster_state,  init_cmtetriskr,ROT0, "<unknown>",               "Tetris + Global Money Fever (Corsica, v8.01, Korean bootleg)",             MACHINE_NOT_WORKING,                            layout_cmpacman ) // starts with coins already inserted in Tetris mode, need to press K/L to switch between games...
 GAMEL( 1992, cmasteroid, cmtetris, cm,        cmtetris, cmaster_state,  empty_init,     ROT0, "bootleg (Aidonis Games)", "Asteroids 1981 (Tetris + Cherry Master with space graphics)",              0,                                              layout_cmpacman ) // needs layout
-GAMEL( 1997, crazybon,   0,        crazybon,  crazybon, cmaster_state,  empty_init,     ROT0, "bootleg (Crazy Co.)",     "Crazy Bonus 2002 (Ver. 1, Shanho HW, set 1)",                              0,                                              layout_crazybon ) // Windows ME desktop...
-GAMEL( 1997, crazybona,  crazybon, crazybon,  crazybon, cmaster_state,  empty_init,     ROT0, "bootleg (Crazy Co.)",     "Crazy Bonus 2002 (Ver. 1, Shanho HW, set 2)",                              0,                                              layout_crazybon ) // Windows ME desktop...
 GAMEL( 1988, lucky8tet,  lucky8,   lucky8tet, lucky8tet, wingco_state,  init_l8tet,     ROT0, "bootleg",                 "Tetris + New Lucky 8 Lines (W-4 + W4BET-VID sub board with MCU)",          MACHINE_UNEMULATED_PROTECTION,                  layout_lucky8p1 )
 
 
