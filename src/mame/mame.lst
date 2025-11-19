@@ -1704,6 +1704,7 @@ tmek51p
 @source:atari/atarigx2.cpp
 motofren
 motofrenft
+motofrenfta
 motofrenmd
 motofrenmf
 rrreveng
@@ -25763,6 +25764,7 @@ ppp2nda
 sogeki
 sscopefh
 sscopex
+sscopexu
 thrild2
 thrild2a
 thrild2c
@@ -39887,6 +39889,9 @@ mc200
 mc400
 mcword
 mcword_de
+
+@source:psion/mc600.cpp
+mc600
 
 @source:psion/psion.cpp
 psion1
