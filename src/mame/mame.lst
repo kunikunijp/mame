@@ -43734,6 +43734,9 @@ fs3216
 @source:skeleton/ft68m.cpp
 ft68m
 
+@source:skeleton/funtech_h8.cpp
+goldnegg
+
 @source:skeleton/ganbaremo.cpp
 ganbaremo
 
@@ -48241,6 +48244,9 @@ vgmplay
 
 @source:virtual/wavesynth.cpp
 wavesynth
+
+@source:virtual/utdsp563xx.cpp
+utdsp563xx
 
 @source:visual/v100.cpp
 v100
