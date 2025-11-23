@@ -215,8 +215,8 @@ void pc9801_state::pc9801_map(address_map &map)
 	map(0xa8000, 0xbffff).rw(FUNC(pc9801_state::gvram_r), FUNC(pc9801_state::gvram_w)); //bitmap VRAM
 	map(0xc0000, 0xdffff).rw("cbus_root", FUNC(pc98_cbus_root_device::mem_slot_r), FUNC(pc98_cbus_root_device::mem_slot_w));
 //  map(0xcc000, 0xcffff).rom().region("sound_bios", 0); //sound BIOS
-//	map(0xd6000, 0xd6fff).rom().region("fdc_bios_2dd", 0); //floppy BIOS 2dd
-//	map(0xd7000, 0xd7fff).rom().region("fdc_bios_2hd", 0); //floppy BIOS 2hd
+//  map(0xd6000, 0xd6fff).rom().region("fdc_bios_2dd", 0); //floppy BIOS 2dd
+//  map(0xd7000, 0xd7fff).rom().region("fdc_bios_2hd", 0); //floppy BIOS 2hd
 	map(0xe8000, 0xfffff).rom().region("ipl", 0);
 }
 
@@ -252,8 +252,8 @@ void pc9801_state::pc9801_io(address_map &map)
 	map(0x0020, 0x002f).w(FUNC(pc9801_state::dmapg4_w)).umask16(0xff00);
 	map(0x0050, 0x0057).m("fdd_2d", FUNC(pc80s31k_device::host_map)).umask16(0xff00);
 	map(0x0068, 0x0068).w(FUNC(pc9801_state::pc9801_video_ff_w)); //mode FF / <undefined>
-//	map(0x0080, 0x0080).rw(FUNC(pc9801_state::sasi_data_r), FUNC(pc9801_state::sasi_data_w));
-//	map(0x0082, 0x0082).rw(FUNC(pc9801_state::sasi_status_r), FUNC(pc9801_state::sasi_ctrl_w));
+//  map(0x0080, 0x0080).rw(FUNC(pc9801_state::sasi_data_r), FUNC(pc9801_state::sasi_data_w));
+//  map(0x0082, 0x0082).rw(FUNC(pc9801_state::sasi_status_r), FUNC(pc9801_state::sasi_ctrl_w));
 	map(0x0090, 0x0090).r(m_fdc_2hd, FUNC(upd765a_device::msr_r));
 	map(0x0092, 0x0092).rw(m_fdc_2hd, FUNC(upd765a_device::fifo_r), FUNC(upd765a_device::fifo_w));
 	map(0x0094, 0x0094).rw(FUNC(pc9801_state::fdc_2hd_ctrl_r), FUNC(pc9801_state::fdc_2hd_ctrl_w));
@@ -1215,10 +1215,19 @@ void pc9801_state::dma_hrq_changed(int state)
 
 void pc9801_state::tc_w(int state)
 {
-	/* floppy terminal count */
-	m_fdc_2hd->tc_w(state);
-	if(m_fdc_2dd)
-		m_fdc_2dd->tc_w(state);
+	switch (m_dack)
+	{
+		case 0:
+			m_cbus_root->eop_w(0, state);
+			break;
+		case 2:
+		case 3:
+			m_fdc_2hd->tc_w(state);
+			if(m_fdc_2dd)
+				m_fdc_2dd->tc_w(state);
+			break;
+	}
+
 
 //  logerror("TC %02x\n",state);
 }
@@ -1958,7 +1967,7 @@ void pc9801_state::pc9801_common(machine_config &config)
 	m_dmac->in_memr_callback().set(FUNC(pc9801_state::dma_read_byte));
 	m_dmac->out_memw_callback().set(FUNC(pc9801_state::dma_write_byte));
 	m_dmac->in_ior_callback<0>().set([this] () { return m_cbus_root->dack_r(0); });
-	m_dmac->out_iow_callback<0>().set([this] (u8 data) { return m_cbus_root->dack_w(0, data); });
+	m_dmac->out_iow_callback<0>().set([this] (u8 data) { m_cbus_root->dack_w(0, data); });
 
 	m_dmac->in_ior_callback<2>().set(m_fdc_2hd, FUNC(upd765a_device::dma_r));
 	m_dmac->out_iow_callback<2>().set(m_fdc_2hd, FUNC(upd765a_device::dma_w));

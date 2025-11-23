@@ -11,10 +11,14 @@ Original -07 is for 1st gen HW (clock from C-Bus like -26?)
 #include "emu.h"
 #include "pc9801_27.h"
 
+#define LOG_STATE (1U << 1) // SASI state flags
+
 #define VERBOSE (LOG_GENERAL)
 //#define LOG_OUTPUT_FUNC osd_printf_warning
 
 #include "logmacro.h"
+
+#define LOGSTATE(...)    LOGMASKED(LOG_STATE, __VA_ARGS__)
 
 
 DEFINE_DEVICE_TYPE(PC9801_27, pc9801_27_device, "pc9801_27", "NEC PC-9801-27 SASI interface")
@@ -23,7 +27,7 @@ pc9801_27_device::pc9801_27_device(const machine_config &mconfig, const char *ta
 	: device_t(mconfig, PC9801_27, tag, owner, clock)
 	, device_pc98_cbus_slot_interface(mconfig, *this)
 	, m_sasibus(*this, "sasi")
-//	, m_harddisk(*this, "sasi:0:harddisk")
+//  , m_harddisk(*this, "sasi:0:harddisk")
 	, m_sasi(*this, "sasi:7:sasicb")
 	, m_bios(*this, "bios")
 {
@@ -73,6 +77,8 @@ ioport_constructor pc9801_27_device::device_input_ports() const
 
 void pc9801_27_device::device_start()
 {
+	m_bus->set_dma_channel(0, this, true);
+
 	save_item(NAME(m_control));
 	save_item(NAME(m_sasi_ack));
 	save_item(NAME(m_sasi_req));
@@ -216,10 +222,18 @@ void pc9801_27_device::dack_w(int line, u8 data)
 	data_w(data);
 }
 
+void pc9801_27_device::eop_w(int state)
+{
+	if (state)
+	{
+		m_control &= 0xfd;
+		update_drq();
+	}
+}
 
 void pc9801_27_device::sasi_req_w(int state)
 {
-	LOG("REQ %d -> %d\n", m_sasi_req, state);
+	LOGSTATE("REQ %d -> %d\n", m_sasi_req, state);
 	if (!state)
 	{
 		m_sasi->ack_w(0);
@@ -235,7 +249,7 @@ void pc9801_27_device::sasi_req_w(int state)
 
 void pc9801_27_device::sasi_cd_w(int state)
 {
-	LOG("CD %d -> %d\n", m_sasi_cd, state);
+	LOGSTATE("CD %d -> %d\n", m_sasi_cd, state);
 	if (m_sasi_cd != state)
 	{
 		update_irq();
@@ -247,7 +261,7 @@ void pc9801_27_device::sasi_cd_w(int state)
 
 void pc9801_27_device::sasi_io_w(int state)
 {
- 	LOG("IO %d -> %d\n", m_sasi_io, state);
+	LOGSTATE("IO %d -> %d\n", m_sasi_io, state);
 	if (m_sasi_io != state)
 		update_irq();
 	m_sasi_io = state;
@@ -256,7 +270,7 @@ void pc9801_27_device::sasi_io_w(int state)
 
 void pc9801_27_device::sasi_msg_w(int state)
 {
- 	LOG("MSG %d -> %d\n", m_sasi_msg, state);
+	LOGSTATE("MSG %d -> %d\n", m_sasi_msg, state);
 	if (m_sasi_msg != state)
 		update_irq();
 
@@ -265,7 +279,7 @@ void pc9801_27_device::sasi_msg_w(int state)
 
 void pc9801_27_device::sasi_ack_w(int state)
 {
- 	LOG("ACK %d -> %d\n", m_sasi_ack, state);
+	LOGSTATE("ACK %d -> %d\n", m_sasi_ack, state);
 	m_sasi_ack = state;
 }
 
@@ -277,7 +291,7 @@ void pc9801_27_device::sasi_bsy_w(int state)
 
 void pc9801_27_device::update_irq()
 {
-	//printf("%d %d %d %d\n", m_sasi_req, m_sasi_msg, m_sasi_cd, m_sasi_io);
+//	printf("%d %d %d %d\n", m_sasi_req, m_sasi_msg, m_sasi_cd, m_sasi_io);
 	//if (m_sasi_req && !m_sasi_msg && m_sasi_cd && m_sasi_io)
 	if (m_sasi->req_r() && !m_sasi->msg_r() && m_sasi->cd_r() && m_sasi->io_r())
 	{
@@ -292,6 +306,6 @@ void pc9801_27_device::update_irq()
 
 void pc9801_27_device::update_drq()
 {
-//	m_bus->drq_w(0, !(m_sasi_req && !(m_sasi_cd) && BIT(m_control, 1)));
+//  m_bus->drq_w(0, !(m_sasi_req && !(m_sasi_cd) && BIT(m_control, 1)));
 	m_bus->drq_w(0, m_sasi->req_r() && !m_sasi->cd_r() && BIT(m_control, 1));
 }
