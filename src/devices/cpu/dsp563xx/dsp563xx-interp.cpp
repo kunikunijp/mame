@@ -12,15 +12,21 @@ void dsp563xx_device::execute_ipar(u16 kipar)
 	case 0: { // -
 		break;
 		}
-	case 1: { //
+	case 1: { // 
 		break;
 		}
 	case 2: { // abs a
-		unhandled("abs a");
+		u64 d = get_a();
+		if(d & 0x80000000000000) {
+		set_a((-d) & 0xffffffffffffff);
+		}
 		break;
 		}
 	case 3: { // abs b
-		unhandled("abs b");
+		u64 d = get_b();
+		if(d & 0x80000000000000) {
+		set_b((-d) & 0xffffffffffffff);
+		}
 		break;
 		}
 	case 4: { // adc x,a
@@ -1332,7 +1338,7 @@ void dsp563xx_device::execute_pre_move(u16 kmove, u32 opcode, u32 exv)
 	case 0: { // -
 		break;
 		}
-	case 1: { //
+	case 1: { // 
 		break;
 		}
 	case 2: { // #[i],x0
@@ -14806,7 +14812,7 @@ void dsp563xx_device::execute_post_move(u16 kmove, u32 opcode, u32 exv)
 	case 0: { // -
 		break;
 		}
-	case 1: { //
+	case 1: { // 
 		break;
 		}
 	case 2: { // #[i],x0
@@ -27100,7 +27106,7 @@ void dsp563xx_device::execute_npar(u16 knpar, u32 opcode, u32 exv)
 	case 0: { // -
 		break;
 		}
-	case 1: { //
+	case 1: { // 
 		break;
 		}
 	case 2: { // move x:(r+[o]),x0
@@ -28094,25 +28100,25 @@ void dsp563xx_device::execute_npar(u16 knpar, u32 opcode, u32 exv)
 	case 154: { // add #[i],a
 		u64 d = get_a();
 		u32 i = BIT(opcode, 8, 6);
-		d = do_add56(u64(i) << 24, d);
+		set_a(do_add56(u64(i) << 24, d));
 		break;
 		}
 	case 155: { // add #[i],b
 		u64 d = get_b();
 		u32 i = BIT(opcode, 8, 6);
-		d = do_add56(u64(i) << 24, d);
+		set_b(do_add56(u64(i) << 24, d));
 		break;
 		}
 	case 156: { // add #[i],a
 		u64 d = get_a();
 		u32 i = exv;
-		d = do_add56(util::sext(i << 24, 48), d);
+		set_a(do_add56(util::sext(u64(i) << 24, 48), d));
 		break;
 		}
 	case 157: { // add #[i],b
 		u64 d = get_b();
 		u32 i = exv;
-		d = do_add56(util::sext(i << 24, 48), d);
+		set_b(do_add56(util::sext(u64(i) << 24, 48), d));
 		break;
 		}
 	case 158: { // and #[i],a
@@ -56651,25 +56657,25 @@ void dsp563xx_device::execute_npar(u16 knpar, u32 opcode, u32 exv)
 	case 4177: { // sub #[i],a
 		u64 d = get_a();
 		u32 i = BIT(opcode, 8, 6);
-		d = do_sub56(u64(i) << 24, d);
+		set_a(do_sub56(u64(i) << 24, d));
 		break;
 		}
 	case 4178: { // sub #[i],b
 		u64 d = get_b();
 		u32 i = BIT(opcode, 8, 6);
-		d = do_sub56(u64(i) << 24, d);
+		set_b(do_sub56(u64(i) << 24, d));
 		break;
 		}
 	case 4179: { // sub #[i],a
 		u64 d = get_a();
 		u32 i = exv;
-		d = do_sub56(util::sext(i << 24, 48), d);
+		set_a(do_sub56(util::sext(u64(i) << 24, 48), d));
 		break;
 		}
 	case 4180: { // sub #[i],b
 		u64 d = get_b();
 		u32 i = exv;
-		d = do_sub56(util::sext(i << 24, 48), d);
+		set_b(do_sub56(util::sext(u64(i) << 24, 48), d));
 		break;
 		}
 	case 4181: { // tcc b,a
