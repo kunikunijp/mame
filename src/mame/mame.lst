@@ -20400,6 +20400,12 @@ homelab2
 homelab3
 homelab4
 
+@source:hominn/hominn_980924.cpp
+qxjl
+
+@source:hominn/hominn_mcs51.cpp
+unkhomin
+
 @source:hp/hp48.cpp
 hp38g
 hp39g
@@ -29949,9 +29955,10 @@ lnumbers
 
 @source:misc/beaminv.cpp
 beaminv
+ctainv
 pacominv
 pacominva
-ctainv
+worldinv
 
 @source:misc/beezer.cpp
 beezer
@@ -41848,6 +41855,9 @@ arescue
 arescuej
 arescueu
 as1
+as1a
+as1b
+as1c
 brival
 brivalj
 darkedge
@@ -44819,6 +44829,7 @@ tisub
 tisuba
 tisubb
 trsocean
+trsoceana
 victor21
 victor5
 victor5a
