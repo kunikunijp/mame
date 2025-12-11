@@ -4891,9 +4891,9 @@ void wingco_state::wcat3_map(address_map &map)
 	map(0x8000, 0x87ff).ram().share("nvram");
 	map(0x8800, 0x8fff).ram().w(FUNC(wingco_state::fg_vidram_w)).share(m_fg_vidram);
 	map(0x9000, 0x97ff).ram().w(FUNC(wingco_state::fg_atrram_w)).share(m_fg_atrram);
-	map(0x9800, 0x99ff).mirror(0x200).ram().w(FUNC(wingco_state::reel_ram_w<0>)).share(m_reel_ram[0]);  // all reels use mirrors?
-	map(0xa000, 0xa1ff).ram().w(FUNC(wingco_state::reel_ram_w<1>)).share(m_reel_ram[1]);
-	map(0xa800, 0xa9ff).ram().w(FUNC(wingco_state::reel_ram_w<2>)).share(m_reel_ram[2]);
+	map(0x9800, 0x99ff).mirror(0x200).ram().w(FUNC(wingco_state::reel_ram_w<0>)).share(m_reel_ram[0]);  // reels need mirrors for animated symbols
+	map(0xa000, 0xa1ff).mirror(0x200).ram().w(FUNC(wingco_state::reel_ram_w<1>)).share(m_reel_ram[1]);  // reels need mirrors for animated symbols
+	map(0xa800, 0xa9ff).mirror(0x200).ram().w(FUNC(wingco_state::reel_ram_w<2>)).share(m_reel_ram[2]);  // reels need mirrors for animated symbols
 	map(0xb040, 0xb07f).ram().share(m_reel_scroll[0]);
 	map(0xb080, 0xb0bf).ram().share(m_reel_scroll[1]);
 	map(0xb100, 0xb17f).ram().share(m_reel_scroll[2]);
@@ -11302,15 +11302,25 @@ static INPUT_PORTS_START( nfb96 )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_GAMBLE_BOOK ) PORT_NAME("Stats")
 
 	PORT_START("DSW1")
-	PORT_DIPNAME( 0x07, 0x03, "Game Level (Difficulty)" )   PORT_DIPLOCATION("DSW1:!1,!2,!3")  // OK
-	PORT_DIPSETTING(    0x07, "Level 1 (Easiest)" )
-	PORT_DIPSETTING(    0x06, "Level 2" )
-	PORT_DIPSETTING(    0x05, "Level 3" )
-	PORT_DIPSETTING(    0x04, "Level 4" )
-	PORT_DIPSETTING(    0x03, "Level 5" )
-	PORT_DIPSETTING(    0x02, "Level 6" )
-	PORT_DIPSETTING(    0x01, "Level 7" )
-	PORT_DIPSETTING(    0x00, "Level 8 (Hardest)" )
+	PORT_DIPNAME( 0x07, 0x03, "Main Game Pay Rate" ) PORT_DIPLOCATION("DSW1:!1,!2,!3") PORT_CONDITION("DSW4", 0x02, EQUALS, 0x02)
+	PORT_DIPSETTING( 0x00, "55%" ) PORT_CONDITION("DSW4", 0x02, EQUALS, 0x02)
+	PORT_DIPSETTING( 0x01, "60%" ) PORT_CONDITION("DSW4", 0x02, EQUALS, 0x02)
+	PORT_DIPSETTING( 0x02, "65%" ) PORT_CONDITION("DSW4", 0x02, EQUALS, 0x02)
+	PORT_DIPSETTING( 0x03, "70%" ) PORT_CONDITION("DSW4", 0x02, EQUALS, 0x02)
+	PORT_DIPSETTING( 0x04, "75%" ) PORT_CONDITION("DSW4", 0x02, EQUALS, 0x02)
+	PORT_DIPSETTING( 0x05, "80%" ) PORT_CONDITION("DSW4", 0x02, EQUALS, 0x02)
+	PORT_DIPSETTING( 0x06, "85%" ) PORT_CONDITION("DSW4", 0x02, EQUALS, 0x02)
+	PORT_DIPSETTING( 0x07, "90%" ) PORT_CONDITION("DSW4", 0x02, EQUALS, 0x02)	
+	// --- Show Difficulty Levels (DSW4:2 = 0) ---
+	PORT_DIPNAME( 0x07, 0x03, "Game Level (Difficulty)" ) PORT_DIPLOCATION("DSW1:!1,!2,!3") PORT_CONDITION("DSW4", 0x02, NOTEQUALS, 0x02)
+	PORT_DIPSETTING( 0x00, "Level 8" ) PORT_CONDITION("DSW4", 0x02, NOTEQUALS, 0x02)
+	PORT_DIPSETTING( 0x01, "Level 7" ) PORT_CONDITION("DSW4", 0x02, NOTEQUALS, 0x02)
+	PORT_DIPSETTING( 0x02, "Level 6" ) PORT_CONDITION("DSW4", 0x02, NOTEQUALS, 0x02)
+	PORT_DIPSETTING( 0x03, "Level 5" ) PORT_CONDITION("DSW4", 0x02, NOTEQUALS, 0x02)
+	PORT_DIPSETTING( 0x04, "Level 4" ) PORT_CONDITION("DSW4", 0x02, NOTEQUALS, 0x02)
+	PORT_DIPSETTING( 0x05, "Level 3" ) PORT_CONDITION("DSW4", 0x02, NOTEQUALS, 0x02)
+	PORT_DIPSETTING( 0x06, "Level 2" ) PORT_CONDITION("DSW4", 0x02, NOTEQUALS, 0x02)
+	PORT_DIPSETTING( 0x07, "Level 1" ) PORT_CONDITION("DSW4", 0x02, NOTEQUALS, 0x02)
 	PORT_DIPNAME( 0x38, 0x38, "Maximum Play" )              PORT_DIPLOCATION("DSW1:!4,!5,!6")  // OK
 	PORT_DIPSETTING(    0x00, "10" )    PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
 	PORT_DIPSETTING(    0x08, "20" )    PORT_CONDITION("DSW5", 0x10, EQUALS, 0x00)
