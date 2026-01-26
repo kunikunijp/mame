@@ -624,8 +624,23 @@ void pacland_state::draw_fg(screen_device &screen, bitmap_ind16 &bitmap, const r
 }
 
 
-uint32_t pacland_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t pacland_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cr)
 {
+	uint8_t ptn1[] = {0x10, 0x11, 0x12, 0x13, 0x14, 0x15};
+	uint8_t ptn2[] = {0xef, 0xee, 0xed, 0xec, 0xeb, 0xea};
+	uint8_t ptn3[] = {0xee, 0x05, 0xee, 0x05, 0xee, 0x05};
+	uint8_t vram[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	for (int i = 0; i < 6; i++) vram[i] = m_videoram[1][i];
+	int mode = 0;
+	if (!mode){ for (int i = 0; i < 6; i++){ if (vram[i] != ptn1[i]) break; if (i == 5) mode = 1; } }
+	if (!mode){ for (int i = 0; i < 6; i++){ if (vram[i] != ptn2[i]) break; if (i == 5) mode = 1; } }
+	if (!mode){ for (int i = 0; i < 6; i++){ if (vram[i] != ptn3[i]) break; if (i == 5) mode = 2; } }
+	rectangle cliprect(cr.min_x + 8, cr.max_x - 8, cr.min_y, cr.max_y);
+	pen_t pen = 0x7ff;
+	if (mode == 1){ pen = 0x7fe; cliprect.min_x = cr.min_x; cliprect.max_x = cr.max_x; }
+	if (mode == 2){ pen = 0x7fe; }
+	bitmap.fill(pen, cr);
+
 	int flip = flip_screen();
 
 	for (int row = 5; row < 29; row++)
@@ -907,7 +922,7 @@ void pacland_state::pacland(machine_config &config)
 
 	// video hardware
 	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
-	m_screen->set_raw(XTAL(49'152'000) / 8, 384, 3*8, 39*8, 264, 2*8, 30*8);
+	m_screen->set_raw(XTAL(49'152'000) / 8, 384, 2*8, 40*8, 264, 2*8, 30*8);
 	m_screen->set_screen_update(FUNC(pacland_state::screen_update));
 	m_screen->set_palette(m_palette);
 	m_screen->screen_vblank().set(FUNC(pacland_state::vblank_irq));
