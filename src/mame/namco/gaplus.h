@@ -18,7 +18,7 @@ public:
 	static constexpr unsigned MAX_STARS = 250;
 
 	struct star {
-		uint8_t x = 0, y = 0;
+		float x = 0, y = 0;
 		int col = 0, set = 0;
 	};
 
