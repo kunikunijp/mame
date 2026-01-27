@@ -1200,22 +1200,56 @@ static INPUT_PORTS_START( xevious )
 	PORT_DIPSETTING(    0x00, DEF_STR( 2C_3C ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( 1C_2C ) )
 	PORT_DIPNAME( 0x1c, 0x1c, DEF_STR( Bonus_Life ) )   PORT_DIPLOCATION("SWA:3,4,5")
-	PORT_DIPSETTING(    0x18, "10K, 40K, Every 40K" )   PORT_CONDITION("DSWA",0x60,NOTEQUALS,0x00)
-	PORT_DIPSETTING(    0x14, "10K, 50K, Every 50K" )   PORT_CONDITION("DSWA",0x60,NOTEQUALS,0x00)
-	PORT_DIPSETTING(    0x10, "20K, 50K, Every 50K" )   PORT_CONDITION("DSWA",0x60,NOTEQUALS,0x00)
-	PORT_DIPSETTING(    0x1c, "20K, 60K, Every 60K" )   PORT_CONDITION("DSWA",0x60,NOTEQUALS,0x00) // factory default = "20K, 60K, Every60K"
-	PORT_DIPSETTING(    0x0c, "20K, 70K, Every 70K" )   PORT_CONDITION("DSWA",0x60,NOTEQUALS,0x00)
-	PORT_DIPSETTING(    0x08, "20K, 80K, Every 80K" )   PORT_CONDITION("DSWA",0x60,NOTEQUALS,0x00)
-	PORT_DIPSETTING(    0x04, "20K and 60K Only" )      PORT_CONDITION("DSWA",0x60,NOTEQUALS,0x00)
-	PORT_DIPSETTING(    0x00, DEF_STR( None ) )         PORT_CONDITION("DSWA",0x60,NOTEQUALS,0x00)
-	PORT_DIPSETTING(    0x18, "10K, 50K, Every 50K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x00)
-	PORT_DIPSETTING(    0x14, "20K, 50K, Every 50K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x00)
-	PORT_DIPSETTING(    0x10, "20K, 60K, Every 60K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x00)
-	PORT_DIPSETTING(    0x1c, "20K, 70K, Every 70K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x00)
-	PORT_DIPSETTING(    0x0c, "20K, 80K, Every 80K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x00)
-	PORT_DIPSETTING(    0x08, "30K, 100K, Every 100K" ) PORT_CONDITION("DSWA",0x60,EQUALS,0x00)
-	PORT_DIPSETTING(    0x04, "20K and 80K Only" )      PORT_CONDITION("DSWA",0x60,EQUALS,0x00)
-	PORT_DIPSETTING(    0x00, DEF_STR( None ) )         PORT_CONDITION("DSWA",0x60,EQUALS,0x00)
+	PORT_DIPSETTING(    0x18, "10K, 40K, Every 40K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x60) // "B" // 3 lives
+	PORT_DIPSETTING(    0x14, "20K, 50K, Every 50K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x60) // "C"
+	PORT_DIPSETTING(    0x10, "20K, 50K, Every 50K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x60) // "D"
+	PORT_DIPSETTING(    0x1c, "20K, 60K, Every 60K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x60) // "A" // factory default = "20K, 60K, Every60K"
+	PORT_DIPSETTING(    0x0c, "20K, 70K, Every 70K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x60) // "E"
+	PORT_DIPSETTING(    0x08, "30K, 80K, Every 80K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x60) // "F"
+	PORT_DIPSETTING(    0x04, "20K and 60K Only" )      PORT_CONDITION("DSWA",0x60,EQUALS,0x60) // "G"
+	PORT_DIPSETTING(    0x18, "10K, 40K, Every 40K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x40) // "B" // 1 life
+	PORT_DIPSETTING(    0x14, "10K, 50K, Every 50K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x40) // "C"
+	PORT_DIPSETTING(    0x10, "20K, 50K, Every 50K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x40) // "D"
+	PORT_DIPSETTING(    0x1c, "20K, 60K, Every 60K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x40) // "A"
+	PORT_DIPSETTING(    0x0c, "20K, 70K, Every 70K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x40) // "E"
+	PORT_DIPSETTING(    0x08, "20K, 80K, Every 80K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x40) // "F"
+	PORT_DIPSETTING(    0x04, "20K and 60K Only" )      PORT_CONDITION("DSWA",0x60,EQUALS,0x40) // "G"
+	PORT_DIPSETTING(    0x18, "10K, 40K, Every 40K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x20) // "B" // 2 lives (same with 1 life)
+	PORT_DIPSETTING(    0x14, "10K, 50K, Every 50K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x20) // "C"
+	PORT_DIPSETTING(    0x10, "20K, 50K, Every 50K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x20) // "D"
+	PORT_DIPSETTING(    0x1c, "20K, 60K, Every 60K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x20) // "A"
+	PORT_DIPSETTING(    0x0c, "20K, 70K, Every 70K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x20) // "E"
+	PORT_DIPSETTING(    0x08, "20K, 80K, Every 80K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x20) // "F"
+	PORT_DIPSETTING(    0x04, "20K and 60K Only" )      PORT_CONDITION("DSWA",0x60,EQUALS,0x20) // "G"
+	PORT_DIPSETTING(    0x18, "10K, 50K, Every 50K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x00) // "B" // 5 lives
+	PORT_DIPSETTING(    0x14, "10K, 50K, Every 50K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x00) // "C"
+	PORT_DIPSETTING(    0x10, "20K, 60K, Every 60K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x00) // "D"
+	PORT_DIPSETTING(    0x1c, "20K, 70K, Every 70K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x00) // "A"
+	PORT_DIPSETTING(    0x0c, "20K, 80K, Every 80K" )   PORT_CONDITION("DSWA",0x60,EQUALS,0x00) // "E"
+	PORT_DIPSETTING(    0x08, "20K, 100K, Every 100K" ) PORT_CONDITION("DSWA",0x60,EQUALS,0x00) // "F"
+	PORT_DIPSETTING(    0x04, "20K and 80K Only" )      PORT_CONDITION("DSWA",0x60,EQUALS,0x00) // "G"
+	PORT_DIPSETTING(    0x00, DEF_STR( None ) )                                              // "H" // common 1,2,3,5 lives
+	/* According to the manual
+	                  1,2,3 lives     5 lives
+	  off off off  A  20k and ev 60k  20k and ev 70k
+	  on  off off  B  10k and ev 40k  10k and ev 50k
+	  off on  off  C  10k and ev 50k  20k and ev 50k
+	  on  on  off  D  20k and ev 50k  20k and ev 60k
+	  off off on   E  20k and ev 70k  20k and ev 80k
+	  on  off on   F  20k and ev 80k  30k and ev 100k
+	  off on  on   G  20k and 60k     20k and 80k
+	  on  on  on   H  No Bonus        No Bonus
+	-- But practically
+	                  1,2 lives       3 lives         5 lives
+	  off off off  A  20k and ev 60k  20k and ev 60k  20k and ev 70k
+	  on  off off  B  10k and ev 40k  10k and ev 40k  10k and ev 50k
+	  off on  off  C  10k and ev 50k [20k]and ev 50k [10k]and ev 50k
+	  on  on  off  D  20k and ev 50k  20k and ev 50k  20k and ev 60k
+	  off off on   E  20k and ev 70k  20k and ev 70k  20k and ev 80k
+	  on  off on   F  20k and ev 80k [30k]and ev 80k [20k]and ev 100k
+	  off on  on   G  20k and 60k     20k and 60k     20k and 80k
+	  on  on  on   H  No Bonus        No Bonus        No Bonus
+	*/
 	PORT_DIPNAME( 0x60, 0x60, DEF_STR( Lives ) )        PORT_DIPLOCATION("SWA:6,7")
 	PORT_DIPSETTING(    0x40, "1" )
 	PORT_DIPSETTING(    0x20, "2" )
@@ -2688,13 +2722,15 @@ ROM_START( xevious )
 	ROM_LOAD( "xvi_13.3c",    0x0000, 0x1000, CRC(de60ba25) SHA1(32bc09be5ff8b52ee3a26e0ac3ebc2d4107badb7) )    /* bg pattern B0 */
 	ROM_LOAD( "xvi_14.3d",    0x1000, 0x1000, CRC(535cdbbc) SHA1(fb9ffe5fc43e0213231267e98d605d43c15f61e8) )    /* bg pattern B1 */
 
-	ROM_REGION( 0xa000, "gfx3", 0 )
+	ROM_REGION( 0x10000, "gfx3", 0 )
 	ROM_LOAD( "xvi_15.4m",    0x0000, 0x2000, CRC(dc2c0ecb) SHA1(19ddbd9805f77f38c9a9a1bb30dba6c720b8609f) )    /* sprite set #1, planes 0/1 */
 	ROM_LOAD( "xvi_17.4p",    0x2000, 0x2000, CRC(dfb587ce) SHA1(acff2bf5cde85a16cdc98a52cdea11f77fadf25a) )    /* sprite set #2, planes 0/1 */
 	ROM_LOAD( "xvi_16.4n",    0x4000, 0x1000, CRC(605ca889) SHA1(3bf380ef76c03822a042ecc73b5edd4543c268ce) )    /* sprite set #3, planes 0/1 */
-	ROM_LOAD( "xvi_18.4r",    0x5000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
-	/* 0x7000-0x8fff  will be unpacked from 0x5000-0x6fff */
-	ROM_FILL(                 0x9000, 0x1000, 0x00 )    // empty space to decode sprite set #3 as 3 bits per pixel
+	ROM_COPY( "gfx3", 0x4000, 0x5000, 0x1000 ) /* mirror */
+	ROM_FILL(                 0x6000, 0x2000, 0xff ) /* ROM is not mounted (unstable value from inputting high impedance of tri-state) */
+	ROM_LOAD( "xvi_18.4r",    0x8000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
+	/* 0xa000-0xbfff  will be unpacked from 0x8000-0x9fff */
+	ROM_FILL(                 0xc000, 0x4000, 0x00 ) /* empty space to decode sprite set #3 (and garbage) as 3 bits per pixel */
 
 	ROM_REGION( 0x4000, "gfx4", 0 ) /* background tilemaps */
 	ROM_LOAD( "xvi_9.2a",     0x0000, 0x1000, CRC(57ed9879) SHA1(3106d1aacff06cf78371bd19967141072b32b7d7) )
@@ -2743,13 +2779,15 @@ ROM_START( xeviousa )
 	ROM_LOAD( "xvi_13.3c",    0x0000, 0x1000, CRC(de60ba25) SHA1(32bc09be5ff8b52ee3a26e0ac3ebc2d4107badb7) )    /* bg pattern B0 */
 	ROM_LOAD( "xvi_14.3d",    0x1000, 0x1000, CRC(535cdbbc) SHA1(fb9ffe5fc43e0213231267e98d605d43c15f61e8) )    /* bg pattern B1 */
 
-	ROM_REGION( 0xa000, "gfx3", 0 )
+	ROM_REGION( 0x10000, "gfx3", 0 )
 	ROM_LOAD( "xvi_15.4m",    0x0000, 0x2000, CRC(dc2c0ecb) SHA1(19ddbd9805f77f38c9a9a1bb30dba6c720b8609f) )    /* sprite set #1, planes 0/1 */
 	ROM_LOAD( "xvi_17.4p",    0x2000, 0x2000, CRC(dfb587ce) SHA1(acff2bf5cde85a16cdc98a52cdea11f77fadf25a) )    /* sprite set #2, planes 0/1 */
 	ROM_LOAD( "xvi_16.4n",    0x4000, 0x1000, CRC(605ca889) SHA1(3bf380ef76c03822a042ecc73b5edd4543c268ce) )    /* sprite set #3, planes 0/1 */
-	ROM_LOAD( "xvi_18.4r",    0x5000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
-	/* 0x7000-0x8fff  will be unpacked from 0x5000-0x6fff */
-	ROM_FILL(                 0x9000, 0x1000, 0x00 )    // empty space to decode sprite set #3 as 3 bits per pixel
+	ROM_COPY( "gfx3", 0x4000, 0x5000, 0x1000 ) /* mirror */
+	ROM_FILL(                 0x6000, 0x2000, 0xff ) /* ROM is not mounted (unstable value from inputting high impedance of tri-state) */
+	ROM_LOAD( "xvi_18.4r",    0x8000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
+	/* 0xa000-0xbfff  will be unpacked from 0x8000-0x9fff */
+	ROM_FILL(                 0xc000, 0x4000, 0x00 ) /* empty space to decode sprite set #3 (and garbage) as 3 bits per pixel */
 
 	ROM_REGION( 0x4000, "gfx4", 0 ) /* background tilemaps */
 	ROM_LOAD( "xvi_9.2a",     0x0000, 0x1000, CRC(57ed9879) SHA1(3106d1aacff06cf78371bd19967141072b32b7d7) )
@@ -2791,13 +2829,15 @@ ROM_START( xeviousb )
 	ROM_LOAD( "xvi_13.3c",    0x0000, 0x1000, CRC(de60ba25) SHA1(32bc09be5ff8b52ee3a26e0ac3ebc2d4107badb7) )    /* bg pattern B0 */
 	ROM_LOAD( "xvi_14.3d",    0x1000, 0x1000, CRC(535cdbbc) SHA1(fb9ffe5fc43e0213231267e98d605d43c15f61e8) )    /* bg pattern B1 */
 
-	ROM_REGION( 0xa000, "gfx3", 0 )
+	ROM_REGION( 0x10000, "gfx3", 0 )
 	ROM_LOAD( "xvi_15.4m",    0x0000, 0x2000, CRC(dc2c0ecb) SHA1(19ddbd9805f77f38c9a9a1bb30dba6c720b8609f) )    /* sprite set #1, planes 0/1 */
 	ROM_LOAD( "xvi_17.4p",    0x2000, 0x2000, CRC(dfb587ce) SHA1(acff2bf5cde85a16cdc98a52cdea11f77fadf25a) )    /* sprite set #2, planes 0/1 */
 	ROM_LOAD( "xvi_16.4n",    0x4000, 0x1000, CRC(605ca889) SHA1(3bf380ef76c03822a042ecc73b5edd4543c268ce) )    /* sprite set #3, planes 0/1 */
-	ROM_LOAD( "xvi_18.4r",    0x5000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
-	/* 0x7000-0x8fff  will be unpacked from 0x5000-0x6fff */
-	ROM_FILL(                 0x9000, 0x1000, 0x00 )    // empty space to decode sprite set #3 as 3 bits per pixel
+	ROM_COPY( "gfx3", 0x4000, 0x5000, 0x1000 ) /* mirror */
+	ROM_FILL(                 0x6000, 0x2000, 0xff ) /* ROM is not mounted (unstable value from inputting high impedance of tri-state) */
+	ROM_LOAD( "xvi_18.4r",    0x8000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
+	/* 0xa000-0xbfff  will be unpacked from 0x8000-0x9fff */
+	ROM_FILL(                 0xc000, 0x4000, 0x00 ) /* empty space to decode sprite set #3 (and garbage) as 3 bits per pixel */
 
 	ROM_REGION( 0x4000, "gfx4", 0 ) /* background tilemaps */
 	ROM_LOAD( "xvi_9.2a",     0x0000, 0x1000, CRC(57ed9879) SHA1(3106d1aacff06cf78371bd19967141072b32b7d7) )
@@ -2842,13 +2882,15 @@ ROM_START( xeviousc )
 	ROM_LOAD( "xvi_13.3c",    0x0000, 0x1000, CRC(de60ba25) SHA1(32bc09be5ff8b52ee3a26e0ac3ebc2d4107badb7) )    /* bg pattern B0 */
 	ROM_LOAD( "xvi_14.3d",    0x1000, 0x1000, CRC(535cdbbc) SHA1(fb9ffe5fc43e0213231267e98d605d43c15f61e8) )    /* bg pattern B1 */
 
-	ROM_REGION( 0xa000, "gfx3", 0 )
+	ROM_REGION( 0x10000, "gfx3", 0 )
 	ROM_LOAD( "xvi_15.4m",    0x0000, 0x2000, CRC(dc2c0ecb) SHA1(19ddbd9805f77f38c9a9a1bb30dba6c720b8609f) )    /* sprite set #1, planes 0/1 */
 	ROM_LOAD( "xvi_17.4p",    0x2000, 0x2000, CRC(dfb587ce) SHA1(acff2bf5cde85a16cdc98a52cdea11f77fadf25a) )    /* sprite set #2, planes 0/1 */
 	ROM_LOAD( "xvi_16.4n",    0x4000, 0x1000, CRC(605ca889) SHA1(3bf380ef76c03822a042ecc73b5edd4543c268ce) )    /* sprite set #3, planes 0/1 */
-	ROM_LOAD( "xvi_18.4r",    0x5000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
-	/* 0x7000-0x8fff  will be unpacked from 0x5000-0x6fff */
-	ROM_FILL(                 0x9000, 0x1000, 0x00 )    // empty space to decode sprite set #3 as 3 bits per pixel
+	ROM_COPY( "gfx3", 0x4000, 0x5000, 0x1000 ) /* mirror */
+	ROM_FILL(                 0x6000, 0x2000, 0xff ) /* ROM is not mounted (unstable value from inputting high impedance of tri-state) */
+	ROM_LOAD( "xvi_18.4r",    0x8000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
+	/* 0xa000-0xbfff  will be unpacked from 0x8000-0x9fff */
+	ROM_FILL(                 0xc000, 0x4000, 0x00 ) /* empty space to decode sprite set #3 (and garbage) as 3 bits per pixel */
 
 	ROM_REGION( 0x4000, "gfx4", 0 ) /* background tilemaps */
 	ROM_LOAD( "xvi_9.2a",     0x0000, 0x1000, CRC(57ed9879) SHA1(3106d1aacff06cf78371bd19967141072b32b7d7) )
@@ -2890,13 +2932,15 @@ ROM_START( xeviousd ) // original Atari PCBs A039785 + A039787 (both PCBs had a 
 	ROM_LOAD( "1983_atari_8307_136018_105.3c", 0x0000, 0x1000, CRC(de60ba25) SHA1(32bc09be5ff8b52ee3a26e0ac3ebc2d4107badb7) )    /* bg pattern B0 */
 	ROM_LOAD( "1983_atari_8307_136018_106.3d", 0x1000, 0x1000, CRC(535cdbbc) SHA1(fb9ffe5fc43e0213231267e98d605d43c15f61e8) )    /* bg pattern B1 */
 
-	ROM_REGION( 0xa000, "gfx3", 0 )
+	ROM_REGION( 0x10000, "gfx3", 0 )
 	ROM_LOAD( "1983_atari_8307_136018_107.4m", 0x0000, 0x2000, CRC(dc2c0ecb) SHA1(19ddbd9805f77f38c9a9a1bb30dba6c720b8609f) )    /* sprite set #1, planes 0/1 */
 	ROM_LOAD( "1983_atari_8307_136018_109.4p", 0x2000, 0x2000, CRC(dfb587ce) SHA1(acff2bf5cde85a16cdc98a52cdea11f77fadf25a) )    /* sprite set #2, planes 0/1 */
 	ROM_LOAD( "1983_atari_8307_136018_108.4n", 0x4000, 0x1000, CRC(605ca889) SHA1(3bf380ef76c03822a042ecc73b5edd4543c268ce) )    /* sprite set #3, planes 0/1 */
-	ROM_LOAD( "1983_atari_8307_136018_110.4r", 0x5000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
-	/* 0x7000-0x8fff  will be unpacked from 0x5000-0x6fff */
-	ROM_FILL(                                  0x9000, 0x1000, 0x00 )    // empty space to decode sprite set #3 as 3 bits per pixel
+	ROM_COPY( "gfx3", 0x4000, 0x5000, 0x1000 ) /* mirror */
+	ROM_FILL(                 0x6000, 0x2000, 0xff ) /* ROM is not mounted (unstable value from inputting high impedance of tri-state) */
+	ROM_LOAD( "1983_atari_8307_136018_110.4r", 0x8000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
+	/* 0xa000-0xbfff  will be unpacked from 0x8000-0x9fff */
+	ROM_FILL(                                  0xc000, 0x4000, 0x00 ) /* empty space to decode sprite set #3 (and garbage) as 3 bits per pixel */
 
 	ROM_REGION( 0x4000, "gfx4", 0 ) /* background tilemaps */
 	ROM_LOAD( "1983_atari_8307_136018_101.2a", 0x0000, 0x1000, CRC(57ed9879) SHA1(3106d1aacff06cf78371bd19967141072b32b7d7) )
@@ -2948,13 +2992,15 @@ ROM_START( xevios )
 	ROM_LOAD( "18.9f",        0x0000, 0x1000, CRC(de60ba25) SHA1(32bc09be5ff8b52ee3a26e0ac3ebc2d4107badb7) )    /* bg pattern B0 */
 	ROM_LOAD( "19.11f",       0x1000, 0x1000, CRC(535cdbbc) SHA1(fb9ffe5fc43e0213231267e98d605d43c15f61e8) )    /* bg pattern B1 */
 
-	ROM_REGION( 0xa000, "gfx3", 0 )
+	ROM_REGION( 0x10000, "gfx3", 0 )
 	ROM_LOAD( "13.4d",        0x0000, 0x2000, CRC(dc2c0ecb) SHA1(19ddbd9805f77f38c9a9a1bb30dba6c720b8609f) )    /* sprite set #1, planes 0/1 */
 	ROM_LOAD( "15.7d",        0x2000, 0x2000, CRC(dfb587ce) SHA1(acff2bf5cde85a16cdc98a52cdea11f77fadf25a) )    /* sprite set #2, planes 0/1 */
 	ROM_LOAD( "14.6d",        0x4000, 0x1000, CRC(605ca889) SHA1(3bf380ef76c03822a042ecc73b5edd4543c268ce) )    /* sprite set #3, planes 0/1 */
-	ROM_LOAD( "16.8d",        0x5000, 0x2000, CRC(44262c04) SHA1(4291f83193d11064c2ba6a9af27951b93bb945c3) )    /* sprite set #1, plane 2, set #2, plane 2 */
-	/* 0x7000-0x8fff  will be unpacked from 0x5000-0x6fff */
-	ROM_FILL(                 0x9000, 0x1000, 0x00 )    // empty space to decode sprite set #3 as 3 bits per pixel
+	ROM_COPY( "gfx3", 0x4000, 0x5000, 0x1000 ) /* mirror */
+	ROM_FILL(                 0x6000, 0x2000, 0xff ) /* ROM is not mounted (unstable value from inputting high impedance of tri-state) */
+	ROM_LOAD( "16.8d",        0x8000, 0x2000, CRC(44262c04) SHA1(4291f83193d11064c2ba6a9af27951b93bb945c3) )    /* sprite set #1, plane 2, set #2, plane 2 */
+	/* 0xa000-0xbfff  will be unpacked from 0x8000-0x9fff */
+	ROM_FILL(                 0xc000, 0x4000, 0x00 ) /* empty space to decode sprite set #3 (and garbage) as 3 bits per pixel */
 
 	ROM_REGION( 0x4000, "gfx4", 0 ) /* background tilemaps */
 	ROM_LOAD( "10.1d",        0x0000, 0x1000, CRC(10baeebb) SHA1(c544c9e0bb7a1ef93b3f2c2c1397f659d5334373) )
@@ -3011,13 +3057,15 @@ ROM_START( battles )
 	ROM_LOAD( "bg10.c8",     0x0000, 0x1000, CRC(b43ea55d) SHA1(06f4c4e7fc71b9e173c3bdf91c40f47750051b5e) )    /* bg pattern B0 */
 	ROM_LOAD( "bg11.c7",     0x1000, 0x1000, CRC(73603931) SHA1(1f7824b107a5a3d5c3434f02f17173a1f85fd29c) )    /* bg pattern B1 */
 
-	ROM_REGION( 0xa000, "gfx3", 0 ) /* (Located on the bottom board) */
+	ROM_REGION( 0x10000, "gfx3", 0 ) /* (Located on the bottom board) */
 	ROM_LOAD( "bg13.c6",    0x0000, 0x2000, CRC(dc2c0ecb) SHA1(19ddbd9805f77f38c9a9a1bb30dba6c720b8609f) )    /* sprite set #1, planes 0/1 */
 	ROM_LOAD( "bg14.c4",    0x2000, 0x2000, CRC(dfb587ce) SHA1(acff2bf5cde85a16cdc98a52cdea11f77fadf25a) )    /* sprite set #2, planes 0/1 */
 	ROM_LOAD( "bg12.c8",    0x4000, 0x1000, CRC(605ca889) SHA1(3bf380ef76c03822a042ecc73b5edd4543c268ce) )    /* sprite set #3, planes 0/1 */
-	ROM_LOAD( "bg15.c2",    0x5000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
-	/* 0x7000-0x8fff  will be unpacked from 0x5000-0x6fff */
-	ROM_FILL(                0x9000, 0x1000, 0x00 )    // empty space to decode sprite set #3 as 3 bits per pixel
+	ROM_COPY( "gfx3", 0x4000, 0x5000, 0x1000 ) /* mirror */
+	ROM_FILL(                 0x6000, 0x2000, 0xff ) /* ROM is not mounted (unstable value from inputting high impedance of tri-state) */
+	ROM_LOAD( "bg15.c2",    0x8000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
+	/* 0xa000-0xbfff  will be unpacked from 0x8000-0x9fff */
+	ROM_FILL(                0xc000, 0x4000, 0x00 ) /* empty space to decode sprite set #3 (and garbage) as 3 bits per pixel */
 
 	ROM_REGION( 0x4000, "gfx4", 0 ) /* background tilemaps (Located on the middle board) */
 	ROM_LOAD( "bg6.b14",     0x0000, 0x1000, CRC(57ed9879) SHA1(3106d1aacff06cf78371bd19967141072b32b7d7) )
@@ -3059,13 +3107,15 @@ ROM_START( battles2 )
 	ROM_LOAD( "bg18.f9",       0x0000, 0x1000, CRC(b43ea55d) SHA1(06f4c4e7fc71b9e173c3bdf91c40f47750051b5e) )    /* bg pattern B0 */
 	ROM_LOAD( "bg19.f11",      0x1000, 0x1000, CRC(73603931) SHA1(1f7824b107a5a3d5c3434f02f17173a1f85fd29c) )    /* bg pattern B1 */
 
-	ROM_REGION( 0xa000, "gfx3", 0 )
+	ROM_REGION( 0x10000, "gfx3", 0 )
 	ROM_LOAD( "bg13.d4",       0x0000, 0x2000, CRC(dc2c0ecb) SHA1(19ddbd9805f77f38c9a9a1bb30dba6c720b8609f) )    /* sprite set #1, planes 0/1 */
 	ROM_LOAD( "bg15.d7",       0x2000, 0x2000, CRC(dfb587ce) SHA1(acff2bf5cde85a16cdc98a52cdea11f77fadf25a) )    /* sprite set #2, planes 0/1 */
 	ROM_LOAD( "bg14.d6",       0x4000, 0x1000, CRC(605ca889) SHA1(3bf380ef76c03822a042ecc73b5edd4543c268ce) )    /* sprite set #3, planes 0/1 */
-	ROM_LOAD( "bg16.d8",       0x5000, 0x2000, CRC(44262c04) SHA1(4291f83193d11064c2ba6a9af27951b93bb945c3) )    /* sprite set #1, plane 2, set #2, plane 2 */
-	/* 0x7000-0x8fff  will be unpacked from 0x5000-0x6fff */
-	ROM_FILL(                  0x9000, 0x1000, 0x00 )    // empty space to decode sprite set #3 as 3 bits per pixel
+	ROM_COPY( "gfx3", 0x4000,  0x5000, 0x1000 ) /* mirror */
+	ROM_FILL(                  0x6000, 0x2000, 0xff ) /* ROM is not mounted (unstable value from inputting high impedance of tri-state) */
+	ROM_LOAD( "bg16.d8",       0x8000, 0x2000, CRC(44262c04) SHA1(4291f83193d11064c2ba6a9af27951b93bb945c3) )    /* sprite set #1, plane 2, set #2, plane 2 */
+	/* 0xa000-0xbfff  will be unpacked from 0x8000-0x9fff */
+	ROM_FILL(                  0xc000, 0x4000, 0x00 ) /* empty space to decode sprite set #3 (and garbage) as 3 bits per pixel */
 
 	ROM_REGION( 0x4000, "gfx4", 0 ) /* background tilemaps */
 	ROM_LOAD( "bg10.d1",       0x0000, 0x1000, CRC(10baeebb) SHA1(c544c9e0bb7a1ef93b3f2c2c1397f659d5334373) )
@@ -3116,13 +3166,15 @@ ROM_START( sxevious )
 	ROM_LOAD( "xvi_13.3c",    0x0000, 0x1000, CRC(de60ba25) SHA1(32bc09be5ff8b52ee3a26e0ac3ebc2d4107badb7) )    /* bg pattern B0 */
 	ROM_LOAD( "xvi_14.3d",    0x1000, 0x1000, CRC(535cdbbc) SHA1(fb9ffe5fc43e0213231267e98d605d43c15f61e8) )    /* bg pattern B1 */
 
-	ROM_REGION( 0xa000, "gfx3", 0 )
+	ROM_REGION( 0x10000, "gfx3", 0 )
 	ROM_LOAD( "xvi_15.4m",    0x0000, 0x2000, CRC(dc2c0ecb) SHA1(19ddbd9805f77f38c9a9a1bb30dba6c720b8609f) )    /* sprite set #1, planes 0/1 */
 	ROM_LOAD( "xvi_17.4p",    0x2000, 0x2000, CRC(dfb587ce) SHA1(acff2bf5cde85a16cdc98a52cdea11f77fadf25a) )    /* sprite set #2, planes 0/1 */
 	ROM_LOAD( "xvi_16.4n",    0x4000, 0x1000, CRC(605ca889) SHA1(3bf380ef76c03822a042ecc73b5edd4543c268ce) )    /* sprite set #3, planes 0/1 */
-	ROM_LOAD( "xvi_18.4r",    0x5000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
-	/* 0x7000-0x8fff  will be unpacked from 0x5000-0x6fff */
-	ROM_FILL(                 0x9000, 0x1000, 0x00 )    // empty space to decode sprite set #3 as 3 bits per pixel
+	ROM_COPY( "gfx3", 0x4000, 0x5000, 0x1000 ) /* mirror */
+	ROM_FILL(                 0x6000, 0x2000, 0xff ) /* ROM is not mounted (unstable value from inputting high impedance of tri-state) */
+	ROM_LOAD( "xvi_18.4r",    0x8000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
+	/* 0xa000-0xbfff  will be unpacked from 0x8000-0x9fff */
+	ROM_FILL(                 0xc000, 0x4000, 0x00 ) /* empty space to decode sprite set #3 (and garbage) as 3 bits per pixel */
 
 	ROM_REGION( 0x4000, "gfx4", 0 ) /* background tilemaps */
 	ROM_LOAD( "xvi_9.2a",     0x0000, 0x1000, CRC(57ed9879) SHA1(3106d1aacff06cf78371bd19967141072b32b7d7) )
@@ -3164,13 +3216,15 @@ ROM_START( sxeviousj )
 	ROM_LOAD( "xvi_13.3c",    0x0000, 0x1000, CRC(de60ba25) SHA1(32bc09be5ff8b52ee3a26e0ac3ebc2d4107badb7) )    /* bg pattern B0 */
 	ROM_LOAD( "xvi_14.3d",    0x1000, 0x1000, CRC(535cdbbc) SHA1(fb9ffe5fc43e0213231267e98d605d43c15f61e8) )    /* bg pattern B1 */
 
-	ROM_REGION( 0xa000, "gfx3", 0 )
+	ROM_REGION( 0x10000, "gfx3", 0 )
 	ROM_LOAD( "xvi_15.4m",    0x0000, 0x2000, CRC(dc2c0ecb) SHA1(19ddbd9805f77f38c9a9a1bb30dba6c720b8609f) )    /* sprite set #1, planes 0/1 */
 	ROM_LOAD( "xvi_17.4p",    0x2000, 0x2000, CRC(dfb587ce) SHA1(acff2bf5cde85a16cdc98a52cdea11f77fadf25a) )    /* sprite set #2, planes 0/1 */
 	ROM_LOAD( "xvi_16.4n",    0x4000, 0x1000, CRC(605ca889) SHA1(3bf380ef76c03822a042ecc73b5edd4543c268ce) )    /* sprite set #3, planes 0/1 */
-	ROM_LOAD( "xvi_18.4r",    0x5000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
-	/* 0x7000-0x8fff  will be unpacked from 0x5000-0x6fff */
-	ROM_FILL(                 0x9000, 0x1000, 0x00 )    // empty space to decode sprite set #3 as 3 bits per pixel
+	ROM_COPY( "gfx3", 0x4000, 0x5000, 0x1000 ) /* mirror */
+	ROM_FILL(                 0x6000, 0x2000, 0xff ) /* ROM is not mounted (unstable value from inputting high impedance of tri-state) */
+	ROM_LOAD( "xvi_18.4r",    0x8000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
+	/* 0xa000-0xbfff  will be unpacked from 0x8000-0x9fff */
+	ROM_FILL(                 0xc000, 0x4000, 0x00 ) /* empty space to decode sprite set #3 (and garbage) as 3 bits per pixel */
 
 	ROM_REGION( 0x4000, "gfx4", 0 ) /* background tilemaps */
 	ROM_LOAD( "xvi_9.2a",     0x0000, 0x1000, CRC(57ed9879) SHA1(3106d1aacff06cf78371bd19967141072b32b7d7) )
@@ -3531,7 +3585,7 @@ void galaga_state::init_galaga()
 
 void xevious_state::init_xevious()
 {
-	uint8_t *rom = memregion("gfx3")->base() + 0x5000;
+	uint8_t *rom = memregion("gfx3")->base() + 0x8000;
 	for (int i = 0; i < 0x2000; i++)
 		rom[i + 0x2000] = rom[i] >> 4;
 }
@@ -3540,7 +3594,7 @@ void xevious_state::init_xevios()
 {
 	/* convert one of the sprite ROMs to the format used by Xevious */
 	uint8_t *rom = memregion("gfx3")->base();
-	for (int A = 0x5000; A < 0x7000; A++)
+	for (int A = 0x8000; A < 0xa000; A++)
 	{
 		rom[A] = bitswap<8>(rom[A],1,3,5,7,0,2,4,6);
 	}
