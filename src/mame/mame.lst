@@ -2477,6 +2477,9 @@ ohmygod
 @source:atlus/patapata.cpp
 patapata
 
+@source:atlus/pitchtry.cpp
+pitchtry
+
 @source:atlus/rallypnt.cpp
 rallypnt2
 
@@ -44047,6 +44050,7 @@ kron180
 
 @source:skeleton/lanmao.cpp
 lanmao
+panda2
 
 @source:skeleton/leadsinger2.cpp
 leadsng2
