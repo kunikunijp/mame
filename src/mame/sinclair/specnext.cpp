@@ -99,11 +99,12 @@ struct video_timings_info {
 	u16 hdmi_ysync;
 };
 
-class specnext_state : public spectrum_128_state
+class specnext_state : public spectrum_128_state, public device_state_interface
 {
 public:
 	specnext_state(const machine_config &mconfig, device_type type, const char *tag)
 		: spectrum_128_state(mconfig, type, tag)
+		, device_state_interface(mconfig, *this)
 		, m_maincpu(*this, "maincpu")
 		, m_io_expbus_view(*this, "io_expbus_view")
 		, m_bank_boot_rom(*this, "bootrom")
@@ -151,6 +152,7 @@ protected:
 	virtual void machine_start() override ATTR_COLD;
 	virtual void device_post_load() override ATTR_COLD;
 	virtual void machine_reset() override ATTR_COLD;
+	virtual void state_import(const device_state_entry &entry) override;
 	void reset_hard();
 	virtual void video_start() override ATTR_COLD;
 	virtual void spectrum_128_update_memory() override {}
@@ -3140,6 +3142,25 @@ void specnext_state::map_regs(address_map &map)
 INPUT_PORTS_START(specnext)
 	PORT_INCLUDE(spec_plus)
 
+	// PS/2 Keyboard Mapping
+	PORT_MODIFY("PLUS0")
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("EDIT") PORT_CODE(KEYCODE_TILDE) PORT_CHAR('`') PORT_CHAR('~')
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("TRUE VID") PORT_CODE(KEYCODE_TAB) PORT_CHAR('\t')
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("INV VID") PORT_CODE(KEYCODE_BACKSLASH) PORT_CHAR('\\') PORT_CHAR('|')
+
+	PORT_MODIFY("PLUS1")
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("GRAPH") PORT_CODE(KEYCODE_RALT)
+
+	PORT_MODIFY("PLUS2")
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("BREAK") PORT_CODE(KEYCODE_ESC)
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("EXT MODE") PORT_CODE(KEYCODE_LALT)
+	
+	PORT_MODIFY("LINE0")
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("CAPS SHIFT") PORT_CODE(KEYCODE_LSHIFT) PORT_CODE(KEYCODE_RSHIFT) PORT_CHAR(UCHAR_SHIFT_1) PORT_CHAR(UCHAR_SHIFT_2)
+
+	PORT_MODIFY("LINE7")
+	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("SYMBOL SHIFT") PORT_CODE(KEYCODE_LCONTROL) PORT_CODE(KEYCODE_RCONTROL)
+	
 	PORT_MODIFY("CONFIG")
 	PORT_BIT(0xff, IP_ACTIVE_HIGH, IPT_UNUSED)
 
@@ -3467,6 +3488,22 @@ void specnext_state::machine_start()
 	save_item(NAME(m_spi_miso_dat));
 	save_item(NAME(m_i2c_scl_data));
 	save_item(NAME(m_i2c_sda_data));
+
+	state_add(0, "mmu0", m_mmu[0]).callimport();
+	state_add(1, "mmu1", m_mmu[1]).callimport();
+	state_add(2, "mmu2", m_mmu[2]).callimport();
+	state_add(3, "mmu3", m_mmu[3]).callimport();
+	state_add(4, "mmu4", m_mmu[4]).callimport();
+	state_add(5, "mmu5", m_mmu[5]).callimport();
+	state_add(6, "mmu6", m_mmu[6]).callimport();
+	state_add(7, "mmu7", m_mmu[7]).callimport();
+}
+
+void specnext_state::state_import(const device_state_entry &entry)
+{
+	if (entry.index() < 8) {
+		bank_update(entry.index());
+	}
 }
 
 void specnext_state::device_post_load()
