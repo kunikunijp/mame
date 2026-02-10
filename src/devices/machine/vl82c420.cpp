@@ -1,5 +1,5 @@
 // license:BSD-3-Clause
-// copyright-holders:
+// copyright-holders: Angelo Salese
 /**************************************************************************************************
 
 VLSI VL82C420 Scamp IV System Controller chipset
@@ -176,6 +176,8 @@ void vl82c420_device::device_reset()
 	m_fast_gatea20 = 0;
 	m_dma_channel = -1;
 
+	m_kbrst = 1;
+
 	m_config_unlock = false;
 
 	m_ramtmg = 0xff;
@@ -264,12 +266,12 @@ void vl82c420_device::io_map(address_map &map)
 	);
 	map(0x00ec, 0x00ec).w(FUNC(vl82c420_device::config_address_w));
 	map(0x00ed, 0x00ed).rw(FUNC(vl82c420_device::config_data_r), FUNC(vl82c420_device::config_data_w));
-//	map(0x00ee, 0x00ee) dummy read enable Fast A20, dummy write disables it
-//	map(0x00ef, 0x00ef) dummy read reset CPU
-//	map(0x00f0, 0x00f0) Coprocessor Busy
-//	map(0x00f1, 0x00f1) Coprocessor Reset
-//	map(0x00f4, 0x00f4) Slow CPU
-//	map(0x00f5, 0x00f5) Fast CPU
+//  map(0x00ee, 0x00ee) dummy read enable Fast A20, dummy write disables it
+//  map(0x00ef, 0x00ef) dummy read reset CPU
+//  map(0x00f0, 0x00f0) Coprocessor Busy
+//  map(0x00f1, 0x00f1) Coprocessor Reset
+//  map(0x00f4, 0x00f4) Slow CPU
+//  map(0x00f5, 0x00f5) Fast CPU
 	// dummy writes to $f9 / $fb disables/enables config access
 	map(0x00f9, 0x00f9).lw8(NAME([this] (u8 data) { (void)data; m_config_unlock = false; }));
 	map(0x00fb, 0x00fb).lw8(NAME([this] (u8 data) { (void)data; m_config_unlock = true; }));
@@ -333,7 +335,7 @@ void vl82c420_device::config_data_w(offs_t offset, u8 data)
 
 void vl82c420_device::config_map(address_map &map)
 {
-//	map(0x00, 0x00) Version, 0x90 for VL82C481
+//  map(0x00, 0x00) Version, 0x90 for VL82C481
 	map(0x01, 0x01).lrw8(
 		NAME([this] (offs_t offset) { return m_ramtmg; }),
 		NAME([this] (offs_t offset, u8 data) {
@@ -390,7 +392,7 @@ void vl82c420_device::config_map(address_map &map)
 			m_busctl = data;
 		})
 	);
-//	map(0x0a, 0x0a) <unknown>
+//  map(0x0a, 0x0a) <unknown>
 	map(0x0b, 0x0b).lrw8(
 		NAME([this] (offs_t offset) { return m_fbcr; }),
 		NAME([this] (offs_t offset, u8 data) {
@@ -429,8 +431,8 @@ void vl82c420_device::config_map(address_map &map)
 		})
 	);
 
-//	map(0x1c, 0x1c) <unknown>
-//	map(0x1c, 0x1d) <unknown>
+//  map(0x1c, 0x1c) <unknown>
+//  map(0x1c, 0x1d) <unknown>
 
 	map(0x20, 0x20).select(2).lrw8(
 		NAME([this] (offs_t offset) { return m_pmra[offset]; }),
@@ -454,7 +456,7 @@ void vl82c420_device::config_map(address_map &map)
 		})
 	);
 
-//	map(0x37, 0x37) <unknown>
+//  map(0x37, 0x37) <unknown>
 }
 
 void vl82c420_device::update_segment_settings()
@@ -462,14 +464,14 @@ void vl82c420_device::update_segment_settings()
 	m_space_mem->unmap_readwrite(0xa0000, 0xfffff);
 	m_isabus->remap(AS_PROGRAM, 0xa0000, 0xfffff);
 
-	// TODO: unknown enable/disable
-	// writes 0x19 at startup, then 0x09, then back to 0x19
-	// Clearly wants VGA BIOS (from $e0000) at $c0000,
-	// others TBD (and needs to be in driver not here)
-	m_space_mem->install_rom(0xe8000, 0xfffff, &m_bios[0x28000 / 4]);
-	m_space_mem->install_rom(0xe0000, 0xe7fff, &m_bios[0x00000 / 4]);
-	m_space_mem->install_rom(0xc8000, 0xdffff, &m_bios[0x08000 / 4]);
-	m_space_mem->install_rom(0xc0000, 0xc7fff, &m_bios[0x20000 / 4]);
+	m_space_mem->install_rom(0xe0000, 0xfffff, &m_bios[0x20000 / 4]);
+	// TODO: attempts to read from here, the existing bank fails several string comparisons
+	// (and checksum)
+//	m_space_mem->install_rom(0xd0000, 0xdffff, &m_bios[0x00000 / 4]);
+
+	// VGA BIOS is copied from $e0000 to $c0000
+	// TODO: shadow RAM is disabled, what's really holding this data?
+	m_space_mem->install_ram(0xc0000, 0xcffff, m_ram + 0xc0000);
 
 	for (int reg = 0; reg < 6; reg++)
 	{
