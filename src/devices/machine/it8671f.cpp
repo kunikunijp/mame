@@ -3,13 +3,16 @@
 /**************************************************************************************************
 
 ITE IT8671F Giga I/O
-ITE IT8687R Giga I/O
 ITE IT8673F Advanced I/O
+ITE IT8680F Super AT I/O Chipset (& IT8680RF)
 
 TODO:
-- Emulate the other two flavours here;
+- Emulate the other flavours here (probably more of them with some digging);
+- IT8687R looks to be a transceiver chip, tied with 8671 and 8680;
 - GPIO;
-- Keyboard/Mouse irqs;
+- Keyboard A20 doesn't work right (most likely needs own BIOS);
+- SMI source;
+- ISA PnP mode;
 
 **************************************************************************************************/
 
@@ -79,6 +82,14 @@ void it8671f_device::device_start()
 	save_item(NAME(m_port_config));
 	save_item(NAME(m_lock_port_index));
 	save_item(NAME(m_lock_sequence_index));
+
+	save_item(NAME(m_fdc_irq_line));
+	save_item(NAME(m_fdc_drq_line));
+	save_item(NAME(m_com_irq_line));
+	save_item(NAME(m_lpt_irq_line));
+	save_item(NAME(m_lpt_drq_line));
+	save_item(NAME(m_key_irq_line));
+	save_item(NAME(m_aux_irq_line));
 }
 
 void it8671f_device::device_reset()
@@ -90,6 +101,8 @@ void it8671f_device::device_reset()
 	m_port_select_index = 0x3f0;
 	m_port_select_data = 0x3f1;
 	std::fill(std::begin(m_activate), std::end(m_activate), false);
+	// TODO: from UIF4 pin default (comebaby never explicitly enables it)
+	m_activate[5] = true;
 
 	m_fdc_irq_line = 6;
 	m_fdc_drq_line = 2;
@@ -107,6 +120,9 @@ void it8671f_device::device_reset()
 	m_fdc->set_rate(500000);
 
 	m_last_dma_line = -1;
+
+	m_key_irq_line = 1;
+	m_aux_irq_line = 0xc;
 
 	remap(AS_IO, 0, 0x400);
 }
@@ -158,13 +174,14 @@ void it8671f_device::device_add_mconfig(machine_config &config)
 	m_lpt->irq_handler().set(FUNC(it8671f_device::irq_parallel_w));
 
 	PS2_KEYBOARD_CONTROLLER(config, m_keybc, XTAL(8'000'000));
+	// didn't tried, assume non-working with ibm BIOS
 	m_keybc->set_default_bios_tag("compaq");
 	m_keybc->hot_res().set(FUNC(it8671f_device::cpu_reset_w));
 	m_keybc->gate_a20().set(FUNC(it8671f_device::cpu_a20_w));
-//	m_keybc->kbd_irq().set(m_pic_master, FUNC(pic8259_device::ir1_w));
+	m_keybc->kbd_irq().set(FUNC(it8671f_device::irq_keyboard_w));
 	m_keybc->kbd_clk().set(m_ps2_con, FUNC(pc_kbdc_device::clock_write_from_mb));
 	m_keybc->kbd_data().set(m_ps2_con, FUNC(pc_kbdc_device::data_write_from_mb));
-//	m_keybc->aux_irq().set(m_pic_slave, FUNC(pic8259_device::ir4_w));
+	m_keybc->aux_irq().set(FUNC(it8671f_device::irq_mouse_w));
 	m_keybc->aux_clk().set(m_aux_con, FUNC(pc_kbdc_device::clock_write_from_mb));
 	m_keybc->aux_data().set(m_aux_con, FUNC(pc_kbdc_device::data_write_from_mb));
 
@@ -172,11 +189,10 @@ void it8671f_device::device_add_mconfig(machine_config &config)
 	m_ps2_con->out_clock_cb().set(m_keybc, FUNC(ps2_keyboard_controller_device::kbd_clk_w));
 	m_ps2_con->out_data_cb().set(m_keybc, FUNC(ps2_keyboard_controller_device::kbd_data_w));
 
-	// TODO: doesn't work (wrong PS/2 BIOS?), worked around by disabling for now
-	PC_KBDC(config, m_aux_con, ps2_mice, nullptr);
+	// TODO: verify if it doesn't give problems later on
+	PC_KBDC(config, m_aux_con, ps2_mice, STR_HLE_PS2_MOUSE);
 	m_aux_con->out_clock_cb().set(m_keybc, FUNC(ps2_keyboard_controller_device::aux_clk_w));
 	m_aux_con->out_data_cb().set(m_keybc, FUNC(ps2_keyboard_controller_device::aux_data_w));
-
 }
 
 
@@ -346,6 +362,8 @@ void it8671f_device::config_map(address_map &map)
 		NAME([this] (offs_t offset, u8 data) {
 			if (BIT(data, 1))
 			{
+				// TODO: throws several phase drifts with the theoretically more correct WAIT_FOR_KEY
+				// Notice however that doing so it will BSoD in comebaby, missing setting?
 				m_config_phase = config_phase_t::UNLOCK_PNP;
 				remap(AS_IO, 0, 0x400);
 				LOG("Exit setup mode\n");
@@ -353,7 +371,7 @@ void it8671f_device::config_map(address_map &map)
 			// TODO: bit 0 for global reset
 		})
 	);
-//	map(0x03, 0x03) (ISA PnP) Serial isolation
+//	map(0x03, 0x03) (ISA PnP) Wake[CSN]
 //	map(0x04, 0x04) (ISA PnP) Resource Data
 //	map(0x05, 0x05) (ISA PnP) Status
 //	map(0x06, 0x06) (ISA PnP) Card Select Number
@@ -481,11 +499,31 @@ void it8671f_device::config_map(address_map &map)
 
 	// Keyboard
 	m_logical_view[5](0x30, 0x30).rw(FUNC(it8671f_device::activate_r<5>), FUNC(it8671f_device::activate_w<5>));
-	m_logical_view[5](0x31, 0xff).unmaprw();
+	m_logical_view[5](0x31, 0x6f).unmaprw();
+	m_logical_view[5](0x70, 0x70).lrw8(
+		NAME([this] () {
+			return m_key_irq_line;
+		}),
+		NAME([this] (offs_t offset, u8 data) {
+			m_key_irq_line = data & 0xf;
+			LOG("LDN5 (KEYB): irq routed to %02x\n", m_key_irq_line);
+		})
+	);
+	m_logical_view[5](0x71, 0xff).unmaprw();
 
 	// Mouse
 	m_logical_view[6](0x30, 0x30).rw(FUNC(it8671f_device::activate_r<6>), FUNC(it8671f_device::activate_w<6>));
-	m_logical_view[6](0x31, 0xff).unmaprw();
+	m_logical_view[6](0x31, 0x6f).unmaprw();
+	m_logical_view[6](0x70, 0x70).lrw8(
+		NAME([this] () {
+			return m_aux_irq_line;
+		}),
+		NAME([this] (offs_t offset, u8 data) {
+			m_aux_irq_line = data & 0xf;
+			LOG("LDN6 (AUX): irq routed to %02x\n", m_aux_irq_line);
+		})
+	);
+	m_logical_view[6](0x71, 0xff).unmaprw();
 
 	// GPIO & Alternate Function
 	m_logical_view[7](0x30, 0x30).rw(FUNC(it8671f_device::activate_r<7>), FUNC(it8671f_device::activate_w<7>));
@@ -773,7 +811,8 @@ void it8671f_device::cpu_a20_w(int state)
 {
 	if (m_activate[5] == false)
 		return;
-	m_ga20_callback(state);
+	// TODO: causes Windows 98 boot issues in comebaby (disabled elsewhere?)
+	//m_ga20_callback(state);
 }
 
 void it8671f_device::cpu_reset_w(int state)
@@ -783,6 +822,24 @@ void it8671f_device::cpu_reset_w(int state)
 	m_krst_callback(state);
 }
 
+void it8671f_device::irq_keyboard_w(int state)
+{
+	if (m_activate[5] == false)
+		return;
+	request_irq(m_key_irq_line, state ? ASSERT_LINE : CLEAR_LINE);
+}
+
+
+/*
+ * Device #6 Mouse
+ */
+
+void it8671f_device::irq_mouse_w(int state)
+{
+	if (m_activate[6] == false)
+		return;
+	request_irq(m_aux_irq_line, state ? ASSERT_LINE : CLEAR_LINE);
+}
 
 /*
  * DMA
