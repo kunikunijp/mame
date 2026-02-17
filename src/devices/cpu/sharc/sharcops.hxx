@@ -267,7 +267,10 @@ uint32_t adsp21062_device::GET_UREG(int ureg)
 		{
 			switch(reg)
 			{
-				case 0x4:   return m_core->pcstack[m_core->pcstkp];     /* PCSTK */
+				case 0x4:   return m_core->pcstk;                       /* PCSTK */
+				case 0x5:   return m_core->pcstkp;                      /* PCSTKP */
+				case 0x7:   return m_core->curlcntr;                    /* CURLCNTR */
+				case 0x8:   return m_core->lcntr;                       /* LCNTR */
 				default:    fatalerror("SHARC: GET_UREG: unknown register %08X at %08X\n", ureg, m_core->pc);
 			}
 			break;
@@ -375,9 +378,57 @@ void adsp21062_device::SET_UREG(int ureg, uint32_t data)
 		case 0x6:
 			switch (reg)
 			{
-				case 0x5:   m_core->pcstkp = data; break;     /* PCSTKP */
-				case 0x7:   m_core->curlcntr = data; break;   /* CURLCNTR (Zero Gunner 2B) */
-				case 0x8:   m_core->lcntr = data; break;      /* LCNTR */
+				case 0x4:                                     /* PCSTK */
+					if ((m_core->pcstkp > 0) && (m_core->pcstkp < 31))
+						m_core->pcstk = data & 0x00ffffff;
+					break;
+
+				case 0x5:                                     /* PCSTKP */
+					if (m_core->pcstkp < 31)
+					{
+						// TODO: this should take effect with a one-cycle delay
+						uint32_t const prev = std::exchange(m_core->pcstkp, data & 0x1f);
+
+						if (prev > 0)
+							m_core->pcstack[prev - 1] = m_core->pcstk;
+
+						if (prev < m_core->pcstkp)
+						{
+							if (m_core->pcstkp >= 31)
+								fatalerror("SHARC: PC Stack overflow!\n");
+
+							m_core->pcstk = m_core->pcstack[m_core->pcstkp - 1];
+
+							m_core->stky &= ~PCEM;
+							if (m_core->pcstkp >= 30)
+								m_core->stky |= PCFL;
+						}
+						else if (prev > m_core->pcstkp)
+						{
+							if (m_core->pcstkp > 0)
+							{
+								m_core->pcstk = m_core->pcstack[m_core->pcstkp - 1];
+							}
+							else
+							{
+								m_core->pcstk = 0x00ffffff;
+								m_core->stky |= PCEM;
+							}
+							m_core->stky &= ~PCFL;
+						}
+					}
+					break;
+
+				case 0x7:                                     /* CURLCNTR */
+					if ((m_core->lstkp > 0) && (m_core->lstkp < 7))
+						m_core->curlcntr = data;
+					break;
+
+				case 0x8:                                     /* LCNTR */
+					if (m_core->lstkp < 6)
+						m_core->lcntr = data;
+					break;
+
 				default:    fatalerror("SHARC: SET_UREG: unknown register %08X at %08X\n", ureg, m_core->pc);
 			}
 			break;
@@ -1017,61 +1068,74 @@ void adsp21062_device::COMPUTE(uint32_t opcode)
 	}
 }
 
-inline void adsp21062_device::PUSH_PC(uint32_t pc)
+inline void adsp21062_device::PUSH_PC()
 {
-	m_core->pcstkp++;
-	if (m_core->pcstkp >= 32)
+	if (m_core->pcstkp >= 30)
 		fatalerror("SHARC: PC Stack overflow!\n");
 
-	if (m_core->pcstkp == 0)
-		m_core->stky |= PCEM;
-	else
-		m_core->stky &= ~PCEM;
+	if (m_core->pcstkp > 0)
+		m_core->pcstack[m_core->pcstkp - 1] = m_core->pcstk;
 
-	m_core->pcstk = pc;
-	m_core->pcstack[m_core->pcstkp] = pc;
+	m_core->pcstkp++;
+
+	m_core->stky &= ~PCEM;
+	if (m_core->pcstkp >= 30)
+		m_core->stky |= PCFL;
 }
 
 inline uint32_t adsp21062_device::POP_PC()
 {
-	m_core->pcstk = m_core->pcstack[m_core->pcstkp];
-
 	if (m_core->pcstkp == 0)
 		fatalerror("SHARC: PC Stack underflow!\n");
 
+	uint32_t const result = m_core->pcstk;
+
 	m_core->pcstkp--;
 
-	if (m_core->pcstkp == 0)
-		m_core->stky |= PCEM;
-	else
-		m_core->stky &= ~PCEM;
+	if (m_core->pcstkp < 30)
+	{
+		m_core->pcstack[m_core->pcstkp] = m_core->pcstk;
+		if (m_core->pcstkp > 0)
+		{
+			m_core->pcstk = m_core->pcstack[m_core->pcstkp - 1];
+		}
+		else
+		{
+			m_core->pcstk = 0x00ffffff;
+			m_core->stky |= PCEM;
+		}
+		m_core->stky &= ~PCFL;
+	}
 
-	return m_core->pcstk;
+	return result;
 }
 
 inline uint32_t adsp21062_device::TOP_PC()
 {
-	return m_core->pcstack[m_core->pcstkp];
+	return m_core->pcstk;
 }
 
-inline void adsp21062_device::PUSH_LOOP(uint32_t addr, uint32_t code, uint32_t type, uint32_t count)
+inline void adsp21062_device::PUSH_LOOP()
 {
-	m_core->lstkp++;
 	if (m_core->lstkp >= 6)
 		fatalerror("SHARC: Loop Stack overflow!\n");
 
-	if (m_core->lstkp == 0)
-		m_core->stky |= LSEM;
+	if (m_core->lstkp > 0)
+	{
+		m_core->lcstack[m_core->lstkp - 1] = m_core->curlcntr;
+		m_core->lastack[m_core->lstkp - 1] = m_core->laddr.pack();
+	}
+	m_core->curlcntr = m_core->lcntr;
+	m_core->laddr.unpack(m_core->lastack[m_core->lstkp]);
+
+	m_core->lstkp++;
+
+	if (m_core->lstkp < 6)
+		m_core->lcntr = m_core->lcstack[m_core->lstkp];
 	else
-		m_core->stky &= ~LSEM;
+		m_core->lcntr = 0xffffffff;
 
-	m_core->lcstack[m_core->lstkp] = count;
-	m_core->lastack[m_core->lstkp] = (type << 30) | (code << 24) | addr;
-	m_core->curlcntr = count;
-
-	m_core->laddr.addr = addr;
-	m_core->laddr.code = code;
-	m_core->laddr.loop_type = type;
+	m_core->stky &= ~LSEM;
 }
 
 inline void adsp21062_device::POP_LOOP()
@@ -1081,16 +1145,21 @@ inline void adsp21062_device::POP_LOOP()
 
 	m_core->lstkp--;
 
-	if (m_core->lstkp == 0)
-		m_core->stky |= LSEM;
+	m_core->lcntr = m_core->curlcntr;
+	m_core->lastack[m_core->lstkp] = m_core->laddr.pack();
+
+	if (m_core->lstkp > 0)
+	{
+		m_core->curlcntr = m_core->lcstack[m_core->lstkp - 1];
+		m_core->laddr.unpack(m_core->lastack[m_core->lstkp - 1]);
+	}
 	else
-		m_core->stky &= ~LSEM;
+	{
+		m_core->curlcntr = 0xffffffff;
+		m_core->laddr.unpack(0xffffffff);
 
-	m_core->curlcntr = m_core->lcstack[m_core->lstkp];
-
-	m_core->laddr.addr = m_core->lastack[m_core->lstkp] & 0xffffff;
-	m_core->laddr.code = (m_core->lastack[m_core->lstkp] >> 24) & 0x1f;
-	m_core->laddr.loop_type = (m_core->lastack[m_core->lstkp] >> 30) & 0x3;
+		m_core->stky |= LSEM;
+	}
 }
 
 inline void adsp21062_device::PUSH_STATUS_STACK()
@@ -1639,16 +1708,17 @@ void adsp21062_device::sharcop_direct_call()
 
 	if (IF_CONDITION_CODE(cond))
 	{
+		PUSH_PC();
 		if (j)
 		{
-			//PUSH_PC(m_core->pc+3);  /* 1 instruction + 2 delayed instructions */
-			PUSH_PC(m_core->nfaddr);    /* 1 instruction + 2 delayed instructions */
+			//m_core->pcstk = m_core->pc + 3;     /* 1 instruction + 2 delayed instructions */
+			m_core->pcstk = m_core->nfaddr;     /* 1 instruction + 2 delayed instructions */
 			CHANGE_PC_DELAYED(address);
 		}
 		else
 		{
-			//PUSH_PC(m_core->pc+1);
-			PUSH_PC(m_core->daddr);
+			//m_core->pcstk = m_core->pc + 1;
+			m_core->pcstk = m_core->daddr;
 			CHANGE_PC(address);
 		}
 	}
@@ -1701,14 +1771,15 @@ void adsp21062_device::sharcop_relative_call()
 
 	if (IF_CONDITION_CODE(cond))
 	{
+		PUSH_PC();
 		if (j)
 		{
-			PUSH_PC(m_core->pc+3);  /* 1 instruction + 2 delayed instructions */
+			m_core->pcstk = m_core->pc + 3;  /* 1 instruction + 2 delayed instructions */
 			CHANGE_PC_DELAYED(m_core->pc + util::sext(address, 24));
 		}
 		else
 		{
-			PUSH_PC(m_core->pc+1);
+			m_core->pcstk = m_core->pc + 1;
 			CHANGE_PC(m_core->pc + util::sext(address, 24));
 		}
 	}
@@ -1831,16 +1902,17 @@ void adsp21062_device::sharcop_indirect_call()
 	{
 		if (IF_CONDITION_CODE(cond))
 		{
+			PUSH_PC();
 			if (j)
 			{
-				//PUSH_PC(m_core->pc+3);  /* 1 instruction + 2 delayed instructions */
-				PUSH_PC(m_core->nfaddr);    /* 1 instruction + 2 delayed instructions */
+				//m_core->pcstk = m_core->pc + 3;     /* 1 instruction + 2 delayed instructions */
+				m_core->pcstk = m_core->nfaddr;     /* 1 instruction + 2 delayed instructions */
 				CHANGE_PC_DELAYED(PM_REG_I(pmi) + PM_REG_M(pmm));
 			}
 			else
 			{
-				//PUSH_PC(m_core->pc+1);
-				PUSH_PC(m_core->daddr);
+				//m_core->pcstk = m_core->pc + 1;
+				m_core->pcstk = m_core->daddr;
 				CHANGE_PC(PM_REG_I(pmi) + PM_REG_M(pmm));
 			}
 		}
@@ -1857,16 +1929,17 @@ void adsp21062_device::sharcop_indirect_call()
 			if (compute)
 				COMPUTE(compute);
 
+			PUSH_PC();
 			if (j)
 			{
-				//PUSH_PC(m_core->pc+3);  /* 1 instruction + 2 delayed instructions */
-				PUSH_PC(m_core->nfaddr);    /* 1 instruction + 2 delayed instructions */
+				//m_core->pcstk = m_core->pc + 3;     /* 1 instruction + 2 delayed instructions */
+				m_core->pcstk = m_core->nfaddr;     /* 1 instruction + 2 delayed instructions */
 				CHANGE_PC_DELAYED(PM_REG_I(pmi) + PM_REG_M(pmm));
 			}
 			else
 			{
-				//PUSH_PC(m_core->pc+1);
-				PUSH_PC(m_core->daddr);
+				//m_core->pcstk = m_core->pc + 1;
+				m_core->pcstk = m_core->daddr;
 				CHANGE_PC(PM_REG_I(pmi) + PM_REG_M(pmm));
 			}
 		}
@@ -1951,16 +2024,17 @@ void adsp21062_device::sharcop_relative_call_compute()
 	{
 		if (IF_CONDITION_CODE(cond))
 		{
+			PUSH_PC();
 			if (j)
 			{
-				//PUSH_PC(m_core->pc+3);  /* 1 instruction + 2 delayed instructions */
-				PUSH_PC(m_core->nfaddr);    /* 1 instruction + 2 delayed instructions */
+				//m_core->pcstk = m_core->pc + 3;     /* 1 instruction + 2 delayed instructions */
+				m_core->pcstk = m_core->nfaddr;     /* 1 instruction + 2 delayed instructions */
 				CHANGE_PC_DELAYED(m_core->pc + op_get_reladdr(m_core->opcode));
 			}
 			else
 			{
-				//PUSH_PC(m_core->pc+1);
-				PUSH_PC(m_core->daddr);
+				//m_core->pcstk = m_core->pc + 1;
+				m_core->pcstk = m_core->daddr;
 				CHANGE_PC(m_core->pc + op_get_reladdr(m_core->opcode));
 			}
 		}
@@ -1977,16 +2051,17 @@ void adsp21062_device::sharcop_relative_call_compute()
 			if (compute)
 				COMPUTE(compute);
 
+			PUSH_PC();
 			if (j)
 			{
-				//PUSH_PC(m_core->pc+3);  /* 1 instruction + 2 delayed instructions */
-				PUSH_PC(m_core->nfaddr);    /* 1 instruction + 2 delayed instructions */
+				//m_core->pcstk = m_core->pc + 3;     /* 1 instruction + 2 delayed instructions */
+				m_core->pcstk = m_core->nfaddr;     /* 1 instruction + 2 delayed instructions */
 				CHANGE_PC_DELAYED(m_core->pc + op_get_reladdr(m_core->opcode));
 			}
 			else
 			{
-				//PUSH_PC(m_core->pc+1);
-				PUSH_PC(m_core->daddr);
+				//m_core->pcstk = m_core->pc + 1;
+				m_core->pcstk = m_core->daddr;
 				CHANGE_PC(m_core->pc + op_get_reladdr(m_core->opcode));
 			}
 		}
@@ -2193,11 +2268,12 @@ void adsp21062_device::sharcop_do_until_counter_imm()
 		type = 3;
 
 	m_core->lcntr = data;
-	if (m_core->lcntr > 0)
-	{
-		PUSH_PC(m_core->pc+1);
-		PUSH_LOOP(address, cond, type, m_core->lcntr);
-	}
+	PUSH_PC();
+	PUSH_LOOP();
+	m_core->pcstk = m_core->pc + 1;
+	m_core->laddr.addr = address;
+	m_core->laddr.code = cond;
+	m_core->laddr.loop_type = type;
 }
 
 /*****************************************************************************/
@@ -2221,11 +2297,12 @@ void adsp21062_device::sharcop_do_until_counter_ureg()
 		type = 3;
 
 	m_core->lcntr = GET_UREG(ureg);
-	if (m_core->lcntr > 0)
-	{
-		PUSH_PC(m_core->pc+1);
-		PUSH_LOOP(address, cond, type, m_core->lcntr);
-	}
+	PUSH_PC();
+	PUSH_LOOP();
+	m_core->pcstk = m_core->pc + 1;
+	m_core->laddr.addr = address;
+	m_core->laddr.code = cond;
+	m_core->laddr.loop_type = type;
 }
 
 /*****************************************************************************/
@@ -2238,8 +2315,12 @@ void adsp21062_device::sharcop_do_until()
 	int const offset = util::sext(m_core->opcode & 0xffffff, 24);
 	uint32_t const address = (m_core->pc + offset);
 
-	PUSH_PC(m_core->pc+1);
-	PUSH_LOOP(address, cond, 0, 0);
+	PUSH_PC();
+	PUSH_LOOP();
+	m_core->pcstk = m_core->pc + 1;
+	m_core->laddr.addr = address;
+	m_core->laddr.code = cond;
+	m_core->laddr.loop_type = 0;
 }
 
 /*****************************************************************************/
@@ -2467,11 +2548,11 @@ void adsp21062_device::sharcop_push_pop_stacks()
 {
 	if (m_core->opcode & 0x008000000000U)
 	{
-		fatalerror("sharcop_push_pop_stacks: push loop not implemented\n");
+		PUSH_LOOP();
 	}
 	if (m_core->opcode & 0x004000000000U)
 	{
-		fatalerror("sharcop_push_pop_stacks: pop loop not implemented\n");
+		POP_LOOP();
 	}
 	if (m_core->opcode & 0x002000000000U)
 	{
@@ -2485,7 +2566,8 @@ void adsp21062_device::sharcop_push_pop_stacks()
 	}
 	if (m_core->opcode & 0x000800000000U)
 	{
-		PUSH_PC(m_core->pcstk);
+		// TODO: what should the top-of-stack value be after this?
+		PUSH_PC();
 	}
 	if (m_core->opcode & 0x000400000000U)
 	{

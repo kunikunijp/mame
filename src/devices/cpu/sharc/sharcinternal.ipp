@@ -49,6 +49,18 @@ struct alignas(16) adsp21062_device::sharc_internal_state
 		uint32_t addr;
 		uint32_t code;
 		uint32_t loop_type;
+
+		uint32_t pack() const
+		{
+			return (loop_type << 30) | (code << 24) | addr;
+		}
+
+		void unpack(uint32_t in)
+		{
+			addr = BIT(in, 0, 24);
+			code = BIT(in, 24, 5);
+			loop_type = BIT(in, 30, 2);
+		}
 	};
 
 	struct ASTAT_DRC
@@ -132,7 +144,7 @@ struct alignas(16) adsp21062_device::sharc_internal_state
 	uint64_t mrf;
 	uint64_t mrb;
 
-	uint32_t pcstack[32];
+	uint32_t pcstack[30];
 	uint32_t lcstack[6];
 	uint32_t lastack[6];
 	uint32_t lstkp;

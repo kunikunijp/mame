@@ -33243,7 +33243,7 @@ hiryuken
 shangkid
 
 @source:misc/silverball.cpp
-slvrball806
+slvrball
 slvrball720
 slvrball632
 slvrballbu409
@@ -37645,6 +37645,9 @@ i8555081
 i8580071
 i8580111
 
+@source:pc/pulltrig.cpp
+pulltrig
+
 @source:pc/quakeat.cpp
 ga6la7
 quake
@@ -37666,6 +37669,9 @@ gamecst2
 gamecstl
 shutms11
 zidav630e
+
+@source:pc/sshuffle.cpp
+sshuffle
 
 @source:pc/tandy1t.cpp
 t1000
@@ -43817,6 +43823,9 @@ azkoyent8
 design6
 designe
 
+@source:skeleton/dharma_z180.cpp
+lbingo
+
 @source:skeleton/diablo1300.cpp
 diablo
 
@@ -44292,9 +44301,6 @@ pt68k4
 
 @source:skeleton/ptcsol.cpp
 sol20
-
-@source:skeleton/pullttrigger.cpp
-pullttrig
 
 @source:skeleton/pv9234.cpp
 pv9234
