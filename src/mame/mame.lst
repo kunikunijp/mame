@@ -35633,11 +35633,11 @@ sgaltrop
 sgaltropa
 sweetgal
 
-@source:nichibutsu/niyanpai.cpp
+@source:nichibutsu/nyanpai.cpp
 4psimasy
 mhhonban
 musobana
-niyanpai
+nyanpai
 zokumahj
 
 @source:nichibutsu/pastelg.cpp
@@ -46993,6 +46993,16 @@ dt7
 @source:toaplan/enmadaio.cpp
 enmadaio
 
+@source:toaplan/fireshrk.cpp
+fireshrk
+fireshrka
+fireshrkd
+fireshrkdh
+samesame
+samesame2
+samesamecn
+samesamenh
+
 @source:toaplan/fixeight.cpp
 fixeight
 fixeighta
@@ -47067,6 +47077,9 @@ bbakraidja
 nprobowl
 probowl2
 
+@source:toaplan/rallybik.cpp
+rallybik
+
 @source:toaplan/slapfght.cpp
 alcon
 getstarb1
@@ -47116,10 +47129,6 @@ demonwld2
 demonwld3
 demonwld4
 demonwld5
-fireshrk
-fireshrka
-fireshrkd
-fireshrkdh
 hellfire
 hellfire1
 hellfire1a
@@ -47130,11 +47139,6 @@ outzoneb
 outzonec
 outzoneh
 outzonecv
-rallybik
-samesame
-samesame2
-samesamecn
-samesamenh
 truxton
 vimana
 vimanaj
