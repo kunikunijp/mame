@@ -24678,18 +24678,6 @@ omni2
 omni4
 robie
 
-@source:kiwako/jongkyo.cpp
-jongkyo
-
-@source:kiwako/koikoi.cpp
-koikoi
-koikoip2
-
-@source:kiwako/mrjong.cpp
-blkbustr
-crazyblk
-mrjong
-
 @source:koei/pasogo.cpp
 pasogo
 
@@ -33294,10 +33282,6 @@ meteors
 spcforc2
 spcforce
 
-@source:misc/sprcros2.cpp
-sprcros2
-sprcros2a
-
 @source:misc/sshanghai.cpp
 ssh2000
 ssh2000a
@@ -40630,6 +40614,13 @@ drmicro
 @source:sanritsu/jantotsu.cpp
 jantotsu
 
+@source:sanritsu/jongkyo.cpp
+jongkyo
+
+@source:sanritsu/koikoi.cpp
+koikoi
+koikoip2
+
 @source:sanritsu/mermaid.cpp
 mermaid
 rougien
@@ -40638,8 +40629,17 @@ yachtmn
 @source:sanritsu/mjkjidai.cpp
 mjkjidai
 
+@source:sanritsu/mrjong.cpp
+blkbustr
+crazyblk
+mrjong
+
 @source:sanritsu/ron.cpp
 ron2
+
+@source:sanritsu/sprcros2.cpp
+sprcros2
+sprcros2a
 
 @source:sanyo/mbc55x.cpp
 mbc55x
