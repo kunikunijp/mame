@@ -17274,6 +17274,7 @@ dreambal
 
 @source:dataeast/exprraid.cpp
 exprraid
+exprraidbl
 exprraidi
 exprraidu
 wexpress
@@ -30203,7 +30204,7 @@ tripjack
 tripjack07
 tripjack11
 
-@source:misc/chameleonrx1.cpp
+@source:misc/chamrx1.cpp
 chamrx1
 
 @source:misc/chance32.cpp
