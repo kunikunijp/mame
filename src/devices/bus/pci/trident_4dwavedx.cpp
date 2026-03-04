@@ -7,9 +7,9 @@ Trident 4DWAVE-DX
 AC'97 v1.x (fixed 48 kHz)
 
 TODO:
-- win98se throws a BSoD 0e (page fault) on "Trident Legacy Audio" installation;
-- non-working in DOS beyond basic PCI identification
-  i.e. wants SB emulation in MS-DOS 7, in turn can't set proper interrupt line (goes BLASTER=I255)
+- Stub-ish, enough to install fine in win98se and nothing else;
+- wavetsr.com can't find a free IRQ for SB emulation under DOS;
+- Soundblaster, FM and MPU-401 are emulated by the 4dwave sound engine;
 
 **************************************************************************************************/
 
@@ -27,6 +27,7 @@ DEFINE_DEVICE_TYPE(TRIDENT_4DWAVEDX, trident_4dwavedx_device,   "trident_4dwaved
 
 trident_4dwavedx_device::trident_4dwavedx_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
 	: pci_card_device(mconfig, type, tag, owner, clock)
+	, m_joy(*this, "pc_joy")
 {
 }
 
@@ -39,18 +40,21 @@ trident_4dwavedx_device::trident_4dwavedx_device(const machine_config &mconfig, 
 void trident_4dwavedx_device::device_add_mconfig(machine_config &config)
 {
 	// TODO: SigmaTel STAC9704T or STAC9700T
+	// Trident suggests to use an AD1819A
+
+	PC_JOY(config, m_joy);
 }
 
 void trident_4dwavedx_device::device_start()
 {
 	pci_card_device::device_start();
 
-	add_map( 256,    M_IO, FUNC(trident_4dwavedx_device::io_map));
+	add_map( 256,    M_IO,  FUNC(trident_4dwavedx_device::io_map));
 	add_map( 4*1024, M_MEM, FUNC(trident_4dwavedx_device::mmio_map));
 
 	// INTA#
 	intr_pin = 1;
-	intr_line = 0x00;
+	intr_line = 0x05;
 
 	// TODO: max_lat = 0x05, min_gnt = 0x02
 
@@ -94,6 +98,7 @@ u8 trident_4dwavedx_device::capptr_r()
 void trident_4dwavedx_device::config_map(address_map &map)
 {
 	pci_card_device::config_map(map);
+
 	// DDMA config
 	map(0x40, 0x43).lrw32(
 		NAME([this] (offs_t offset, u32 mem_mask) {
@@ -127,6 +132,8 @@ void trident_4dwavedx_device::config_map(address_map &map)
 				, BIT(m_legacy_control, 18)
 				, BIT(m_legacy_control, 17)
 			);
+			if (ACCESSING_BITS_0_7)
+				remap_cb();
 		})
 	);
 
@@ -186,4 +193,43 @@ void trident_4dwavedx_device::io_map(address_map &map)
 
 void trident_4dwavedx_device::mmio_map(address_map &map)
 {
+}
+
+void trident_4dwavedx_device::gameport_map(address_map &map)
+{
+	map(0x00, 0x07).rw(m_joy, FUNC(pc_joy_device::joy_port_r), FUNC(pc_joy_device::joy_port_w));
+}
+
+void trident_4dwavedx_device::map_extra(uint64_t memory_window_start, uint64_t memory_window_end, uint64_t memory_offset, address_space *memory_space,
+							uint64_t io_window_start, uint64_t io_window_end, uint64_t io_offset, address_space *io_space)
+{
+	// TODO: legacy mapping
+#if 0
+	if (BIT(m_legacy_control, 7))
+	{
+		const u16 mpu401_port = BIT(m_legacy_control, 6) ? 0x0300 : 0x0330;
+		io_space->install_device(mpu401_port, mpu401_port + 3, *this, &trident_4dwavedx_device::midi_map);
+	}
+#endif
+
+	if (BIT(m_legacy_control, 5))
+	{
+		const u16 game_port = BIT(m_legacy_control, 4) ? 0x0208 : 0x0200;
+		io_space->install_device(game_port, game_port + 7, *this, &trident_4dwavedx_device::gameport_map);
+	}
+
+#if 0
+	if (BIT(m_legacy_control, 3))
+	{
+		const u16 fm_port = BIT(m_legacy_control, 2) ? 0x038c : 0x0388;
+		io_space->install_device(fm_port, fm_port + 3, *this, &trident_4dwavedx_device::fm_map);
+	}
+
+	if (BIT(m_legacy_control, 1))
+	{
+		const u16 sb_port = BIT(m_legacy_control, 0) ? 0x0240 : 0x0220;
+		io_space->install_device(sb_port, sb_port + 0xf, *this, &trident_4dwavedx_device::sb_map);
+	}
+
+#endif
 }
