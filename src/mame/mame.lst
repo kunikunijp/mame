@@ -2491,6 +2491,7 @@ ppsatan
 pwrinst2
 pwrinst2a
 pwrinst2j
+pwrinst2ja
 sailormn
 sailormnh
 sailormnj
@@ -34685,6 +34686,7 @@ ridgeracf
 ridgeracj
 timecris
 timecrisa
+timecrisj
 tokyowar
 tokyowarj
 victlap
@@ -34766,6 +34768,7 @@ topracera
 topracern
 
 @source:namco/quickncrash.cpp
+cgunman
 qncrash
 qncrasha
 
