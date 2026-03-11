@@ -16520,11 +16520,11 @@ hrclass
 tsclass
 
 @source:ces/galgames.cpp
+galgames
 galgame2
 galgame3
 galgame4
 galgame4p
-galgbios
 
 @source:chess/ave_arb.cpp
 arb
@@ -31765,6 +31765,9 @@ h01b
 nf500a
 h01jce
 
+@source:misc/haiwei.cpp
+hqdf
+
 @source:misc/hapyfish.cpp
 hapyfsh2
 
@@ -43491,6 +43494,20 @@ warcadia
 @source:sigma/r2dtank.cpp
 r2dtank
 
+@source:sigma/sammymdl.cpp
+animalc
+gocowboy
+gunkids
+haekaka
+itazuram
+kingyosu
+kotekita
+pyenaget
+sammymdl
+shatekds
+tdoboon
+wantouch
+
 @source:sigma/sigma21.cpp
 sigma21
 
@@ -43508,28 +43525,16 @@ cool104
 freedeal
 
 @source:sigma/sigmab98.cpp
-animalc
 b3rinsya
 dashhero
 dodghero
 gegege
-gocowboy
-gunkids
-haekaka
-itazuram
-kingyosu
-kotekita
 lufykzku
 mnrockman
 pepsiman
-pyenaget
-sammymdl
-shatekds
 sushimar
 tbeastw2
-tdoboon
 ucytokyu
-wantouch
 
 @source:sigma/spiders.cpp
 spiders
