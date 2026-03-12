@@ -1,9 +1,6 @@
 // license:BSD-3-Clause
-// copyright-holders:Couriersud
-/*
- * sound_module.h
- *
- */
+// copyright-holders:O. Galibert
+
 #ifndef MAME_OSD_SOUND_SOUND_MODULE_H
 #define MAME_OSD_SOUND_SOUND_MODULE_H
 
@@ -64,7 +61,6 @@ protected:
 		void pop_buffer() noexcept;
 		buffer &push_buffer();
 
-		int32_t m_delta, m_delta2;
 		uint32_t m_channels;
 		uint32_t m_used_buffers;
 		uint32_t m_used_buffers_prev;
@@ -74,6 +70,10 @@ protected:
 		bool m_overrun;
 		std::vector<int16_t> m_last_sample;
 		std::vector<buffer> m_buffers;
+
+		// statistics
+		int32_t m_delta, m_delta2;
+		uint32_t m_underruns, m_overruns;
 	};
 };
 
