@@ -4,6 +4,11 @@
 #include "emu.h"
 #include "i82426ex_ib.h"
 
+#define VERBOSE (LOG_GENERAL)
+//#define LOG_OUTPUT_FUNC osd_printf_info
+
+#include "logmacro.h"
+
 DEFINE_DEVICE_TYPE(I82426EX_IB, i82426ex_ib_device, "i82426ex_ib", "Intel 82425EX ISA Bridge")
 
 i82426ex_ib_device::i82426ex_ib_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
@@ -16,6 +21,7 @@ i82426ex_ib_device::i82426ex_ib_device(const machine_config &mconfig, const char
 	, m_isabus(*this, "isabus")
 	, m_write_intr(*this)
 	, m_write_spkr(*this)
+	, m_write_cpurst(*this)
 	, m_rtcale(*this)
 	, m_rtccs_read(*this, 0xff)
 	, m_rtccs_write(*this)
@@ -221,6 +227,17 @@ void i82426ex_ib_device::portb_w(u8 data)
 	}
 }
 
+// NOTE: $cf9 actually belongs to IB, cfr. CPURST/PCIRST# definitions at page 34
+void i82426ex_ib_device::trc_w(offs_t offset, u8 data)
+{
+	LOG("CF9h: TRC Turbo/Reset Control %02x\n", data);
+	// TODO: bit 1 actually controls if reset type is soft (0) or hard (1)
+	// (former just resets the CPU?)
+	if (BIT(data, 2))
+		m_write_cpurst(1);
+	// TODO: bit 0 for deturbo mode, and whatever is <reserved> bit 5 actually used by entrada
+}
+
 /*
  * DMA Controller
  */
@@ -251,45 +268,44 @@ offs_t i82426ex_ib_device::page_offset()
 }
 
 
-uint8_t i82426ex_ib_device::dma_read_byte(offs_t offset)
+u8 i82426ex_ib_device::dma_read_byte(offs_t offset)
 {
 	address_space &prog_space = m_host_cpu->space(AS_PROGRAM);
 	if (m_dma_channel == -1)
 		return 0xff;
-	uint8_t result;
-	result = prog_space.read_byte((page_offset() << 16) + offset);
+	u8 result = prog_space.read_byte(page_offset() + offset);
 	return result;
 }
 
-void i82426ex_ib_device::dma_write_byte(offs_t offset, uint8_t data)
+void i82426ex_ib_device::dma_write_byte(offs_t offset, u8 data)
 {
 	address_space &prog_space = m_host_cpu->space(AS_PROGRAM);
 	if (m_dma_channel == -1)
 		return;
 
-	prog_space.write_byte((page_offset() << 16) + offset, data);
+	prog_space.write_byte(page_offset() + offset, data);
 }
 
-uint8_t i82426ex_ib_device::dma_read_word(offs_t offset)
+u8 i82426ex_ib_device::dma_read_word(offs_t offset)
 {
 	address_space &prog_space = m_host_cpu->space(AS_PROGRAM);
+
 	if (m_dma_channel == -1)
 		return 0xff;
-	uint16_t result;
 
-	result = prog_space.read_word(((page_offset() << 16) & 0xfe0000) | (offset << 1));
+	u16 result = prog_space.read_word((page_offset() & 0xfe0000) | (offset << 1));
 	m_dma_high_byte = result >> 8;
 
-	return result & 0xFF;
+	return result;
 }
 
-void i82426ex_ib_device::dma_write_word(offs_t offset, uint8_t data)
+void i82426ex_ib_device::dma_write_word(offs_t offset, u8 data)
 {
-	address_space &prog_space = m_host_cpu->space(AS_PROGRAM);
 	if (m_dma_channel == -1)
 		return;
+	address_space &prog_space = m_host_cpu->space(AS_PROGRAM);
 
-	prog_space.write_word(((page_offset() << 16) & 0xfe0000) | (offset << 1), m_dma_high_byte | data);
+	prog_space.write_word((page_offset() & 0xfe0000) | (offset << 1), m_dma_high_byte | data);
 }
 
 void i82426ex_ib_device::dma1_eop_w(int state)

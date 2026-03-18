@@ -20,7 +20,7 @@ TODO:
   (workaround: fix it manually then "Exit Saving Changes");
 - AZ08 / AZ07 BIOSes: goes "Auto Configuration Error" with PCI bus, propagate that if cards are
   hooked up;
-- isa1:sb16_lle: DMA crashes with testsb16.exe
+- isa1:sb16_lle: DMA crashes with high DMA (unsupported?)
 - serport0:logitech_mouse: fails freedos13 init on every odd boot;
 
 **************************************************************************************************/
@@ -132,6 +132,10 @@ void i420ex_state::i420ex(machine_config &config)
 	ib.rtcale().set([this](u8 data) { m_rtc->address_w(data); });
 	ib.rtccs_read().set([this]() { return m_rtc->data_r(); });
 	ib.rtccs_write().set([this](u8 data) { m_rtc->data_w(data); });
+	ib.cpurst().set([this] (int state) {
+		if (state)
+			machine().schedule_soft_reset();
+	});
 
 	// TODO: config space not known
 	// 05.0 is clearly host: it's what the BIOS addresses at startup
