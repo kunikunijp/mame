@@ -214,6 +214,7 @@ void taitosj_state::main_nomcu_map(address_map &map)
 	map(0xc800, 0xcbff).ram().share(m_videoram[1]);
 	map(0xcc00, 0xcfff).ram().share(m_videoram[2]);
 	map(0xd000, 0xd05f).ram().share(m_colscrolly);
+	map(0xd060, 0xd0ff).ram();
 	map(0xd100, 0xd1ff).ram().share(m_spriteram);
 	map(0xd200, 0xd27f).mirror(0x0080).ram().share(m_paletteram);
 	map(0xd300, 0xd300).mirror(0x00ff).writeonly().share(m_video_priority);
@@ -1676,6 +1677,7 @@ void taitosj_state::nomcu(machine_config &config)
 	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
 	m_screen->set_raw(12_MHz_XTAL / 2, 384, 0, 256, 264, 16, 240); // verified from schematics
 	m_screen->set_screen_update(FUNC(taitosj_state::screen_update));
+	m_screen->set_video_attributes(VIDEO_ALWAYS_UPDATE); // collision detection
 	m_screen->set_palette(m_palette);
 	m_screen->screen_vblank().set_inputline(m_maincpu, INPUT_LINE_IRQ0, HOLD_LINE);
 
