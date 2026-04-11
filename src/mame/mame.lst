@@ -19271,6 +19271,7 @@ pacmanbla
 pacmanblb
 pacmanblc
 pacmanblci
+pacmanblco
 pacmanblv
 pacmanblva
 pajaroes
@@ -29149,10 +29150,10 @@ wmg
 @source:midway/zwackery.cpp
 zwackery
 
-@source:miltonbradley/microvsn.cpp
+@source:miltonbradley/microvision.cpp
 microvsn
 
-@source:miltonbradley/milton6805.cpp
+@source:miltonbradley/milton.cpp
 milton
 
 @source:miltonbradley/vectrex.cpp
@@ -33009,7 +33010,7 @@ pr_wldkn
 pr_wnstk
 
 @source:misc/ps_m3.cpp
-dreamcha
+dreamhld
 
 @source:misc/psattack.cpp
 psattack
@@ -36212,6 +36213,7 @@ unk128vt
 unk198vt
 unkra200
 vibes240
+vibes240a
 zl383
 zonefusn
 
