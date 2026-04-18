@@ -58,12 +58,22 @@ TODO:
 
 Notes:
 
-- In most games, keep test button pressed during boot to access the
+- In most games, keep the Test button pressed during boot to access the
   input test and sound test.
 
+Original game bugs that are emulated faithfully:
+
 - dbc: The title screen background palette is wrong since the fade
-  routine is called with incorrect argument values, but the PCB does the
-  same thing.
+  routine is called with incorrect argument values.
+
+- drgnwrld: The copyright text on the title screen was updated to show
+  "1997" (rather than "1995") by drawing the "7" over the top using the
+  CPU rather than the blitter.  The font and background of the "7"
+  appears mismatched.
+
+- drgnwrld: If you change the Background DIP switch setting (SW2 2) to
+  "Scene", you'll still see the "Girl" animation, albeit with incorrect
+  colours, after completing some stages.
 
 ***************************************************************************/
 
@@ -4621,7 +4631,7 @@ GAME( 1995, drgnwrldv11ha, drgnwrld, drgnwrld_igs012, drgnwrldc, igs011_oki_stat
 GAME( 1995, drgnwrldv10c,  drgnwrld, drgnwrld,        drgnwrldc, igs011_oki_state, init_drgnwrldv10c, ROT0, "IGS",                     "Zhongguo Long (China, V010C)",                     MACHINE_SUPPORTS_SAVE )
 GAME( 1995, lhb,           0,        lhb,             lhb,       igs011_oki_state, init_lhb,          ROT0, "IGS",                     "Long Hu Bang (China, V035C)",                      MACHINE_SUPPORTS_SAVE )
 GAME( 1995, lhbv33c,       lhb,      lhb,             lhb,       igs011_oki_state, init_lhbv33c,      ROT0, "IGS",                     "Long Hu Bang (China, V033C)",                      MACHINE_SUPPORTS_SAVE )
-GAME( 1995, dbc,           lhb,      lhb,             lhb,       igs011_oki_state, init_dbc,          ROT0, "IGS",                     "Daai Baan Sing (Hong Kong, V027H)",                MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_GRAPHICS )
+GAME( 1995, dbc,           lhb,      lhb,             lhb,       igs011_oki_state, init_dbc,          ROT0, "IGS",                     "Daai Baan Sing (Hong Kong, V027H)",                MACHINE_SUPPORTS_SAVE )
 GAME( 1995, ryukobou,      lhb,      lhb,             lhb,       igs011_oki_state, init_ryukobou,     ROT0, "IGS / Alta",              "Mahjong Ryukobou (Japan, V030J)",                  MACHINE_SUPPORTS_SAVE )
 GAME( 1996, lhb2,          0,        lhb2,            lhb2,      igs011_oki_state, init_lhb2,         ROT0, "IGS",                     "Lung Fu Bong II (Hong Kong, V185H)",               MACHINE_SUPPORTS_SAVE )
 GAME( 1996, lhb2cpgs,      lhb2,     lhb2cpgs,        lhb2cpgs,  igs011_oki_state, init_lhb2cpgs,     ROT0, "IGS",                     "Long Hu Bang II: Cuo Pai Gaoshou (China, V127C)",  MACHINE_SUPPORTS_SAVE | MACHINE_NOT_WORKING | MACHINE_UNEMULATED_PROTECTION ) // ROM patches
