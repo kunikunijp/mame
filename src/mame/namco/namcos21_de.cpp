@@ -191,7 +191,7 @@ void namco_de_pcbstack_device::device_add_mconfig(machine_config &config)
 	m_namcos21_3d->set_fixed_palbase(0x3f00);
 	m_namcos21_3d->set_zz_shift_mult(10, 0x100);
 	m_namcos21_3d->set_depth_reverse(false);
-	m_namcos21_3d->set_framebuffer_size(496,480);
+	m_namcos21_3d->set_framebuffer_size(496, 480);
 
 	NAMCO_C355SPR(config, m_c355spr, 0);
 	m_c355spr->set_screen(m_screen);
@@ -203,7 +203,7 @@ void namco_de_pcbstack_device::device_add_mconfig(machine_config &config)
 
 	SPEAKER(config, "speaker", 2).front();
 
-	C140(config, m_c140, 49.152_MHz_XTAL / 2304);
+	C140(config, m_c140, 49.152_MHz_XTAL / 384 / 6);
 	m_c140->set_addrmap(0, &namco_de_pcbstack_device::c140_map);
 	m_c140->int1_callback().set_inputline(m_audiocpu, M6809_FIRQ_LINE);
 	m_c140->add_route(0, "speaker", 0.50, 0);
@@ -215,39 +215,48 @@ void namco_de_pcbstack_device::device_add_mconfig(machine_config &config)
 
 bool namco_de_pcbstack_device::sprite_mix_callback(u16 &dest, u8 &destpri, u16 colbase, u16 src, int srcpri, int pri)
 {
+	// copy/pasted from namcos21_c67.cpp
 	if (srcpri == pri)
 	{
-		if ((src & 0xff) != 0xff)
+		src ^= 0xf00;
+
+		switch (src & 0xff)
 		{
-			switch (src & 0xff)
-			{
-			case 0:
-				if ((dest & 0xff) != 0xff)
-					dest = 0x4000 | (dest & 0x1fff);
-				else
-					dest = (dest & 0x1f00) | 0;
-				break;
-			case 1:
-				if ((dest & 0xff) != 0xff)
-					dest = 0x6000 | (dest & 0x1fff);
-				else
-					dest = (dest & 0x1f00) | 1;
-				break;
-			default:
-				dest = colbase + (src ^ 0xf00);
-				break;
-			}
-			return true;
+		case 0xff:
+			if ((dest & 0xff) == 0xff)
+				dest = (src & 0xf00) | 0xff;
+			else
+				return false;
+			break;
+
+		case 0x00:
+			if ((dest & 0xff) != 0xff)
+				dest = 0x4000 | (dest & 0x1fff);
+			else
+				dest = (src & 0xf00) | 0x00;
+			break;
+
+		case 0x01:
+			if ((dest & 0xff) != 0xff)
+				dest = 0x6000 | (dest & 0x1fff);
+			else
+				dest = (src & 0xf00) | 0x01;
+			break;
+
+		default:
+			dest = colbase | src;
+			break;
 		}
+		return true;
 	}
+
 	return false;
 }
 
 u32 namco_de_pcbstack_device::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	//u8 *videoram = m_gpu_videoram.get();
 	int pivot = 3;
-	bitmap.fill(0xdff, cliprect);
+	bitmap.fill(0xff, cliprect);
 	screen.priority().fill(0, cliprect);
 	m_c355spr->build_sprite_list_and_render_sprites(cliprect); // TODO : buffered?
 
@@ -581,11 +590,11 @@ static INPUT_PORTS_START( driveyes )
 	PORT_START("pcb_1:AN0")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_START("pcb_1:AN1")
-	PORT_BIT( 0xff, 0x80, IPT_PEDAL ) PORT_MINMAX(0x00,0xff) PORT_SENSITIVITY(15) PORT_KEYDELTA(10) PORT_NAME("Gas Pedal")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL ) PORT_MINMAX(0x00,0x3f) PORT_SENSITIVITY(15) PORT_KEYDELTA(10) PORT_NAME("Gas Pedal")
 	PORT_START("pcb_1:AN2")
-	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_MINMAX(0x00,0xff) PORT_SENSITIVITY(15) PORT_KEYDELTA(10) PORT_NAME("Steering Wheel")
+	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_MINMAX(0x00,0xff) PORT_SENSITIVITY(25) PORT_KEYDELTA(10) PORT_NAME("Steering Wheel")
 	PORT_START("pcb_1:AN3")
-	PORT_BIT( 0xff, 0x80, IPT_PEDAL2 ) PORT_MINMAX(0x00,0xff) PORT_SENSITIVITY(15) PORT_KEYDELTA(10) PORT_NAME("Brake Pedal")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL2 ) PORT_MINMAX(0x00,0x3f) PORT_SENSITIVITY(15) PORT_KEYDELTA(10) PORT_NAME("Brake Pedal")
 	PORT_START("pcb_1:AN4")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_START("pcb_1:AN5")
@@ -860,4 +869,4 @@ ROM_END
 /*    YEAR  NAME       PARENT    MACHINE   INPUT       CLASS           INIT           MONITOR  COMPANY  FULLNAME                                 FLAGS */
 
 // 3 PCB stacks in a single cage (3x 4 PCBs) linked for 3 screen panorama, boards look similar to original Namco System 21 (not 21B) including TMS320C25 DSP, but use C68 I/O MCU and sprite chip instead of "68000 'GPU'" ?
-GAME( 1992, driveyes,  0,        driveyes, driveyes,   namcos21_de_state, empty_init,    ROT0,    "Namco", "Driver's Eyes (Japan) (1992/01/10, Main Ver 2.1, Sub Ver 1.1)",                 MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS | MACHINE_NODEVICE_LAN)
+GAME( 1992, driveyes,  0,        driveyes, driveyes,   namcos21_de_state, empty_init, ROT0,    "Namco", "Driver's Eyes (Japan) (1992/01/10, Main Ver 2.1, Sub Ver 1.1)", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND | MACHINE_NODEVICE_LAN )

@@ -181,6 +181,7 @@ public:
 	void sg_vga(machine_config &config) ATTR_COLD;
 	void galfever(machine_config &config) ATTR_COLD;
 	void hplanet(machine_config &config) ATTR_COLD;
+	void shootpar(machine_config &config) ATTR_COLD;
 
 protected:
 	virtual void machine_start() override ATTR_COLD;
@@ -196,6 +197,7 @@ private:
 
 	void galfever_program_map(address_map &map) ATTR_COLD;
 	void hplanet_program_map(address_map &map) ATTR_COLD;
+	void shootpar_program_map(address_map &map) ATTR_COLD;
 	void x1_map(address_map &map) ATTR_COLD;
 
 	void pd_w(u32 data);
@@ -225,7 +227,7 @@ void sg_vga_state::machine_reset()
 void sg_vga_state::hplanet_program_map(address_map &map)
 {
 	map(0x000000, 0x03ffff).rom();
-//  map(0x120010, 0x120017) continously read on sound number #05 (?)
+//  map(0x120010, 0x120017) continuously read on sound number #05 (?)
 	map(0x200000, 0x27ffff).rom().region("external_prg", 0);
 	// initializes in $42xxxx, reads in $43xxxx in "backup ram test"
 	map(0x420000, 0x427fff).mirror(0x8000).ram().share("nvram");
@@ -260,6 +262,14 @@ void sg_vga_state::galfever_program_map(address_map &map)
 	hplanet_program_map(map);
 
 	map(0x4a0000, 0x4affff).ram();
+	map(0x4e0000, 0x4effff).unmaprw();
+}
+
+void sg_vga_state::shootpar_program_map(address_map &map)
+{
+	hplanet_program_map(map);
+
+	map(0x400000, 0x40ffff).ram();
 	map(0x4e0000, 0x4effff).unmaprw();
 }
 
@@ -555,6 +565,13 @@ void sg_vga_state::hplanet(machine_config &config)
 	m_maincpu->set_addrmap(AS_PROGRAM, &sg_vga_state::hplanet_program_map);
 }
 
+void sg_vga_state::shootpar(machine_config &config)
+{
+	sg_vga(config);
+
+	m_maincpu->set_addrmap(AS_PROGRAM, &sg_vga_state::shootpar_program_map);
+}
+
 
 ROM_START( galfever )
 	ROM_REGION( 0x40000, "maincpu", 0 ) // internal ROM
@@ -564,10 +581,10 @@ ROM_START( galfever )
 	ROM_LOAD16_WORD_SWAP( "gxf1_mpr-0a.u02", 0x00000, 0x80000, CRC(d6a82454) SHA1(e38549110f32f8a4c9d969f713fdc4e9fe81870c) )
 
 	ROM_REGION( 0x2000000, "video", 0 )
-	ROM_LOAD64_WORD( "gxf1_obj-1a.u01", 0x000002, 0x800000, CRC(8b7c6e97) SHA1(4fe3e45685874d8cc1fd27c330d9fdb1e6aea318) )
-	ROM_LOAD64_WORD( "gxf1_obj-0a.u02", 0x000000, 0x800000, CRC(0a6043a3) SHA1(119ad591588d8652cdac580597c4b04db457eb54) )
-	ROM_LOAD64_WORD( "gxf1_obj-3a.u03", 0x000006, 0x800000, CRC(c61c2fc6) SHA1(abac65302f808e2d6822466add6115add7ede66a) )
-	ROM_LOAD64_WORD( "gxf1_obj-2a.u04", 0x000004, 0x800000, CRC(3eaaa690) SHA1(9a3ce4234d004c54bd8912ddd492916421191083) )
+	ROM_LOAD64_WORD( "gxf1_obj-1a.u01", 0x000000, 0x800000, CRC(8b7c6e97) SHA1(4fe3e45685874d8cc1fd27c330d9fdb1e6aea318) )
+	ROM_LOAD64_WORD( "gxf1_obj-0a.u02", 0x000002, 0x800000, CRC(0a6043a3) SHA1(119ad591588d8652cdac580597c4b04db457eb54) )
+	ROM_LOAD64_WORD( "gxf1_obj-3a.u03", 0x000004, 0x800000, CRC(c61c2fc6) SHA1(abac65302f808e2d6822466add6115add7ede66a) )
+	ROM_LOAD64_WORD( "gxf1_obj-2a.u04", 0x000006, 0x800000, CRC(3eaaa690) SHA1(9a3ce4234d004c54bd8912ddd492916421191083) )
 
 	// bankswitched
 	ROM_REGION( 0x400000, "x1rom", 0 )
@@ -576,7 +593,7 @@ ROM_END
 
 ROM_START( shootpar )
 	ROM_REGION( 0x40000, "maincpu", 0 ) // internal ROM
-	ROM_LOAD( "z029_ver.1.10_sh2_hd64f7045f28.u01", 0x00000, 0x40000, NO_DUMP ) // not done yet
+	ROM_LOAD( "z029_ver.1.10_sh2_hd64f7045f28.u01", 0x00000, 0x40000, CRC(5790e125) SHA1(eb4e8b2b7e8d94066ad58355a385e2b109b96150 ) )
 
 	ROM_REGION32_BE( 0x80000, "external_prg", 0 )
 	ROM_LOAD16_WORD_SWAP( "spd1_mpr-0a.u02", 0x00000, 0x80000, CRC(3dad6e40) SHA1(4baf0b58e696cfa2235faa4d5a16bcf31ba09587) ) // 1xxxxxxxxxxxxxxxxxx = 0xFF
@@ -613,6 +630,6 @@ ROM_END
 } // anonymous namespace
 
 
-GAME( 2000, galfever, 0, galfever, hplanet, sg_vga_state, empty_init, ROT0, "Namco", "Galaxian Fever (Japan)",    MACHINE_IMPERFECT_GRAPHICS | MACHINE_NOT_WORKING )
-GAME( 2000, shootpar, 0, sg_vga,   hplanet, sg_vga_state, empty_init, ROT0, "Namco", "Shooting Paradise (Japan)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_NOT_WORKING )
-GAME( 2001, hplanet,  0, hplanet,  hplanet, sg_vga_state, empty_init, ROT0, "Namco", "Happy Planet (Japan)",      MACHINE_IMPERFECT_GRAPHICS | MACHINE_NOT_WORKING )
+GAME( 2000, galfever, 0, galfever, hplanet, sg_vga_state, empty_init, ROT0, "Namco", "Galaxian Fever (Japan, ver 1.28)",    MACHINE_IMPERFECT_GRAPHICS | MACHINE_NOT_WORKING )
+GAME( 2000, shootpar, 0, shootpar, hplanet, sg_vga_state, empty_init, ROT0, "Namco", "Shooting Paradise (Japan, ver 1.10)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_NOT_WORKING )
+GAME( 2001, hplanet,  0, hplanet,  hplanet, sg_vga_state, empty_init, ROT0, "Namco", "Happy Planet (Japan, ver 1.00)",      MACHINE_IMPERFECT_GRAPHICS | MACHINE_NOT_WORKING )
