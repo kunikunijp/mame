@@ -15304,6 +15304,7 @@ bmcbowl
 bmcpokr
 dbshahb
 fengyunh
+fengyunz
 mjmaglmp
 shendeng
 xyddzhh
@@ -22948,6 +22949,7 @@ nndmseal11
 nndmseala
 nndmsealb
 nndmsealc
+nndmseald
 rockn
 rockn2
 rockn3
@@ -49181,11 +49183,13 @@ x168
 x820
 x820ii
 
+@source:yachiyo/atamanot.cpp
+atamanot
+
 @source:yachiyo/mole.cpp
 mole
 
 @source:yachiyo/ssingles.cpp
-atamanot
 ssingles
 
 @source:yachiyo/sstrangr.cpp

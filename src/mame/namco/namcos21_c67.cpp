@@ -2,18 +2,26 @@
 // copyright-holders:Phil Stroffolino
 /*
 
-TODO (2026 update):
+Namco System 21 (later hardware with 5 TMS320C25 DSPs)
+
+TODO:
 - lamp/vibration outputs, from MCU? (particularly starblad);
 - verify DSP clocks, they should be 40MHz, currently underclocked on purpose on MAME, otherwise polygons
   may disappear on some frames (try playing starblad until after the asteroids), tightening quantum by
   a factor of 40/24 does not fix it;
 - verify video timing, pixel clock is from 38.76922?;
 - verify audiocpu irq frequency;
+- is m_layer0_pivot software-controlled and if so, where? (solvalou sprite layer 0 is further back than
+  starblad and cybsled);
+- wrong global sprite layer offsets in service mode for all games except aircomb, it's fine in-game though;
 - aircomb: z-fighting issue on attract mode with the plane renders (after the first title screen),
   and on pilot parachuting with a time over;
 - aircomb: missing background on attract mode ranking screen (masking? cfr. shared/namco_c355spr.cpp);
 - aircomb: bad sprite colors on debriefing medal screen;
-- solvalou: black screen on service mode, is it due of the various hacks or it's in shared/namco_c355spr.cpp?;
+- solvalou: black screen on service mode, is it due of the various hacks or it's in shared/namco_c355spr.cpp?
+  it writes the c355 sprite list to 0x14000 and the sprite table to 0x0, so it'll work if those are swapped
+  around in namco_c355spr.cpp;
+- solvalou: service mode polygon test is crashy when testing invalid polygons (the good old IDC overflow);
 - solvalou: sprite blend is wrong during water stages (look at the blaster/score panel), the palette
   bank for the water is at 0x2200, but the blend palette is at 0x6000 instead of 0x6200?;
 - starblad: service mode has heavy sprite glitches if entered from live gameplay (verify)
@@ -22,9 +30,8 @@ BTANB:
 - aircomb: intro cockpit closure is one pixel off on left edge;
 - solvalou: sprites on top of foreground polygons (eg. explosions, water splash)
 
-TODO:
-- namcoic.c: in StarBlade, the sprite list is stored at a different location during startup tests.
-  What register controls this?
+Reversed AD Stick Y control in starblad/solvalou is correct (just like aircomb). It may seem backwards when
+playing it on an MAME (eg. with mouse), in that case just change the analog reverse setting in the UI.
 
 ---------------------------------------------------------------------------
 
@@ -264,19 +271,21 @@ Palette:
 
 #include "emu.h"
 
+#include "namco68.h"
+#include "namco_c139.h"
+#include "namco_c148.h"
+#include "namco_dsp.h"
+#include "namcos21_3d.h"
+#include "namcos21_dsp_c67.h"
+
+#include "namco_c355spr.h"
+
 #include "cpu/m68000/m68000.h"
 #include "cpu/m6805/m6805.h"
 #include "cpu/m6809/m6809.h"
 #include "machine/nvram.h"
 #include "namcoio_gearbox.h"
 #include "machine/timer.h"
-#include "namco_c139.h"
-#include "namco_c148.h"
-#include "namco68.h"
-#include "namco_dsp.h"
-#include "namcos21_dsp_c67.h"
-#include "namco_c355spr.h"
-#include "namcos21_3d.h"
 #include "sound/c140.h"
 #include "sound/ymopm.h"
 
@@ -285,8 +294,6 @@ Palette:
 #include "speaker.h"
 
 #include "solvalou.lh"
-
-#define ENABLE_LOGGING      0
 
 
 namespace {
@@ -314,7 +321,6 @@ public:
 		m_namcos21_dsp_c67(*this, "namcos21dsp_c67")
 	{ }
 
-	void configure_c148_standard(machine_config &config);
 	void namcos21(machine_config &config);
 	void cybsled(machine_config &config);
 	void solvalou(machine_config &config);
@@ -345,6 +351,7 @@ private:
 	required_device<namcos21_3d_device> m_namcos21_3d;
 	required_device<namcos21_dsp_c67_device> m_namcos21_dsp_c67;
 
+	u16 m_layer0_pivot = 0x800;
 	u16 m_video_enable = 0;
 
 	u16 video_enable_r();
@@ -384,28 +391,28 @@ private:
 
 bool namcos21_c67_state::sprite_mix_callback(u16 &dest, u8 &destpri, u16 colbase, u16 src, int srcpri, int pri)
 {
-	if (srcpri == pri)
+	if ((srcpri & 3) == pri)
 	{
 		src ^= 0xf00;
 
 		switch (src & 0xff)
 		{
 		case 0xff:
-			if ((dest & 0xff) == 0xff)
+			if (dest == 0xff)
 				dest = (src & 0xf00) | 0xff;
 			else
 				return false;
 			break;
 
 		case 0x00:
-			if ((dest & 0xff) != 0xff)
+			if (dest != 0xff)
 				dest = 0x4000 | (dest & 0x1fff);
 			else
 				dest = (src & 0xf00) | 0x00;
 			break;
 
 		case 0x01:
-			if ((dest & 0xff) != 0xff)
+			if (dest != 0xff)
 				dest = 0x6000 | (dest & 0x1fff);
 			else
 				dest = (src & 0xf00) | 0x01;
@@ -423,7 +430,6 @@ bool namcos21_c67_state::sprite_mix_callback(u16 &dest, u8 &destpri, u16 colbase
 
 u32 namcos21_c67_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	int pivot = 3;
 	bitmap.fill(0xff, cliprect);
 	screen.priority().fill(0, cliprect);
 
@@ -431,36 +437,31 @@ u32 namcos21_c67_state::screen_update(screen_device &screen, bitmap_ind16 &bitma
 	if (!BIT(m_video_enable, 6))
 		return 0;
 
+	// draw low priority 2d sprites
 	m_c355spr->build_sprite_list_and_render_sprites(cliprect); // TODO : buffered?
-
-	const u16 pri1 = (m_palette->read16_ext(0) >> 8) & 7;
-//	const u16 pri2 = (m_palette->read16_ext(1) >> 8) & 7; // always '2'?
-
 	m_c355spr->draw(screen, bitmap, cliprect, 2);
 
-	m_namcos21_3d->copy_visible_poly_framebuffer(bitmap, cliprect, 0x7fc0, 0x7ffe);
+	const u16 pri1 = (m_palette->read16_ext(0) >> 8) & 7;
+	//const u16 pri2 = (m_palette->read16_ext(1) >> 8) & 7; // always '2'?
 
-	switch(pri1)
+	switch (pri1)
 	{
 		case 0: // aircomb mission select & gameplay
-			m_namcos21_3d->copy_visible_poly_framebuffer(bitmap, cliprect, 0, 0x7fbf);
+		case 2: // starblad/solvalou when going in service mode
+			m_namcos21_3d->copy_visible_poly_framebuffer(bitmap, cliprect, 0, 0x7ffe);
 			m_c355spr->draw(screen, bitmap, cliprect, 0);
-			m_c355spr->draw(screen, bitmap, cliprect, 1);
 			break;
 		case 4: // default gameplay for all games, aircomb attract mode
-		case 2: // TODO: starblad/solvalou when going in service mode
 		default:
+			m_namcos21_3d->copy_visible_poly_framebuffer(bitmap, cliprect, m_layer0_pivot, 0x7ffe);
 			m_c355spr->draw(screen, bitmap, cliprect, 0);
-			m_c355spr->draw(screen, bitmap, cliprect, 1);
-			m_namcos21_3d->copy_visible_poly_framebuffer(bitmap, cliprect, 0, 0x7fbf);
+			m_namcos21_3d->copy_visible_poly_framebuffer(bitmap, cliprect, 0, m_layer0_pivot - 1);
 			break;
 	}
 
-	/* draw high priority 2d sprites */
-	for (int pri = pivot; pri < 8; pri++)
-	{
-		m_c355spr->draw(screen, bitmap, cliprect, pri);
-	}
+	// draw high priority 2d sprites
+	m_c355spr->draw(screen, bitmap, cliprect, 3);
+
 	return 0;
 }
 
@@ -473,16 +474,14 @@ u16 namcos21_c67_state::video_enable_r()
 // other bits unknown (if ever used)
 void namcos21_c67_state::video_enable_w(offs_t offset, u16 data, u16 mem_mask)
 {
-	COMBINE_DATA( &m_video_enable );
+	COMBINE_DATA(&m_video_enable);
 	if (m_video_enable & ~0x40)
-	{
-		popmessage("Video Enable %04x!", m_video_enable);
-	}
+		logerror("Video Enable %04x!\n", m_video_enable);
 }
 
 /***********************************************************/
 
-/* dual port ram memory handlers */
+// dual port ram memory handlers
 
 u16 namcos21_c67_state::dpram_word_r(offs_t offset)
 {
@@ -492,9 +491,7 @@ u16 namcos21_c67_state::dpram_word_r(offs_t offset)
 void namcos21_c67_state::dpram_word_w(offs_t offset, u16 data, u16 mem_mask)
 {
 	if (ACCESSING_BITS_0_7)
-	{
-		m_dpram[offset] = data&0xff;
-	}
+		m_dpram[offset] = data & 0xff;
 }
 
 u8 namcos21_c67_state::dpram_byte_r(offs_t offset)
@@ -515,11 +512,11 @@ void namcos21_c67_state::dpram_byte_w(offs_t offset, u8 data)
 
 void namcos21_c67_state::common_map(address_map &map)
 {
-	map(0x280000, 0x280001).nopw(); /* written once on startup */
+	map(0x280000, 0x280001).nopw(); // written once on startup
 	map(0x400000, 0x400001).w(m_namcos21_dsp_c67, FUNC(namcos21_dsp_c67_device::pointram_control_w));
 	map(0x440000, 0x440001).rw(m_namcos21_dsp_c67, FUNC(namcos21_dsp_c67_device::pointram_data_r), FUNC(namcos21_dsp_c67_device::pointram_data_w));
-	map(0x440002, 0x47ffff).nopw(); /* (?) Air Combat */
-	map(0x480000, 0x4807ff).rw(m_namcos21_dsp_c67, FUNC(namcos21_dsp_c67_device::namcos21_depthcue_r), FUNC(namcos21_dsp_c67_device::namcos21_depthcue_w)); /* Air Combat */
+	map(0x440002, 0x47ffff).nopw(); // (?) Air Combat
+	map(0x480000, 0x4807ff).rw(m_namcos21_dsp_c67, FUNC(namcos21_dsp_c67_device::namcos21_depthcue_r), FUNC(namcos21_dsp_c67_device::namcos21_depthcue_w)); // Air Combat
 	map(0x700000, 0x71ffff).rw(m_c355spr, FUNC(namco_c355spr_device::spriteram_r), FUNC(namco_c355spr_device::spriteram_w));
 	map(0x720000, 0x720007).rw(m_c355spr, FUNC(namco_c355spr_device::position_r), FUNC(namco_c355spr_device::position_w));
 	map(0x740000, 0x74ffff).ram().w(m_palette, FUNC(palette_device::write16)).share("palette");
@@ -537,7 +534,7 @@ void namcos21_c67_state::master_map(address_map &map)
 {
 	common_map(map);
 	map(0x000000, 0x0fffff).rom();
-	map(0x100000, 0x10ffff).ram(); /* private work RAM */
+	map(0x100000, 0x10ffff).ram(); // private work RAM
 	map(0x180000, 0x183fff).rw(FUNC(namcos21_c67_state::eeprom_r), FUNC(namcos21_c67_state::eeprom_w)).umask16(0x00ff);
 	map(0x1c0000, 0x1fffff).m(m_master_intc, FUNC(namco_c148_device::map));
 	map(0x200000, 0x20ffff).rw(m_namcos21_dsp_c67, FUNC(namcos21_dsp_c67_device::dspram16_r), FUNC(namcos21_dsp_c67_device::dspram16_w));
@@ -547,7 +544,7 @@ void namcos21_c67_state::slave_map(address_map &map)
 {
 	common_map(map);
 	map(0x000000, 0x07ffff).rom();
-	map(0x100000, 0x13ffff).ram(); /* private work RAM */
+	map(0x100000, 0x13ffff).ram(); // private work RAM
 	map(0x1c0000, 0x1fffff).m(m_slave_intc, FUNC(namco_c148_device::map));
 	map(0x200000, 0x20ffff).rw(m_namcos21_dsp_c67, FUNC(namcos21_dsp_c67_device::dspram16_r), FUNC(namcos21_dsp_c67_device::dspram16_w));
 }
@@ -558,17 +555,17 @@ void namcos21_c67_state::slave_map(address_map &map)
 
 void namcos21_c67_state::sound_map(address_map &map)
 {
-	map(0x0000, 0x3fff).bankr("audiobank"); /* banked */
-	map(0x3000, 0x3003).nopw(); /* ? */
+	map(0x0000, 0x3fff).bankr("audiobank"); // banked
+	map(0x3000, 0x3003).nopw(); // ?
 	map(0x4000, 0x4001).rw("ymsnd", FUNC(ym2151_device::read), FUNC(ym2151_device::write));
 	map(0x5000, 0x51ff).mirror(0x0e00).rw(m_c140, FUNC(c140_device::c140_r), FUNC(c140_device::c140_w));
 	map(0x6000, 0x61ff).mirror(0x0e00).rw(m_c140, FUNC(c140_device::c140_r), FUNC(c140_device::c140_w)); // mirrored
 	map(0x7000, 0x77ff).mirror(0x0800).rw(FUNC(namcos21_c67_state::dpram_byte_r), FUNC(namcos21_c67_state::dpram_byte_w)).share("dpram");
 	map(0x8000, 0x9fff).ram();
-	map(0xa000, 0xbfff).nopw(); /* amplifier enable on 1st write */
-	map(0xc000, 0xffff).nopw(); /* avoid debug log noise; games write frequently to 0xe000 */
+	map(0xa000, 0xbfff).nopw(); // amplifier enable on 1st write
+	map(0xc000, 0xffff).nopw(); // avoid debug log noise; games write frequently to 0xe000
 	map(0xc000, 0xc001).w(FUNC(namcos21_c67_state::sound_bankselect_w));
-	map(0xd001, 0xd001).nopw(); /* watchdog */
+	map(0xd001, 0xd001).nopw(); // watchdog
 	map(0xd000, 0xffff).rom().region("audiocpu", 0x01000);
 }
 
@@ -623,7 +620,7 @@ static INPUT_PORTS_START( starblad )
 	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_COIN1 )
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME("Service Button") PORT_CODE(KEYCODE_0) PORT_TOGGLE // alt test mode switch
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SERVICE2 ) PORT_NAME("Service Button") PORT_TOGGLE // alt test mode switch
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SERVICE1 )
 
 	PORT_START("AN0")       /* 63B05Z0 - 8 CHANNEL ANALOG - CHANNEL 0 */
@@ -691,8 +688,8 @@ static INPUT_PORTS_START( solvalou )
 
 	PORT_MODIFY("MCUB")     /* 63B05Z0 - PORT B */
 	PORT_BIT( 0x3f, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_START2 ) // screen freeze
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START1 ) // debug view switch?
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SERVICE4 ) PORT_NAME("Debug Freeze")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SERVICE3 ) PORT_NAME("Debug Change View")
 
 	PORT_MODIFY("AN1")       /* 63B05Z0 - 8 CHANNEL ANALOG - CHANNEL 1 */
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_MINMAX(0x60,0xa0) PORT_SENSITIVITY(25) PORT_KEYDELTA(4)
@@ -772,7 +769,7 @@ INPUT_PORTS_END
 
 void namcos21_c67_state::sound_bankselect_w(u8 data)
 {
-	m_audiobank->set_entry(data>>4);
+	m_audiobank->set_entry(data >> 4);
 }
 
 
@@ -780,13 +777,12 @@ void namcos21_c67_state::sound_reset_w(u8 data)
 {
 	if (data & 0x01)
 	{
-		/* Resume execution */
+		// Resume execution
 		m_audiocpu->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
-		m_maincpu->yield();
 	}
 	else
 	{
-		/* Suspend execution */
+		// Suspend execution
 		m_audiocpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 	}
 
@@ -799,9 +795,6 @@ void namcos21_c67_state::sound_reset_w(u8 data)
 void namcos21_c67_state::system_reset_w(u8 data)
 {
 	reset_all_subcpus(data & 1 ? CLEAR_LINE : ASSERT_LINE);
-
-	if (data & 0x01)
-		m_maincpu->yield();
 }
 
 void namcos21_c67_state::reset_all_subcpus(int state)
@@ -823,12 +816,12 @@ u8 namcos21_c67_state::eeprom_r(offs_t offset)
 
 void namcos21_c67_state::machine_reset()
 {
-	/* Initialise the bank select in the sound CPU */
-	m_audiobank->set_entry(0); /* Page in bank 0 */
+	// Initialise the bank select in the sound CPU
+	m_audiobank->set_entry(0); // Page in bank 0
 
 	m_audiocpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE );
 
-	/* Place CPU2 & CPU3 into the reset condition */
+	// Place CPU2 & CPU3 into the reset condition
 	reset_all_subcpus(ASSERT_LINE);
 }
 
@@ -849,9 +842,8 @@ void namcos21_c67_state::machine_start()
 TIMER_DEVICE_CALLBACK_MEMBER(namcos21_c67_state::screen_scanline)
 {
 	int scanline = param;
-//  int cur_posirq = get_posirq_scanline()*2;
 
-	if (scanline == 240*2)
+	if (scanline == 240 * 2)
 	{
 		m_master_intc->vblank_irq_trigger();
 		m_slave_intc->vblank_irq_trigger();
@@ -859,28 +851,17 @@ TIMER_DEVICE_CALLBACK_MEMBER(namcos21_c67_state::screen_scanline)
 	}
 }
 
-void namcos21_c67_state::configure_c148_standard(machine_config &config)
-{
-	NAMCO_C148(config, m_master_intc, 0, m_maincpu, true);
-	m_master_intc->link_c148_device(m_slave_intc);
-	m_master_intc->out_ext1_callback().set(FUNC(namcos21_c67_state::sound_reset_w));
-	m_master_intc->out_ext2_callback().set(FUNC(namcos21_c67_state::system_reset_w));
-
-	NAMCO_C148(config, m_slave_intc, 0, m_slave, false);
-	m_slave_intc->link_c148_device(m_master_intc);
-}
-
 // starblad, solvalou, aircomb, cybsled base state
 void namcos21_c67_state::namcos21(machine_config &config)
 {
-	M68000(config, m_maincpu, 49.152_MHz_XTAL / 4); /* Master */
+	M68000(config, m_maincpu, 49.152_MHz_XTAL / 4); // Master
 	m_maincpu->set_addrmap(AS_PROGRAM, &namcos21_c67_state::master_map);
 	TIMER(config, "scantimer").configure_scanline(FUNC(namcos21_c67_state::screen_scanline), "screen", 0, 1);
 
-	M68000(config, m_slave, 49.152_MHz_XTAL / 4); /* Slave */
+	M68000(config, m_slave, 49.152_MHz_XTAL / 4); // Slave
 	m_slave->set_addrmap(AS_PROGRAM, &namcos21_c67_state::slave_map);
 
-	MC6809E(config, m_audiocpu, 49.152_MHz_XTAL / 24); /* Sound */
+	MC6809E(config, m_audiocpu, 49.152_MHz_XTAL / 24); // Sound
 	m_audiocpu->set_addrmap(AS_PROGRAM, &namcos21_c67_state::sound_map);
 	m_audiocpu->set_periodic_int(FUNC(namcos21_c67_state::irq0_line_hold), attotime::from_hz(2*60));
 
@@ -904,7 +885,14 @@ void namcos21_c67_state::namcos21(machine_config &config)
 	m_namcos21_3d->set_depth_reverse(false);
 	m_namcos21_3d->set_framebuffer_size(496, 480);
 
-	configure_c148_standard(config);
+	NAMCO_C148(config, m_master_intc, 0, m_maincpu, true);
+	m_master_intc->link_c148_device(m_slave_intc);
+	m_master_intc->out_ext1_callback().set(FUNC(namcos21_c67_state::sound_reset_w));
+	m_master_intc->out_ext2_callback().set(FUNC(namcos21_c67_state::system_reset_w));
+
+	NAMCO_C148(config, m_slave_intc, 0, m_slave, false);
+	m_slave_intc->link_c148_device(m_master_intc);
+
 	NAMCO_C139(config, m_sci, 0);
 
 	PALETTE(config, m_palette).set_format(palette_device::xBRG_888, 0x10000/2);
@@ -953,6 +941,7 @@ void namcos21_c67_state::solvalou(machine_config &config)
 
 	m_namcos21_3d->set_fixed_palbase(0x3f00);
 	m_namcos21_3d->set_zz_shift_mult(10, 0x100);
+	m_layer0_pivot = 0x7fc0;
 }
 
 
@@ -1310,13 +1299,13 @@ void namcos21_c67_state::init_solvalou()
 /*    YEAR  NAME       PARENT    MACHINE   INPUT       CLASS               INIT           MONITOR  COMPANY  FULLNAME                    FLAGS */
 
 // uses 5x TMS320C25 (C67, has internal ROM - dumped)
-GAME( 1991, starblad,  0,        starblad, starblad,   namcos21_c67_state, empty_init,    ROT0,    "Namco", "Starblade (ST2, World)",   MACHINE_IMPERFECT_GRAPHICS )
-GAME( 1991, starbladj, starblad, starblad, starblad,   namcos21_c67_state, empty_init,    ROT0,    "Namco", "Starblade (ST1, Japan)",   MACHINE_IMPERFECT_GRAPHICS )
+GAME( 1991, starblad,  0,        starblad, starblad,   namcos21_c67_state, empty_init,    ROT0,    "Namco", "Starblade (ST2, World)",   MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+GAME( 1991, starbladj, starblad, starblad, starblad,   namcos21_c67_state, empty_init,    ROT0,    "Namco", "Starblade (ST1, Japan)",   MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
 
-GAMEL(1991, solvalou,  0,        solvalou, solvalou,   namcos21_c67_state, init_solvalou, ROT0,    "Namco", "Solvalou (SV1, Japan)",    MACHINE_IMPERFECT_GRAPHICS, layout_solvalou )
+GAMEL(1991, solvalou,  0,        solvalou, solvalou,   namcos21_c67_state, init_solvalou, ROT0,    "Namco", "Solvalou (SV1, Japan)",    MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE, layout_solvalou )
 
-GAME( 1992, aircomb,   0,        aircomb,  aircomb,    namcos21_c67_state, empty_init,    ROT0,    "Namco", "Air Combat (AC2, US)",     MACHINE_IMPERFECT_GRAPHICS ) // There's code for a SCI, is it even possible to play multiplayer?
-GAME( 1992, aircombj,  aircomb,  aircomb,  aircomb,    namcos21_c67_state, empty_init,    ROT0,    "Namco", "Air Combat (AC1, Japan)",  MACHINE_IMPERFECT_GRAPHICS )
+GAME( 1992, aircomb,   0,        aircomb,  aircomb,    namcos21_c67_state, empty_init,    ROT0,    "Namco", "Air Combat (AC2, US)",     MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE ) // There's code for a SCI, is it even possible to play multiplayer?
+GAME( 1992, aircombj,  aircomb,  aircomb,  aircomb,    namcos21_c67_state, empty_init,    ROT0,    "Namco", "Air Combat (AC1, Japan)",  MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
 
-GAME( 1993, cybsled,   0,        cybsled,  cybsled,    namcos21_c67_state, empty_init,    ROT0,    "Namco", "Cyber Sled (CY2, World)",  MACHINE_IMPERFECT_GRAPHICS | MACHINE_NODEVICE_LAN )
-GAME( 1993, cybsleda,  cybsled,  cybsled,  cybsled,    namcos21_c67_state, empty_init,    ROT0,    "Namco", "Cyber Sled (CY1, World?)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_NODEVICE_LAN ) // usually an 'xx1' set would be Japan, but this shows neither a warning nor Japanese text, verify on hardware
+GAME( 1993, cybsled,   0,        cybsled,  cybsled,    namcos21_c67_state, empty_init,    ROT0,    "Namco", "Cyber Sled (CY2, World)",  MACHINE_IMPERFECT_GRAPHICS | MACHINE_NODEVICE_LAN | MACHINE_SUPPORTS_SAVE )
+GAME( 1993, cybsleda,  cybsled,  cybsled,  cybsled,    namcos21_c67_state, empty_init,    ROT0,    "Namco", "Cyber Sled (CY1, World?)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_NODEVICE_LAN | MACHINE_SUPPORTS_SAVE ) // usually an 'xx1' set would be Japan, but this shows neither a warning nor Japanese text, verify on hardware

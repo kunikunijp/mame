@@ -36,8 +36,7 @@ shade pixels according to their depth.
 
 TODO:
 - polygon glitches/flicker
-- posirq effects for bitmap layer not working, eg. winrungp titlescreen should be a checkerboard pattern
-- is there a video_enable flag?
+- is there a video_enable flag? or at least one for the bitmap layer
 - car engine sound is wrong
 
 reference videos:
@@ -271,10 +270,10 @@ Filter Board
 #include "emu.h"
 
 #include "namco65.h"
-#include "namcos21_dsp.h"
 #include "namco_c139.h"
 #include "namco_c148.h"
 #include "namcos21_3d.h"
+#include "namcos21_dsp.h"
 
 #include "cpu/m68000/m68000.h"
 #include "cpu/m6805/m6805.h"
@@ -291,8 +290,6 @@ Filter Board
 
 
 namespace {
-
-#define ENABLE_LOGGING      0
 
 class namcos21_state : public driver_device
 {
@@ -317,7 +314,6 @@ public:
 		m_namcos21_dsp(*this, "namcos21dsp")
 	{ }
 
-	void configure_c148_standard(machine_config &config);
 	void winrun(machine_config &config);
 
 protected:
@@ -390,7 +386,7 @@ private:
 
 void namcos21_state::video_start()
 {
-	m_gpu_videoram = std::make_unique<uint8_t[]>(0x80000);
+	m_gpu_videoram = make_unique_clear<uint8_t[]>(0x80000);
 	save_pointer(NAME(m_gpu_videoram), 0x80000);
 }
 
@@ -401,7 +397,7 @@ uint16_t namcos21_state::gpu_color_r()
 
 void namcos21_state::gpu_color_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-	COMBINE_DATA( &m_gpu_color );
+	COMBINE_DATA(&m_gpu_color);
 }
 
 uint16_t namcos21_state::gpu_register_r(offs_t offset)
@@ -412,7 +408,7 @@ uint16_t namcos21_state::gpu_register_r(offs_t offset)
 void namcos21_state::gpu_register_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
 	m_screen->update_partial(m_screen->vpos());
-	COMBINE_DATA( &m_gpu_register[offset] );
+	COMBINE_DATA(&m_gpu_register[offset]);
 }
 
 void namcos21_state::gpu_videoram_w(offs_t offset, uint16_t data)
@@ -434,37 +430,43 @@ uint16_t namcos21_state::gpu_videoram_r(offs_t offset)
 
 void namcos21_state::bitmap_draw(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	uint8_t const *const videoram = m_gpu_videoram.get();
-	//printf("%d %d (%d %d) - %04x %04x %04x|%04x %04x\n",cliprect.top(),cliprect.bottom(),m_screen->vpos(),m_gpu_intc->get_posirq_line(),m_gpu_register[0],m_gpu_register[2/2],m_gpu_register[4/2],m_gpu_register[0xa/2],m_gpu_register[0xc/2]);
+	// show gpu registers & related
+#if 0
+	printf("%3d %3d (%3d %3d) - ", cliprect.top(), cliprect.bottom(), m_screen->vpos(), m_gpu_intc->get_posirq_line());
+	for (int i = 0; i < 8; i++)
+		printf("%04x ", m_gpu_register[i]);
+	printf("| %04x\n", m_gpu_color);
+#endif
 
-	int const yscroll = -cliprect.top()+(int16_t)m_gpu_register[0x2/2];
-	int const xscroll = 0;//m_gpu_register[0xc/2] >> 7;
-	int const base = 0x1000+0x100*(m_gpu_color&0xf);
-	for( int sy=cliprect.top(); sy<=cliprect.bottom(); sy++ )
+	int const yscroll = -cliprect.top() + (int16_t)m_gpu_register[1];
+	int const xscroll = m_gpu_register[0] & 0xff;
+	int const base = 0x1000 | (m_gpu_color << 8 & 0xf00);
+
+	for (int sy = cliprect.top(); sy <= cliprect.bottom(); sy++)
 	{
-		uint8_t const *const pSource = &videoram[((yscroll+sy)&0x3ff)*0x200];
+		uint8_t const *const pSource = &m_gpu_videoram[((yscroll + sy) & 0x3ff) * 0x200];
 		uint16_t *const pDest = &bitmap.pix(sy);
-		for( int sx=cliprect.left(); sx<=cliprect.right(); sx++ )
+		for (int sx = cliprect.left(); sx <= cliprect.right(); sx++)
 		{
-			int const pen = pSource[(sx+xscroll) & 0x1ff];
-			switch( pen )
+			int const pen = pSource[(sx + xscroll) & 0x1ff];
+			switch (pen)
 			{
 			case 0xff:
 				break;
 
 			// NOTE: very similar to namcos21_c67_state::sprite_mix_callback
 			case 0x00:
-				if ((pDest[sx] & 0xff) != 0xff)
+				if (pDest[sx] != (base ^ 0x10ff))
 					pDest[sx] = 0x4000 | (pDest[sx] & 0x1fff);
 				else
-					pDest[sx] = (base & 0xf00) | 0;
+					pDest[sx] = (base & 0xf00) | 0x00;
 				break;
 
 			case 0x01:
-				if ((pDest[sx] & 0xff) != 0xff)
+				if (pDest[sx] != (base ^ 0x10ff))
 					pDest[sx] = 0x6000 | (pDest[sx] & 0x1fff);
 				else
-					pDest[sx] = (base & 0xf00) | 1;
+					pDest[sx] = (base & 0xf00) | 0x01;
 				break;
 
 			default:
@@ -495,13 +497,10 @@ uint32_t namcos21_state::screen_update(screen_device &screen, bitmap_ind16 &bitm
 			break;
 		case 2: // gameplay
 		default:
-			m_namcos21_3d->copy_visible_poly_framebuffer(bitmap, cliprect, 0x7fc0, 0x7ffe);
-			m_namcos21_3d->copy_visible_poly_framebuffer(bitmap, cliprect, 0, 0x7fbf);
+			m_namcos21_3d->copy_visible_poly_framebuffer(bitmap, cliprect, 0, 0x7ffe);
 			bitmap_draw(bitmap,cliprect);
 			break;
 	}
-
-	//popmessage("%04x %04x %04x|%04x %04x",m_gpu_register[0],m_gpu_register[2/2],m_gpu_register[4/2],m_gpu_register[0xa/2],m_gpu_register[0xc/2]);
 
 	return 0;
 }
@@ -509,7 +508,7 @@ uint32_t namcos21_state::screen_update(screen_device &screen, bitmap_ind16 &bitm
 
 /***********************************************************/
 
-/* dual port ram memory handlers */
+// dual port ram memory handlers
 
 uint16_t namcos21_state::dpram_word_r(offs_t offset)
 {
@@ -518,10 +517,8 @@ uint16_t namcos21_state::dpram_word_r(offs_t offset)
 
 void namcos21_state::dpram_word_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-	if( ACCESSING_BITS_0_7 )
-	{
-		m_dpram[offset] = data&0xff;
-	}
+	if (ACCESSING_BITS_0_7)
+		m_dpram[offset] = data & 0xff;
 }
 
 uint8_t namcos21_state::dpram_byte_r(offs_t offset)
@@ -539,13 +536,13 @@ void namcos21_state::dpram_byte_w(offs_t offset, uint8_t data)
 void namcos21_state::master_map(address_map &map)
 {
 	map(0x000000, 0x03ffff).rom();
-	map(0x100000, 0x10ffff).ram(); /* work RAM */
+	map(0x100000, 0x10ffff).ram(); // work RAM
 	map(0x180000, 0x183fff).rw(FUNC(namcos21_state::eeprom_r), FUNC(namcos21_state::eeprom_w)).umask16(0x00ff);
 	map(0x1c0000, 0x1fffff).m(m_master_intc, FUNC(namco_c148_device::map));
 
 	// DSP Related
 	map(0x250000, 0x25ffff).ram().share("namcos21dsp:winrun_polydata");
-	map(0x260000, 0x26ffff).ram(); /* unused? */
+	map(0x260000, 0x26ffff).ram(); // unused?
 	map(0x280000, 0x281fff).w(m_namcos21_dsp, FUNC(namcos21_dsp_device::winrun_dspbios_w));
 	map(0x380000, 0x38000f).rw(m_namcos21_dsp, FUNC(namcos21_dsp_device::winrun_dspcomram_control_r), FUNC(namcos21_dsp_device::winrun_dspcomram_control_w));
 	map(0x3c0000, 0x3c1fff).rw(m_namcos21_dsp, FUNC(namcos21_dsp_device::winrun_68k_dspcomram_r), FUNC(namcos21_dsp_device::winrun_68k_dspcomram_w));
@@ -577,8 +574,8 @@ void namcos21_state::slave_map(address_map &map)
 void namcos21_state::gpu_map(address_map &map)
 {
 	map(0x000000, 0x07ffff).rom();
-	map(0x100000, 0x100001).rw(FUNC(namcos21_state::gpu_color_r), FUNC(namcos21_state::gpu_color_w)); /* ? */
-	map(0x180000, 0x19ffff).ram(); /* work RAM */
+	map(0x100000, 0x100001).rw(FUNC(namcos21_state::gpu_color_r), FUNC(namcos21_state::gpu_color_w)); // ?
+	map(0x180000, 0x19ffff).ram(); // work RAM
 	map(0x1c0000, 0x1fffff).m(m_gpu_intc, FUNC(namco_c148_device::map));
 	map(0x200000, 0x20ffff).ram().share("gpu_comram");
 	map(0x400000, 0x40ffff).ram().w(m_palette, FUNC(palette_device::write16)).share("palette");
@@ -596,17 +593,17 @@ void namcos21_state::gpu_map(address_map &map)
 
 void namcos21_state::sound_map(address_map &map)
 {
-	map(0x0000, 0x3fff).bankr("audiobank"); /* banked */
-	map(0x3000, 0x3003).nopw(); /* ? */
+	map(0x0000, 0x3fff).bankr("audiobank"); // banked
+	map(0x3000, 0x3003).nopw(); // ?
 	map(0x4000, 0x4001).rw("ymsnd", FUNC(ym2151_device::read), FUNC(ym2151_device::write));
 	map(0x5000, 0x51ff).mirror(0x0e00).rw(m_c140, FUNC(c140_device::c140_r), FUNC(c140_device::c140_w));
 	map(0x6000, 0x61ff).mirror(0x0e00).rw(m_c140, FUNC(c140_device::c140_r), FUNC(c140_device::c140_w)); // mirrored
 	map(0x7000, 0x77ff).mirror(0x0800).rw(FUNC(namcos21_state::dpram_byte_r), FUNC(namcos21_state::dpram_byte_w)).share("dpram");
 	map(0x8000, 0x9fff).ram();
-	map(0xa000, 0xbfff).nopw(); /* amplifier enable on 1st write */
-	map(0xc000, 0xffff).nopw(); /* avoid debug log noise; games write frequently to 0xe000 */
+	map(0xa000, 0xbfff).nopw(); // amplifier enable on 1st write
+	map(0xc000, 0xffff).nopw(); // avoid debug log noise; games write frequently to 0xe000
 	map(0xc000, 0xc001).w(FUNC(namcos21_state::sound_bankselect_w));
-	map(0xd001, 0xd001).nopw(); /* watchdog */
+	map(0xd001, 0xd001).nopw(); // watchdog
 	map(0xd000, 0xffff).rom().region("audiocpu", 0x01000);
 }
 
@@ -671,7 +668,7 @@ static INPUT_PORTS_START( winrun )
 	PORT_START("AN1")      /* 63B05Z0 - 8 CHANNEL ANALOG - CHANNEL 1 */
 	PORT_BIT( 0xff, 0x00, IPT_PEDAL ) PORT_MINMAX(0x00,0x3f) PORT_SENSITIVITY(15) PORT_KEYDELTA(10) PORT_NAME("Gas Pedal")
 	PORT_START("AN2")      /* 63B05Z0 - 8 CHANNEL ANALOG - CHANNEL 2 */
-	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_MINMAX(0x00,0xff) PORT_SENSITIVITY(25) PORT_KEYDELTA(10) PORT_NAME("Steering Wheel")
+	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_MINMAX(0x00,0xff) PORT_SENSITIVITY(20) PORT_KEYDELTA(10) PORT_NAME("Steering Wheel")
 	PORT_START("AN3")      /* 63B05Z0 - 8 CHANNEL ANALOG - CHANNEL 3 */
 	PORT_BIT( 0xff, 0x00, IPT_PEDAL2 ) PORT_MINMAX(0x00,0x3f) PORT_SENSITIVITY(15) PORT_KEYDELTA(10) PORT_NAME("Brake Pedal")
 	PORT_START("AN4")      /* 63B05Z0 - 8 CHANNEL ANALOG - CHANNEL 4 */
@@ -737,20 +734,19 @@ INPUT_PORTS_END
 
 void namcos21_state::sound_bankselect_w(uint8_t data)
 {
-	m_audiobank->set_entry(data>>4);
+	m_audiobank->set_entry(data >> 4);
 }
 
 void namcos21_state::sound_reset_w(uint8_t data)
 {
 	if (data & 0x01)
 	{
-		/* Resume execution */
+		// Resume execution
 		m_audiocpu->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
-		m_maincpu->yield();
 	}
 	else
 	{
-		/* Suspend execution */
+		// Suspend execution
 		m_audiocpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 	}
 }
@@ -758,9 +754,6 @@ void namcos21_state::sound_reset_w(uint8_t data)
 void namcos21_state::system_reset_w(uint8_t data)
 {
 	reset_all_subcpus(data & 1 ? CLEAR_LINE : ASSERT_LINE);
-
-	if (data & 0x01)
-		m_maincpu->yield();
 }
 
 void namcos21_state::reset_all_subcpus(int state)
@@ -781,12 +774,12 @@ uint8_t namcos21_state::eeprom_r(offs_t offset)
 
 void namcos21_state::machine_reset()
 {
-	/* Initialise the bank select in the sound CPU */
-	m_audiobank->set_entry(0); /* Page in bank 0 */
+	// Initialise the bank select in the sound CPU
+	m_audiobank->set_entry(0); // Page in bank 0
 
 	m_audiocpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE );
 
-	/* Place CPU2 & CPU3 into the reset condition */
+	// Place CPU2 & CPU3 into the reset condition
 	reset_all_subcpus(ASSERT_LINE);
 }
 
@@ -809,7 +802,6 @@ void namcos21_state::machine_start()
 TIMER_DEVICE_CALLBACK_MEMBER(namcos21_state::screen_scanline)
 {
 	int scanline = param;
-	//  int cur_posirq = get_posirq_scanline()*2;
 
 	if (scanline == 240 * 2)
 	{
@@ -823,27 +815,16 @@ TIMER_DEVICE_CALLBACK_MEMBER(namcos21_state::screen_scanline)
 		m_gpu_intc->pos_irq_trigger();
 }
 
-void namcos21_state::configure_c148_standard(machine_config &config)
-{
-	NAMCO_C148(config, m_master_intc, 0, m_maincpu, true);
-	m_master_intc->link_c148_device(m_slave_intc);
-	m_master_intc->out_ext1_callback().set(FUNC(namcos21_state::sound_reset_w));
-	m_master_intc->out_ext2_callback().set(FUNC(namcos21_state::system_reset_w));
-
-	NAMCO_C148(config, m_slave_intc, 0, m_slave, false);
-	m_slave_intc->link_c148_device(m_master_intc);
-}
-
 void namcos21_state::winrun(machine_config &config)
 {
-	M68000(config, m_maincpu, 49.152_MHz_XTAL / 4); /* Master */
+	M68000(config, m_maincpu, 49.152_MHz_XTAL / 4); // Master
 	m_maincpu->set_addrmap(AS_PROGRAM, &namcos21_state::master_map);
 	TIMER(config, "scantimer").configure_scanline(FUNC(namcos21_state::screen_scanline), "screen", 0, 1);
 
-	M68000(config, m_slave, 49.152_MHz_XTAL / 4); /* Slave */
+	M68000(config, m_slave, 49.152_MHz_XTAL / 4); // Slave
 	m_slave->set_addrmap(AS_PROGRAM, &namcos21_state::slave_map);
 
-	MC6809E(config, m_audiocpu, 49.152_MHz_XTAL / 24); /* Sound */
+	MC6809E(config, m_audiocpu, 49.152_MHz_XTAL / 24); // Sound
 	m_audiocpu->set_addrmap(AS_PROGRAM, &namcos21_state::sound_map);
 	m_audiocpu->set_periodic_int(FUNC(namcos21_state::irq0_line_hold), attotime::from_hz(2*60));
 
@@ -852,14 +833,21 @@ void namcos21_state::winrun(machine_config &config)
 	NAMCOS21_DSP(config, m_namcos21_dsp, 0);
 	m_namcos21_dsp->set_renderer_tag("namcos21_3d");
 
-	m68000_device &gpu(M68000(config, "gpu", 49.152_MHz_XTAL / 4)); /* graphics coprocessor */
+	m68000_device &gpu(M68000(config, "gpu", 49.152_MHz_XTAL / 4)); // graphics coprocessor
 	gpu.set_addrmap(AS_PROGRAM, &namcos21_state::gpu_map);
 
-	configure_c148_standard(config);
+	NAMCO_C148(config, m_master_intc, 0, m_maincpu, true);
+	m_master_intc->link_c148_device(m_slave_intc);
+	m_master_intc->out_ext1_callback().set(FUNC(namcos21_state::sound_reset_w));
+	m_master_intc->out_ext2_callback().set(FUNC(namcos21_state::system_reset_w));
+
+	NAMCO_C148(config, m_slave_intc, 0, m_slave, false);
+	m_slave_intc->link_c148_device(m_master_intc);
+
 	NAMCO_C148(config, m_gpu_intc, 0, "gpu", false);
 	NAMCO_C139(config, m_sci, 0);
 
-	config.set_maximum_quantum(attotime::from_hz(6000)); /* 100 CPU slices per frame */
+	config.set_maximum_quantum(attotime::from_hz(6000)); // 100 CPU slices per frame
 
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_1);
 
@@ -1055,8 +1043,8 @@ ROM_END
 
 /*    YEAR  NAME       PARENT    MACHINE   INPUT       CLASS           INIT          MONITOR  COMPANY  FULLNAME                                                           FLAGS */
 
-GAME( 1988, winrun,    0,        winrun,   winrun,     namcos21_state, empty_init,   ROT0,    "Namco", "Winning Run (World) (89/06/06, Ver.09)",                          MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND ) // Sub Ver.09, 1989, Graphic Ver .06, 89/01/14, Sound Ver.2.00
-GAME( 1989, winrungp,  0,        winrun,   winrungp,   namcos21_state, empty_init,   ROT0,    "Namco", "Winning Run Suzuka Grand Prix (Japan) (89/12/03, Ver.02)",        MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND | MACHINE_NODEVICE_LAN ) // Sub Ver.02, 1989, Graphic Ver.02 89/12/03, Sound Ver.0000
+GAME( 1988, winrun,    0,        winrun,   winrun,     namcos21_state, empty_init,   ROT0,    "Namco", "Winning Run (World) (89/06/06, Ver.09)",                          MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE ) // Sub Ver.09, 1989, Graphic Ver .06, 89/01/14, Sound Ver.2.00
+GAME( 1989, winrungp,  0,        winrun,   winrungp,   namcos21_state, empty_init,   ROT0,    "Namco", "Winning Run Suzuka Grand Prix (Japan) (89/12/03, Ver.02)",        MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND | MACHINE_NODEVICE_LAN | MACHINE_SUPPORTS_SAVE ) // Sub Ver.02, 1989, Graphic Ver.02 89/12/03, Sound Ver.0000
 
 // Available on a size/cost reduced 2 PCB set with 'Namco System 21B' printed on each board, still C65 I/O MCU, appears to be functionally identical to original NS21
-GAME( 1991, winrun91,  0,        winrun,   winrungp,   namcos21_state, empty_init,   ROT0,    "Namco", "Winning Run '91 (Japan) (1991/03/05, Main Ver 1.0, Sub Ver 1.0)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND | MACHINE_NODEVICE_LAN )
+GAME( 1991, winrun91,  0,        winrun,   winrungp,   namcos21_state, empty_init,   ROT0,    "Namco", "Winning Run '91 (Japan) (1991/03/05, Main Ver 1.0, Sub Ver 1.0)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND | MACHINE_NODEVICE_LAN | MACHINE_SUPPORTS_SAVE )
