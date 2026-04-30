@@ -9,6 +9,7 @@
 #include "machine/gen_latch.h"
 #include "machine/watchdog.h"
 #include "sound/namco.h"
+
 #include "emupal.h"
 #include "screen.h"
 #include "tilemap.h"
@@ -38,6 +39,7 @@ public:
 		, m_gfxdecode(*this, "gfxdecode")
 		, m_palette(*this, "palette")
 		, m_screen(*this, "screen")
+		, m_dsw(*this, "DSW%u", 1)
 	{ }
 
 protected:
@@ -52,7 +54,6 @@ protected:
 	void dremshpr_portmap(address_map &map) ATTR_COLD;
 	void drivfrcp_portmap(address_map &map) ATTR_COLD;
 	void mspacii_portmap(address_map &map) ATTR_COLD;
-	void crush4_map(address_map &map) ATTR_COLD;
 	void mspacman_map(address_map &map) ATTR_COLD;
 	void nmouse_portmap(address_map &map) ATTR_COLD;
 	void numcrash_map(address_map &map) ATTR_COLD;
@@ -82,6 +83,7 @@ protected:
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<palette_device> m_palette;
 	required_device<screen_device> m_screen;
+	optional_ioport_array<2> m_dsw;
 
 	uint8_t m_cannonb_bit_to_read = 0;
 	uint8_t m_counter = 0;
@@ -183,7 +185,6 @@ protected:
 	void pacman_rbg_palette(palette_device &palette) const;
 	DECLARE_VIDEO_START(birdiy);
 	DECLARE_VIDEO_START(s2650games);
-	DECLARE_MACHINE_RESET(crush4);
 	DECLARE_MACHINE_RESET(superabc);
 	DECLARE_MACHINE_RESET(maketrax);
 	DECLARE_VIDEO_START(pengo);
@@ -220,7 +221,7 @@ public:
 	void crush4(machine_config &config);
 	void bigbucks(machine_config &config);
 	void porky(machine_config &config);
-	void pacman(machine_config &config, bool latch = true);
+	void pacman(machine_config &config);
 	void _8bpm(machine_config &config);
 	void crush2(machine_config &config);
 	void korosuke(machine_config &config);
@@ -348,15 +349,13 @@ class mschamp_state : public pacman_state
 public:
 	mschamp_state(const machine_config &mconfig, device_type type, const char *tag)
 		: pacman_state(mconfig, type, tag)
-		, m_timer(*this, "TIMER")
 	{ }
 
 	void mschamp(machine_config &config);
 
-	void init_mschamp();
-
 protected:
-	DECLARE_MACHINE_RESET(mschamp);
+	virtual void machine_start() override ATTR_COLD;
+	virtual void machine_reset() override ATTR_COLD;
 
 	void mschamp_map(address_map &map) ATTR_COLD;
 	void mschamp_portmap(address_map &map) ATTR_COLD;
@@ -365,9 +364,7 @@ private:
 	uint8_t mux_r();
 	void mux_w(offs_t offset, uint8_t data);
 
-	required_ioport m_timer;
-
-	uint8_t m_mux = 0;
+	uint8_t m_mux = 1;
 	uint8_t m_mux_data = 0xff;
 };
 
