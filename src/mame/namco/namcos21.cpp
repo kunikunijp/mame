@@ -31,13 +31,14 @@ a stream of quad descriptors.
 
 Each quad has a reference color (shared across vertices), and for each vertex the tuple: (screenx,screeny,z-code).
 The z-code scalar accounts for depth bias.  Quads are sorted by z-code before rendering quads, and depth cueing
-is used to shade pixels according to their depth.
+is used to shade quads according to their depth.
 
 -------------------
 
 TODO:
 - polygon glitches/flicker
 - is there a video_enable flag? or at least one for the bitmap layer (see screen transitions)
+- verify video timing, PCB videos do suggest exactly 60Hz
 - winrungp: some missing bitmap layer gfx due to underdumps of the gpu program roms (see attract mode
   when it's supposed to show "TRIANGLE" curve text, and the congratulations screen after winning)
 
@@ -827,10 +828,13 @@ void namcos21_state::winrun(machine_config &config)
 	M68000(config, m_slave, 49.152_MHz_XTAL / 4); // Slave
 	m_slave->set_addrmap(AS_PROGRAM, &namcos21_state::slave_map);
 
+	M68000(config, m_gpu, 49.152_MHz_XTAL / 4); // Graphics coprocessor
+	m_gpu->set_addrmap(AS_PROGRAM, &namcos21_state::gpu_map);
+
 	MC6809E(config, m_audiocpu, 49.152_MHz_XTAL / 24); // Sound
 	m_audiocpu->set_addrmap(AS_PROGRAM, &namcos21_state::sound_map);
 
-	NAMCOC65(config, m_c65, 2048000);
+	NAMCOC65(config, m_c65, 49.152_MHz_XTAL / 24);
 	m_c65->in_pb_callback().set_ioport("MCUB");
 	m_c65->in_pc_callback().set_ioport("MCUC");
 	m_c65->in_ph_callback().set_ioport("MCUH");
@@ -853,9 +857,6 @@ void namcos21_state::winrun(machine_config &config)
 	NAMCOS21_DSP(config, m_namcos21_dsp, 0);
 	m_namcos21_dsp->set_renderer_tag("namcos21_3d");
 
-	M68000(config, m_gpu, 49.152_MHz_XTAL / 4); // graphics coprocessor
-	m_gpu->set_addrmap(AS_PROGRAM, &namcos21_state::gpu_map);
-
 	NAMCO_C148(config, m_master_intc, 0, m_maincpu, true);
 	m_master_intc->link_c148_device(m_slave_intc);
 	m_master_intc->out_ext1_callback().set(FUNC(namcos21_state::sound_reset_w));
@@ -873,8 +874,7 @@ void namcos21_state::winrun(machine_config &config)
 
 	// video hardware
 	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
-	// TODO: basic parameters to get 60.606060 Hz, x2 is for interlace
-	m_screen->set_raw(49.152_MHz_XTAL / 4 * 2, 768, 0, 496, 264*2, 0, 480);
+	m_screen->set_raw(38.808_MHz_XTAL / 4 * 2, 616, 0, 496, 262 + 263, 0, 480); // x2 is for interlace
 	m_screen->set_screen_update(FUNC(namcos21_state::screen_update));
 	m_screen->set_palette(m_palette);
 
