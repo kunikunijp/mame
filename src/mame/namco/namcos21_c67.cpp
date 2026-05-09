@@ -7,11 +7,8 @@ Namco System 21 (later hardware with 5 TMS320C25 DSPs)
 TODO:
 - lamp/vibration outputs, from MCU? (particularly starblad);
 - verify video timing, it's assumed to be the same as namcos21 with a different XTAL;
-- mix_layer0_sprites can be improved when namcos21_3d_device removes the z-buffer, there are currently
-  glitches in cybsled, eg. missile pickups behind pillars;
+- mix_layer0_sprites can be improved, there are currently glitches in cybsled, eg. items behind pillars;
 - wrong global sprite layer offsets in service mode for all games except aircomb, it's fine in-game though;
-- aircomb: z-fighting issue on attract mode with the plane renders (after the first title screen),
-  and on pilot parachuting with a time over;
 - aircomb: missing background on attract mode ranking screen (masking? cfr. shared/namco_c355spr.cpp);
 - aircomb: bad sprite colors on debriefing medal screen;
 - aircomb: may show glitches when pressing start at the intro sequence, it forgot to turn off video_enable?
