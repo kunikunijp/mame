@@ -19630,6 +19630,48 @@ taturtf
 @source:handheld/generalplus_gpel31xx.cpp
 tamameet
 
+@source:handheld/generalplus_gpl162xx_lcdtype.cpp
+pcp8718
+pcp8728
+bkid218
+
+@source:handheld/generalplus_gpl951xx.cpp
+fixitflx
+bfdigdug
+bfgalaga
+bfmpac
+bfpacman
+bfspyhnt
+bftetris
+bubltea
+dsgnpal
+flufflav
+pockrmsr
+pokebala
+pokeissh
+pokemech
+pokgoget
+punifrnd
+punij1m
+punij1pk
+punij1pu
+punij2pk
+punirune
+punirunea
+punistar
+segapet1
+segapet1a
+segapet2
+segapet2a
+segapet3
+segapet3a
+segaptdx
+smkcatch
+smkgacha
+smkguras
+smkgurasa
+wiwcs
+
 @source:handheld/gmaster.cpp
 gmaster
 
@@ -25270,6 +25312,7 @@ konzero
 luckfoun
 mohicans
 monshow
+rapfire5
 romanl
 safemon
 safemonn
@@ -25277,7 +25320,6 @@ showqn
 spiceup
 sultanw
 whiterus
-rapfire5
 
 @source:konami/kongs470.cpp
 tdbingo
@@ -36012,6 +36054,7 @@ dnce2000
 nytsudo
 papsudok
 pjoypj001
+popstar
 pv95in1
 racechl8
 vtvppong
@@ -36109,6 +36152,8 @@ vt25in1
 vtboxing
 vtpinball
 vtsndtest
+vjtv2500
+vjtv2501
 wldsoctv
 zdog
 zudugo
@@ -36272,6 +36317,7 @@ tup240
 unk128vt
 unk198vt
 unkra200
+urban240
 vibes240
 vibes240a
 zl383
@@ -43832,6 +43878,9 @@ am1000
 burningr
 creepyrl
 
+@source:skeleton/amlogic_aml7212.cpp
+popstarz
+
 @source:skeleton/amusement_6502.cpp
 unkamus
 
@@ -44288,11 +44337,13 @@ kron180
 
 
 @source:skeleton/lanmao.cpp
+gongfuxm
 lanmao
 msaiche
 panda2
 pkzw
 tzwang
+xqingwa
 whujiang
 whujijqb
 
@@ -44637,6 +44688,7 @@ luckyvl
 
 @source:skeleton/tamagotchi_pix.cpp
 precur2w
+rotom800
 tamapix
 
 @source:skeleton/tavernie.cpp
@@ -47724,47 +47776,7 @@ pokegach
 prailpls
 starbuck
 vmastspi
-
-@source:tvgames/generalplus_gpl951xx.cpp
-fixitflx
-bfdigdug
-bfgalaga
-bfmpac
-bfpacman
-bfspyhnt
-bftetris
-bubltea
-dsgnpal
-flufflav
-pockrmsr
-pokebala
-pokeissh
-pokemech
-pokgoget
-punifrnd
-punij1m
-punij1pk
-punij1pu
-punij2pk
-punirune
-punistar
-segapet1
-segapet1a
-segapet2
-segapet2a
-segapet3
-segapet3a
-segaptdx
-smkcatch
-smkgacha
-smkguras
-smkgurasa
-wiwcs
-
-@source:tvgames/generalplus_gpl162xx_lcdtype.cpp
-pcp8718
-pcp8728
-bkid218
+wildking
 
 @source:tvgames/generalplus_gpl32612.cpp
 airobo
@@ -47793,6 +47805,7 @@ jak_ddhp
 jak_prhp
 jak_swbstrik
 jak_tmnthp
+jpad
 jpaddp
 kidizmb
 kidizmp
