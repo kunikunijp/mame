@@ -21032,6 +21032,7 @@ moonlght
 moonlghta
 moonlghtb
 moonlghtc
+mtonic
 mtonic2
 nc96
 nc96a
@@ -25669,6 +25670,7 @@ citybombj
 gradius
 gradiusb
 gwarrior
+gwarriorb
 hcrash
 hcrashc
 kittenk
@@ -25679,6 +25681,7 @@ nemesis
 nemesisuk
 nyanpani
 rf2
+rf2b
 salamand
 salamandj
 salamandt
@@ -36104,6 +36107,7 @@ dgun2959
 dgun851
 dgun853
 fccomp88
+gamekid
 gamezn2
 hs36blk
 hs36red
@@ -44339,6 +44343,8 @@ kron180
 @source:skeleton/lanmao.cpp
 gongfuxm
 lanmao
+ljian
+lzhudie
 msaiche
 panda2
 pkzw
@@ -44811,6 +44817,11 @@ hongmxy
 
 @source:skeleton/xor100.cpp
 xor100
+
+@source:skeleton/yeno_ks56c1660.cpp
+ckidpers
+intelct2
+misterx2
 
 @source:skeleton/zeebo_qualcomm_adreno130.cpp
 zeebo
