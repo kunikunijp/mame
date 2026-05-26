@@ -16813,6 +16813,9 @@ ctk551
 ctk601
 gz70sp
 
+@source:casio/ctrc1.cpp
+ctrc1
+
 @source:casio/cz1.cpp
 cz1
 mz1
@@ -21406,6 +21409,7 @@ jkrmast
 jkrmasta
 jkrmastb
 jkrmastc
+jkrmastd
 jpknight
 kkotnoli
 ladylinr
@@ -42303,6 +42307,7 @@ verbena
 wantsega
 
 @source:sega/winclub.cpp
+wcwroses
 wwmspot
 
 @source:sega/y2.cpp
