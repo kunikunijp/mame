@@ -22780,6 +22780,7 @@ entrada
 
 @source:intel/i430lx.cpp
 ga586ip
+sy029c2
 
 @source:intel/imds2.cpp
 imds2
@@ -35854,6 +35855,7 @@ armwrest
 punchita
 punchout
 punchouta
+punchoutah
 punchoutj
 spnchout
 spnchouta
@@ -46605,6 +46607,7 @@ raiga
 raigaa
 ryukendn
 ryukendna
+ryukendnb
 shadoww
 shadowwa
 stratof
