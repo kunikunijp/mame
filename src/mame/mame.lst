@@ -35617,6 +35617,7 @@ cybar120
 dturbogt
 gujtv108
 joypad65
+lxplasma
 mc_dcat8
 mc_dcat8a
 msiwwe
@@ -45713,6 +45714,9 @@ pitnrunb
 @source:taito/pkspirit.cpp
 pkspirit
 shun
+
+@source:taito/pres2k.cpp
+pres2k
 
 @source:taito/qix.cpp
 complexx
