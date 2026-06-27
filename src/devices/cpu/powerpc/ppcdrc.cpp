@@ -330,7 +330,7 @@ void ppc_device::code_compile_block(uint8_t mode, offs_t pc)
 	auto profile = g_profiler.start(PROFILER_DRC_COMPILE);
 
 	// get a description of this sequence
-	desclist = m_drcfe->describe_code(pc);
+	desclist = m_drcfe->describe_code(pc, (mode & MODE_LITTLE_ENDIAN) != 0);
 	if (m_drcuml->logging() || m_drcuml->logging_native())
 		log_opcode_desc(desclist, 0);
 
@@ -2319,6 +2319,16 @@ void ppc_device::generate_branch_bo(drcuml_block &block, compiler_state *compile
 	}
 	generate_branch(block, compiler, desc, source, link);                              // <branch>
 	UML_LABEL(block, skip);                                                             // skip:
+
+	// xxxL variants must update LR even if the branch is not taken.
+	// Mac OS 9 boot loader:
+	// 00120014: beql      0x00120310
+	// 00120018: mfspr     r9,lr                ; LR is 0 on entry
+	// 0012001C: addi      r9,r9,-0x0018        ; ...and must be 0x120000 after this or a nanokernel panic occurs
+	if (link)
+	{
+		UML_MOV(block, SPR32(SPR_LR), desc->pc + 4);                                    // mov     [lr],desc->pc + 4
+	}
 }
 
 
