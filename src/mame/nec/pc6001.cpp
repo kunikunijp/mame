@@ -124,8 +124,9 @@ irq vector 0x26:                                                                
 
 #define LOG_IRQ    (1U << 1)
 
-//#define VERBOSE (LOG_IRQ)
 #define VERBOSE (0)
+//#define LOG_OUTPUT_FUNC osd_printf_info
+
 #include "logmacro.h"
 
 #define LOGIRQ(...)     LOGMASKED(LOG_IRQ, __VA_ARGS__)
@@ -242,11 +243,13 @@ uint8_t pc6001_state::joystick_r()
 	uint8_t data = m_joymux->output_r();
 
 	// FIXME: bits 6 and 7 are supposed to be nHSYNC and nVSYNC
-	if (m_screen->hblank())
+	// mk2SR vrtc irq expects VSYNC bit to be high (at line 240 essentially),
+	// otherwise it refuses to clear the $e6bb blank buffer.
+	if (!m_screen->hblank())
 		data &= 0xbf;
 	else
 		data |= 0x40;
-	if (m_screen->vblank())
+	if (!m_screen->vblank())
 		data &= 0x7f;
 	else
 		data |= 0x80;
@@ -1062,7 +1065,14 @@ void pc6001mk2sr_state::pc6001mk2sr_io(address_map &map)
 {
 	map.unmap_value_high();
 	map.global_mask(0xff);
-	map(0x40, 0x43).nopw(); // palette CLUTs
+	map(0x40, 0x43).lw8(NAME([this] (offs_t offset, u8 data) {
+		// CLUT used by text mode for N66SR BASIC (default [0~3]) vs.
+		// "PC-6*01 World" (sets [0x0, 0xd, 0xa, 0xc]) screens.
+		// Use pc6601sr for both.
+		const u8 clut_entry = bitswap<4>(0xf - offset, 3, 0, 2, 1);
+		const u8 color_entry = bitswap<4>(0xf - (data & 0xf), 3, 0, 2, 1);
+		m_sr_clut[clut_entry] = color_entry;
+	}));
 	map(0x60, 0x6f).rw(FUNC(pc6001mk2sr_state::sr_bank_reg_r), FUNC(pc6001mk2sr_state::sr_bank_reg_w));
 
 	map(0x80, 0x81).rw("uart", FUNC(i8251_device::read), FUNC(i8251_device::write));
@@ -1633,6 +1643,7 @@ void pc6001mk2_state::machine_reset()
 		m_bgcol_bank = 0;
 	}
 
+	m_timer_irq_mask = false;
 //  refresh_crtc_params();
 }
 
@@ -1688,6 +1699,9 @@ void pc6001mk2sr_state::machine_reset()
 		}
 //      m_gfx_bank_on = 0;
 	}
+
+	// jewels and satan (at least) definitely expects timer irq implicitly enabled
+	m_timer_irq_mask = false;
 }
 
 
@@ -1740,8 +1754,10 @@ void pc6001_state::pc6001(machine_config &config)
 	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
 	m_screen->set_refresh_hz(60);
 	m_screen->set_screen_update(FUNC(pc6001_state::screen_update));
+	// FIXME: actual parameters, particularly for later iterations
 	m_screen->set_size(320, 25+192+26);
 	m_screen->set_visarea(0, 319, 0, 239);
+	m_screen->set_vblank_time(ATTOSECONDS_IN_USEC(2500));
 	m_screen->set_palette(m_palette);
 
 	PALETTE(config, m_palette, FUNC(pc6001_state::pc6001_palette), 16+4);
