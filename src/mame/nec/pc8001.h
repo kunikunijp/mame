@@ -10,6 +10,7 @@
 #include "cpu/z80/z80.h"
 #include "imagedev/cassette.h"
 #include "imagedev/snapquik.h"
+#include "machine/bankdev.h"
 #include "machine/buffer.h"
 #include "machine/i8251.h"
 #include "machine/i8255.h"
@@ -17,7 +18,10 @@
 #include "machine/ram.h"
 #include "machine/upd1990a.h"
 #include "sound/beep.h"
+#include "sound/ymopn.h"
 #include "video/upd3301.h"
+
+#include "pc88_alu.h"
 
 #include "emupal.h"
 #include "screen.h"
@@ -101,6 +105,7 @@ public:
 		, m_beep(*this, "beeper")
 		, m_ram(*this, RAM_TAG)
 		, m_rom(*this, Z80_TAG)
+		, m_exp_view(*this, "exp_view")
 	{ }
 
 	void pc8001(machine_config &config);
@@ -112,15 +117,36 @@ protected:
 	virtual void machine_start() override ATTR_COLD;
 	virtual void machine_reset() override ATTR_COLD;
 
-	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	virtual uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 	required_device<pc80s31_device> m_pc80s31;
 	required_device<screen_device> m_screen;
 	required_device<beep_device> m_beep;
 	required_device<ram_device> m_ram;
 	required_memory_region m_rom;
+	memory_view m_exp_view;
 
 	DECLARE_SNAPSHOT_LOAD_MEMBER(snapshot_cb);
+
+	// TODO: these two should really be inside ram_device instead
+	template <unsigned StartBase> uint8_t ram_r(address_space &space, offs_t offset)
+	{
+		const offs_t memory_offset = StartBase + offset;
+
+		if (memory_offset < m_ram->size())
+			return m_ram->pointer()[memory_offset];
+
+		// TODO: verify what happens on unmapped access
+		return space.unmap();
+	}
+
+	template <unsigned StartBase> void ram_w(offs_t offset, uint8_t data)
+	{
+		const offs_t memory_offset = StartBase + offset;
+
+		if (memory_offset < m_ram->size())
+			m_ram->pointer()[memory_offset] = data;
+	}
 
 private:
 	uint8_t port40_r();
@@ -132,6 +158,7 @@ class pc8001mk2_state : public pc8001_state
 public:
 	pc8001mk2_state(const machine_config &mconfig, device_type type, const char *tag)
 		: pc8001_state(mconfig, type, tag)
+		, m_gvram_bank(*this, "gvram_bank")
 		, m_kanji_rom(*this, "kanji")
 		, m_dsw(*this, "DSW%d", 1U)
 	{ }
@@ -139,13 +166,30 @@ public:
 	void pc8001mk2(machine_config &config);
 
 protected:
+	virtual void machine_start() override ATTR_COLD;
+	virtual void machine_reset() override ATTR_COLD;
+
 	void pc8001mk2_io(address_map &map) ATTR_COLD;
 	void pc8001mk2_map(address_map &map) ATTR_COLD;
 
+	required_device<address_map_bank_device> m_gvram_bank;
 	required_memory_region m_kanji_rom;
 	required_ioport_array<2> m_dsw;
 
-	virtual void port31_w(uint8_t data);
+	std::unique_ptr<uint8_t[]> m_gvram;
+	u8 m_port31;
+	u8 m_vram_sel;
+
+	void port31_w(uint8_t data);
+	virtual void flush_low_bank();
+	virtual void flush_gvram_access();
+
+	virtual void gvram_map(address_map &map);
+	u8 gvram_r(offs_t offset);
+	void gvram_w(offs_t offset, u8 data);
+
+//	virtual uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect) override;
+
 private:
 };
 
@@ -155,6 +199,9 @@ public:
 	pc8001mk2sr_state(const machine_config &mconfig, device_type type, const char *tag)
 		: pc8001mk2_state(mconfig, type, tag)
 		, m_n80sr_rom(*this, N80SR_ROM_TAG)
+		, m_alu(*this, "alu")
+		, m_opn(*this, "opn")
+		, m_alu_view(*this, "alu_view")
 	{ }
 
 	void pc8001mk2sr(machine_config &config);
@@ -162,21 +209,31 @@ public:
 private:
 	virtual void machine_start() override ATTR_COLD;
 	virtual void machine_reset() override ATTR_COLD;
+
+	void pc8001mk2sr_map(address_map &map) ATTR_COLD;
 	void pc8001mk2sr_io(address_map &map) ATTR_COLD;
 
 	required_memory_region m_n80sr_rom;
-
-	virtual void port31_w(uint8_t data) override;
+	required_device<pc88_alu_device> m_alu;
+	required_device<ym2203_device> m_opn;
+	memory_view m_alu_view;
 
 	u8 port33_r();
 	void port33_w(u8 data);
 	u8 port71_r();
 	void port71_w(u8 data);
+	void alu_ctrl2_w(u8 data);
 
 	u8 m_n80sr_bank = 0;
-	u8 m_port31;
+	u8 m_port32;
 	u8 m_port33;
-	void update_low_bank();
+	u8 m_alu_gam;
+	virtual void flush_low_bank() override;
+	virtual void flush_gvram_access() override;
+
+	virtual void gvram_map(address_map &map) override;
+
+	virtual uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect) override;
 };
 
 #endif // MAME_NEC_PC8001_H
