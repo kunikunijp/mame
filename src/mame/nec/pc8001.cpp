@@ -44,6 +44,7 @@ References:
 #include "emu.h"
 #include "pc88_kbd.h"
 #include "pc8001.h"
+
 #include "screen.h"
 #include "softlist_dev.h"
 #include "speaker.h"
@@ -195,7 +196,7 @@ UPD3301_DRAW_CHARACTER_MEMBER( pc8001_base_state::draw_text )
 	}
 }
 
-uint32_t pc8001_state::screen_update( screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
+uint32_t pc8001_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	bitmap.fill(0, cliprect);
 	// TODO: superimposing
@@ -207,6 +208,7 @@ uint32_t pc8001_state::screen_update( screen_device &screen, bitmap_rgb32 &bitma
 void pc8001mk2sr_state::video_start()
 {
 	m_screen->register_screen_bitmap(m_text_bitmap);
+	m_screen->register_screen_bitmap(m_graph_bitmap);
 
 	save_item(STRUCT_MEMBER(m_palram, r));
 	save_item(STRUCT_MEMBER(m_palram, g));
@@ -222,14 +224,15 @@ void pc8001mk2sr_state::video_reset()
 		m_palram[i].g = i & 4 ? 7 : 0;
 		m_palette->set_pen_color(i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
 	}
+
+	m_text_layer_mask = true;
+	m_bitmap_layer_mask = 0x7;
 }
 
 // TODO: has extra modes vs. PC-8801 ...
-void pc8001mk2sr_state::draw_bitmap(bitmap_rgb32 &bitmap, const rectangle &cliprect, palette_device *palette, std::function<u8(u32 bitmap_offset, int y, int x, int xi)> dot_func)
+void pc8001mk2sr_state::draw_bitmap_w80(bitmap_rgb32 &bitmap, const rectangle &cliprect, palette_device *palette, std::function<u8(u32 bitmap_offset, int y, int x, int xi)> dot_func)
 {
-	uint16_t y_double = get_screen_frequency();
-	if ((m_port31 & 0x11) == 0)
-		y_double = 0;
+	const uint16_t y_double = 0;
 	int32_t y_line_size = y_double + 1;
 
 	for(int y = cliprect.min_y; y <= cliprect.max_y; y += y_line_size)
@@ -245,14 +248,10 @@ void pc8001mk2sr_state::draw_bitmap(bitmap_rgb32 &bitmap, const rectangle &clipr
 				if (pen_dot == 0)
 					continue;
 
-				// TODO: some real HW snaps implies that output is only even or odd line when in 3bpp mode, verify
-				// 3301 skip line? interlace artifact? other?
 				for (int yi = 0; yi < y_line_size; yi ++)
 				{
 					int res_x = x + xi;
 					int res_y = y + yi;
-					// still need to check against cliprect,
-					// in the rare case that 3301 CRTC is set to non-canon values (such as any width != 640).
 					if (cliprect.contains(res_x, res_y))
 						bitmap.pix(res_y, res_x) = palette->pen(pen_dot);
 				}
@@ -261,33 +260,175 @@ void pc8001mk2sr_state::draw_bitmap(bitmap_rgb32 &bitmap, const rectangle &clipr
 	}
 }
 
+void pc8001mk2sr_state::draw_bitmap_w40(bitmap_rgb32 &bitmap, const rectangle &cliprect, palette_device *palette, std::function<u8(int layer_n, u32 bitmap_offset, int y, int x, int xi)> dot_func)
+{
+	const uint16_t y_double = 0;
+	int32_t y_line_size = y_double + 1;
+	// n80srbas "demo2/3/4.nsr"
+	// normally priority is 0 > 1, bit enabled makes it 0 < 1
+	const u8 pr1 = BIT(m_port33, 2);
+	const u8 pri0 = 0 ^ pr1;
+	const u8 pri1 = 1 ^ pr1;
+
+	for(int y = cliprect.min_y; y <= cliprect.max_y; y += y_line_size)
+	{
+		for(int x = cliprect.min_x; x <= cliprect.max_x; x += 16)
+		{
+			u8 x_char = (x >> 4);
+			u32 bitmap_offset = (y >> y_double) * 40 + x_char;
+			for(int xi = 0; xi < 16; xi++)
+			{
+				u8 pen_dot[2];
+				pen_dot[0] = dot_func(0, bitmap_offset + 0x0000, y, x_char, 7 - (xi >> 1));
+				pen_dot[1] = dot_func(1, bitmap_offset + 0x2000, y, x_char, 7 - (xi >> 1));
+
+				for (int yi = 0; yi < y_line_size; yi ++)
+				{
+					int res_x = x + xi;
+					int res_y = y + yi;
+					if (cliprect.contains(res_x, res_y))
+					{
+						if (pen_dot[pri1])
+							bitmap.pix(res_y, res_x) = palette->pen(pen_dot[pri1]);
+						if (pen_dot[pri0])
+							bitmap.pix(res_y, res_x) = palette->pen(pen_dot[pri0]);
+					}
+				}
+			}
+		}
+	}
+}
+
+void pc8001mk2sr_state::draw_bitmap_2bpp(bitmap_rgb32 &bitmap, const rectangle &cliprect, palette_device *palette, std::function<u8(u32 bitmap_offset, int y, int x, int xi)> dot_func)
+{
+	const uint16_t y_double = 0;
+	int32_t y_line_size = y_double + 1;
+
+	for(int y = cliprect.min_y; y <= cliprect.max_y; y += y_line_size)
+	{
+		for(int x = cliprect.min_x; x <= cliprect.max_x; x += 8)
+		{
+			u8 x_char = (x >> 3);
+			u32 bitmap_offset = (y >> y_double) * 80 + x_char;
+			for(int xi = 0; xi < 4; xi ++)
+			{
+				u8 pen_dot = dot_func(bitmap_offset, y, x_char, 6 - (xi * 2));
+
+				if (pen_dot == 0)
+					continue;
+
+				for (int yi = 0; yi < y_line_size; yi ++)
+				{
+					int res_x = x + xi * 2;
+					int res_y = y + yi;
+					if (cliprect.contains(res_x, res_y))
+						bitmap.pix(res_y, res_x) = palette->pen(pen_dot);
+					if (cliprect.contains(res_x + 1, res_y))
+						bitmap.pix(res_y, res_x + 1) = palette->pen(pen_dot);
+				}
+			}
+		}
+	}
+}
+
 
 // TODO: ... and can change priority of the GVRAM layer
-uint32_t pc8001mk2sr_state::screen_update( screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
+uint32_t pc8001mk2sr_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
+	m_graph_bitmap.fill(0, cliprect);
+
 	if (BIT(m_port31, 3))
 	{
+		// pack2:"Dragon Slayer"
 		bitmap.fill(m_palette->pen(0), cliprect);
 
-		draw_bitmap(bitmap, cliprect, m_palette, [&](u32 bitmap_offset, int y, int x, int xi){
-			u8 res = 0;
+		// TODO: mkII compatible mono mode
+		// 640x200x1bpp, SR GVRAM banks actually OR-ed like pc8801 -> mirror on write access.
+		// Also Spectrum-like colors from text attribute (verify if regular mk2 can do it as well).
 
-			// note: layer masking doesn't occur in 3bpp mode, bugattac relies on this
-			for (int plane = 0; plane < 3; plane ++)
-				res |= ((m_gvram[bitmap_offset + plane * 0x4000] >> xi) & 1) << plane;
+		if (BIT(m_port31, 5))
+		{
+			// 2bpp color
+			// The goofy one out, OR-es in planar like other 1bpp modes but also draws in packed
+			// - pack1 game list,
+			// - pack1:"Nuts & Milk"
+			// - any mk2 SW
+			// TODO: enable guessed
+			// m_port31 & 0xe0 may be border color really?
+			// m_port31 & 0x30 == 0x20 should give mono mode instead
+			// n80diskb "mark2" demo plays with this a ton
 
-			return res;
-		});
+			draw_bitmap_2bpp(m_graph_bitmap, cliprect, m_palette, [&](u32 bitmap_offset, int y, int x, int xi){
+				const u8 color_table[8] = { 0x00, 0x02, 0x04, 0x03, 0x00, 0x02, 0x04, 0x07 };
+
+				u8 res = 0;
+
+				for (int plane = 0; plane < 3; plane ++)
+				{
+					u8 mask = BIT(m_bitmap_layer_mask, plane) * 3;
+					res |= (m_gvram[bitmap_offset + plane * 0x4000] >> xi) & mask;
+				}
+
+				if (!res)
+					return (u8)0;
+
+				return color_table[res | BIT(m_port31, 2) << 2];
+				//return m_crtc->is_gfx_color_mode() ? (m_attr_info[y][x] >> 13) & 7 : 7;
+			});
+		}
+		else if (BIT(m_port31, 2))
+		{
+			// 2 planes width 40
+
+			draw_bitmap_w40(m_graph_bitmap, cliprect, m_palette, [&](int layer_n, u32 bitmap_offset, int y, int x, int xi){
+				u8 res = 0;
+				if (!BIT(m_bitmap_layer_mask, layer_n))
+					return res;
+
+				for (int plane = 0; plane < 3; plane ++)
+					res |= ((m_gvram[bitmap_offset + plane * 0x4000] >> xi) & 1) << plane;
+
+				return res;
+			});
+		}
+		else
+		{
+			// 1 plane width 80
+
+			// NOTE: unlike pc8801 port $53 actually allows disabling the single plane
+			if (BIT(m_bitmap_layer_mask, 0))
+			{
+				draw_bitmap_w80(m_graph_bitmap, cliprect, m_palette, [&](u32 bitmap_offset, int y, int x, int xi){
+					u8 res = 0;
+
+					for (int plane = 0; plane < 3; plane ++)
+						res |= ((m_gvram[bitmap_offset + plane * 0x4000] >> xi) & 1) << plane;
+
+					return res;
+				});
+			}
+		}
 	}
 	else
 		bitmap.fill(0, cliprect);
 
-	//if(!m_text_layer_mask)
-	{
-		m_text_bitmap.fill(0, cliprect);
+	m_text_bitmap.fill(0, cliprect);
+	if(m_text_layer_mask)
 		m_crtc->screen_update(screen, m_text_bitmap, cliprect);
+
+	// PR2 makes graph to be higher priority than text layer
+	// - pack2:"Burger Time" depends on this
+	if (BIT(m_port33, 3))
+	{
+		copybitmap_trans(bitmap, m_text_bitmap, 0, 0, 0, 0, cliprect, 0);
+		copybitmap_trans(bitmap, m_graph_bitmap, 0, 0, 0, 0, cliprect, 0);
+	}
+	else
+	{
+		copybitmap_trans(bitmap, m_graph_bitmap, 0, 0, 0, 0, cliprect, 0);
 		copybitmap_trans(bitmap, m_text_bitmap, 0, 0, 0, 0, cliprect, 0);
 	}
+
 	return 0;
 }
 
@@ -415,6 +556,116 @@ void pc8001_state::port40_w(uint8_t data)
 	m_beep->set_state(BIT(data, 5));
 }
 
+/* i8214 PICU section */
+
+void pc8001_base_state::irq_level_w(uint8_t data)
+{
+	m_picu->b_sgs_w(~data);
+}
+
+/*
+ * ---- -x-- /RXMF RXRDY irq mask
+ * ---- --x- /VRMF VRTC irq mask
+ * ---- ---x /RTMF Real-time clock irq mask
+ *
+ */
+void pc8001_base_state::irq_mask_w(uint8_t data)
+{
+	m_irq_state.enable &= ~7;
+	// mapping reversed to the correlated irq levels
+	m_irq_state.enable |= bitswap<3>(data & 7, 0, 1, 2);
+
+	check_irq(RXRDY_IRQ_LEVEL);
+	check_irq(VRTC_IRQ_LEVEL);
+	check_irq(CLOCK_IRQ_LEVEL);
+}
+
+void pc8001_base_state::rxrdy_irq_w(int state)
+{
+	if (state)
+		assert_irq(RXRDY_IRQ_LEVEL);
+}
+
+/*
+ * 0 RXRDY
+ * 1 VRTC
+ * 2 CLOCK
+ * 3 INT3 (GSX-8800)
+ * 4 INT4 (any OPN, external boards included with different irq mask at $aa)
+ * 5 INT5
+ * 6 FDCINT1
+ * 7 FDCINT2
+ *
+ */
+IRQ_CALLBACK_MEMBER(pc8001_base_state::int_ack_cb)
+{
+	// TODO: schematics sports a μPB8212 too, with DI2-DI4 connected to 8214 A0-A2
+	// Seems just an intermediate bridge for translating raw levels to vectors
+	// with no access from outside world?
+	u8 level = m_picu->a_r();
+	m_picu->r_w(level, 1);
+
+	return (7 - level) * 2;
+}
+
+void pc8001_base_state::int4_irq_w(int state)
+{
+	bool irq_state = m_sound_irq_enable & state;
+
+	// remember current setting so that an enable reg variation will pick up
+	// particularly needed by PC-88 Telenet games (xzr2, valis2)
+	// TODO: understand how exactly the external irq source works out (Sound Board II)
+	// has a separate irq mask for secondary OPNA but still sends INT4s,
+	// we separate the logic from the others since this exact function needs templatized array for enable and pending anyway
+	// (and won't otherwise work for xzr2 anyway).
+	m_picu->r_w(7 ^ INT4_IRQ_LEVEL, !irq_state);
+	m_sound_irq_pending = state;
+}
+
+// FIXME: convert to pure write-line-style member
+// Works with 0 -> 1 F/F transitions
+TIMER_DEVICE_CALLBACK_MEMBER(pc8001_base_state::clock_irq_w)
+{
+	// NOTE: pc8801:castlex uses this rather than dedicated OPN INT4 for BGM tempo
+	assert_irq(CLOCK_IRQ_LEVEL);
+}
+
+void pc8001_base_state::check_irq(u8 level)
+{
+	u8 mask = 1 << level;
+
+	// pc8801:megamit and pc8801:babylon are particularly fussy if the VRTC irq isn't disabled when requested
+	// - megamit jumps to PC=0
+	// - babylon has just a ret coded in the VRTC irq, so accepting that will wreck the program flow and hang at title screen with no sound (because it expects INT4s)
+	if (!(m_irq_state.enable & mask))
+		m_picu->r_w(7 ^ level, 1);
+	else if (m_irq_state.enable & m_irq_state.pending & mask)
+		assert_irq(level);
+}
+
+void pc8001_base_state::assert_irq(u8 level)
+{
+	u8 mask = 1 << level;
+
+	if (mask & m_irq_state.enable)
+	{
+		m_irq_state.pending &= ~mask;
+		m_picu->r_w(7 ^ level, 0);
+	}
+	else
+		m_irq_state.pending |= mask;
+}
+
+void pc8001_base_state::vrtc_irq_w(int state)
+{
+//  bool irq_state = m_vrtc_irq_enable & state;
+	if (state)
+	{
+		assert_irq(VRTC_IRQ_LEVEL);
+	}
+}
+
+
 /* Memory Maps */
 
 void pc8001_state::pc8001_map(address_map &map)
@@ -461,8 +712,8 @@ void pc8001_state::pc8001_io(address_map &map)
 //  map(0xdc, 0xdc).w(FUNC(pc8001_state::pc8011_ieee488_nrfd_w));
 //  map(0xde, 0xde).w(FUNC(pc8001_state::pc8011_ieee488_bus_mode_control_w));
 //  map(0xe0, 0xe3).w(FUNC(pc8001_state::expansion_storage_mode_w));
-//  map(0xe4, 0xe4).mirror(0x01).w(FUNC(pc8001_state::irq_level_w));
-//  map(0xe6, 0xe6).w(FUNC(pc8001_state::irq_mask_w));
+	map(0xe4, 0xe4).w(FUNC(pc8001_state::irq_level_w));
+	map(0xe6, 0xe6).w(FUNC(pc8001_state::irq_mask_w));
 //  map(0xe7, 0xe7).w(FUNC(pc8001_state::pc8012_memory_mode_w));
 //  map(0xe8, 0xfb) unused
 	map(0xfc, 0xff).m(m_pc80s31, FUNC(pc80s31_device::host_map));
@@ -605,7 +856,17 @@ u8 pc8001mk2sr_state::port33_r()
 void pc8001mk2sr_state::port33_w(u8 data)
 {
 	m_port33 = data;
+
+	if (data & 0x10)
+		popmessage("pc8001.cpp: port33_w HIRA %02x", data);
 	flush_low_bank();
+	flush_gvram_access();
+
+	m_sound_irq_enable = !!BIT(~data, 1);
+
+	if (m_sound_irq_enable)
+		int4_irq_w(m_sound_irq_pending);
+
 }
 
 void pc8001mk2sr_state::alu_ctrl2_w(u8 data)
@@ -645,7 +906,7 @@ void pc8001mk2sr_state::pc8001mk2sr_map(address_map &map)
 void pc8001mk2sr_state::pc8001mk2sr_io(address_map &map)
 {
 	pc8001mk2_io(map);
-	// latch for mkIISR (pc8001mk Burger Time cares)
+	// latch for mkIISR (pack2:"Burger Time" cares)
 	map(0x32, 0x32).lrw8(
 		NAME([this] () { return m_port32; }),
 		NAME([this] (u8 data) { m_port32 = data; })
@@ -655,6 +916,13 @@ void pc8001mk2sr_state::pc8001mk2sr_io(address_map &map)
 	map(0x35, 0x35).w(FUNC(pc8001mk2sr_state::alu_ctrl2_w));
 	map(0x41, 0x4f).unmaprw();
 	map(0x44, 0x45).rw(m_opn, FUNC(ym2203_device::read), FUNC(ym2203_device::write));
+	map(0x53, 0x53).lw8(
+		NAME([this] (u8 data) {
+			m_text_layer_mask = !!(BIT(~data, 0));
+			// NOTE: more bits vs. pc8801
+			m_bitmap_layer_mask = ((data & 0x7e) >> 1) ^ 0x3f;
+		})
+	);
 	map(0x54, 0x5b).lw8(
 		NAME([this] (offs_t offset, u8 data) {
 			m_palram[offset].b = data & 1 ? 7 : 0;
@@ -693,7 +961,7 @@ static INPUT_PORTS_START( pc8001mk2 )
 	PORT_INCLUDE( pc8001 )
 
 	PORT_START("DSW1")
-	PORT_DIPNAME( 0x01, 0x00, "Boot Mode" )
+	PORT_DIPNAME( 0x01, 0x01, "Boot Mode" )
 	PORT_DIPSETTING(    0x00, "N-BASIC" )
 	PORT_DIPSETTING(    0x01, "N80-BASIC" )
 	PORT_DIPNAME( 0x02, 0x02, "DSW1" )
@@ -751,7 +1019,7 @@ static INPUT_PORTS_START( pc8001mk2sr )
 	PORT_MODIFY("DSW1")
 	// This is really a tri-state dip on front panel
 	// BIOS just expects bit 1 to be off for SR mode
-	PORT_DIPNAME( 0x03, 0x02, "Boot Mode" )
+	PORT_DIPNAME( 0x03, 0x01, "Boot Mode" )
 	PORT_DIPSETTING(    0x00, "N80SR-BASIC (duplicate)")
 	PORT_DIPSETTING(    0x01, "N80SR-BASIC" )
 	PORT_DIPSETTING(    0x02, "N-BASIC" )
@@ -793,6 +1061,12 @@ void pc8001_base_state::machine_start()
 	save_item(NAME(m_color));
 	save_item(NAME(m_screen_reverse));
 	save_item(NAME(m_screen_is_24KHz));
+
+	// PICU init
+	save_item(STRUCT_MEMBER(m_irq_state, enable));
+	save_item(STRUCT_MEMBER(m_irq_state, pending));
+	save_item(NAME(m_sound_irq_enable));
+	save_item(NAME(m_sound_irq_pending));
 }
 
 void pc8001_state::machine_start()
@@ -806,9 +1080,20 @@ void pc8001_state::machine_start()
 	set_screen_frequency(false);
 }
 
+void pc8001_base_state::picu_reset()
+{
+	m_picu->etlg_w(1);
+	m_picu->inte_w(1);
+	m_irq_state.pending = 0;
+	m_irq_state.enable = 0;
+	m_sound_irq_enable = false;
+	m_sound_irq_pending = false;
+}
+
 void pc8001_state::machine_reset()
 {
 	m_exp_view.select(1);
+	picu_reset();
 }
 
 void pc8001mk2_state::machine_start()
@@ -841,6 +1126,8 @@ void pc8001mk2sr_state::machine_start()
 	save_item(NAME(m_port33));
 	save_item(NAME(m_alu_gam));
 	save_item(NAME(m_extram_mode));
+	save_item(NAME(m_text_layer_mask));
+	save_item(NAME(m_bitmap_layer_mask));
 }
 
 void pc8001mk2sr_state::machine_reset()
@@ -901,9 +1188,14 @@ void pc8001_state::pc8001(machine_config &config)
 	Z80(config, m_maincpu, MASTER_CLOCK);
 	m_maincpu->set_addrmap(AS_PROGRAM, &pc8001_state::pc8001_map);
 	m_maincpu->set_addrmap(AS_IO, &pc8001_state::pc8001_io);
+	m_maincpu->set_irq_acknowledge_callback(FUNC(pc8001_state::int_ack_cb));
+
+	I8214(config, m_picu, MASTER_CLOCK);
+	m_picu->int_wr_callback().set_inputline(m_maincpu, 0);
+	m_picu->set_int_dis_hack(true);
 
 	PC80S31(config, m_pc80s31, MASTER_CLOCK);
-	config.set_perfect_quantum(m_maincpu);
+	// TODO: get rid of this
 	config.set_perfect_quantum("pc80s31:fdc_cpu");
 
 	/* video hardware */
@@ -920,6 +1212,7 @@ void pc8001_state::pc8001(machine_config &config)
 	m_crtc->set_attribute_fetch_callback(FUNC(pc8001_state::attr_fetch));
 	m_crtc->drq_wr_callback().set(m_dma, FUNC(i8257_device::dreq2_w));
 	m_crtc->rvv_wr_callback().set(FUNC(pc8001_state::crtc_reverse_w));
+	m_crtc->vrtc_wr_callback().set(FUNC(pc8001_state::vrtc_irq_w));
 	m_crtc->set_screen(m_screen);
 
 	I8257(config, m_dma, MASTER_CLOCK);
@@ -928,6 +1221,8 @@ void pc8001_state::pc8001(machine_config &config)
 	m_dma->out_iow_cb<2>().set(m_crtc, FUNC(upd3301_device::dack_w));
 
 	/* devices */
+	TIMER(config, "rtc_timer").configure_periodic(FUNC(pc8001_state::clock_irq_w), attotime::from_hz(600));
+
 	I8251(config, I8251_TAG);
 
 	UPD1990A(config, m_rtc);
@@ -987,9 +1282,11 @@ void pc8001mk2sr_state::pc8001mk2sr(machine_config &config)
 	m_alu->gvram_write_cb().set(FUNC(pc8001mk2sr_state::gvram_w));
 
 	YM2203(config, m_opn, XTAL(4'000'000));
-//	m_opn->irq_handler().set(FUNC(pc8801mk2sr_state::int4_irq_w));
-//	m_opn->port_a_read_callback().set(FUNC(pc8801mk2sr_state::opn_porta_r));
-//	m_opn->port_b_read_callback().set(FUNC(pc8801mk2sr_state::opn_portb_r));
+	m_opn->irq_handler().set(FUNC(pc8001mk2sr_state::int4_irq_w));
+	// TODO: pull high for now (pack2:"Dig Dug")
+	// OPN/OPNA needs to be moved in a common internal expansion slot
+	m_opn->port_a_read_callback().set([] () { return 0xff; });
+	m_opn->port_b_read_callback().set([] () { return 0xff; });
 //	m_opn->port_b_write_callback().set(FUNC(pc8801mk2sr_state::opn_portb_w));
 	m_opn->add_route(ALL_OUTPUTS, "mono", 0.5);
 

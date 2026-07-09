@@ -12,10 +12,12 @@
 #include "imagedev/snapquik.h"
 #include "machine/bankdev.h"
 #include "machine/buffer.h"
+#include "machine/i8214.h"
 #include "machine/i8251.h"
 #include "machine/i8255.h"
 #include "machine/i8257.h"
 #include "machine/ram.h"
+#include "machine/timer.h"
 #include "machine/upd1990a.h"
 #include "sound/beep.h"
 #include "sound/ymopn.h"
@@ -41,6 +43,7 @@ public:
 	pc8001_base_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag)
 		, m_maincpu(*this, Z80_TAG)
+		, m_picu(*this, "picu")
 		, m_rtc(*this, UPD1990A_TAG)
 		, m_centronics(*this, CENTRONICS_TAG)
 		, m_cent_data_out(*this, "cent_data_out")
@@ -58,6 +61,7 @@ public:
 
 protected:
 	required_device<cpu_device> m_maincpu;
+	required_device<i8214_device> m_picu;
 	required_device<upd1990a_device> m_rtc;
 	required_device<centronics_device> m_centronics;
 	required_device<output_latch_device> m_cent_data_out;
@@ -93,6 +97,41 @@ private:
 	int m_width80 = 0;
 	int m_color = 0;
 	u8 m_attr_color = 0xe8, m_attr_decoration = 0;
+
+	// irq section
+protected:
+	void irq_level_w(uint8_t data);
+	void irq_mask_w(uint8_t data);
+
+	void int4_irq_w(int state);
+
+	void rxrdy_irq_w(int state);
+	void vrtc_irq_w(int state);
+	TIMER_DEVICE_CALLBACK_MEMBER(clock_irq_w);
+	IRQ_CALLBACK_MEMBER(int_ack_cb);
+
+	struct {
+		u8 enable = 0, pending = 0;
+	} m_irq_state;
+
+	bool m_sound_irq_enable = false;
+	bool m_sound_irq_pending = false;
+
+	enum {
+		RXRDY_IRQ_LEVEL = 0,
+		VRTC_IRQ_LEVEL,
+		CLOCK_IRQ_LEVEL,
+		INT3_IRQ_LEVEL,
+		INT4_IRQ_LEVEL,
+		INT5_IRQ_LEVEL,
+		FDCINT1_IRQ_LEVEL,
+		FDCINT2_IRQ_LEVEL
+	};
+
+	void assert_irq(u8 level);
+	void check_irq(u8 level);
+
+	void picu_reset();
 };
 
 class pc8001_state : public pc8001_base_state
@@ -230,20 +269,25 @@ private:
 	void port71_w(u8 data);
 	void alu_ctrl2_w(u8 data);
 
-	u8 m_n80sr_bank = 0;
+	u8 m_n80sr_bank;
 	u8 m_port32;
 	u8 m_port33;
 	u8 m_alu_gam;
 	u8 m_extram_mode;
-	struct { uint8_t r = 0, g = 0, b = 0; } m_palram[8];
+	bool m_text_layer_mask;
+	u8 m_bitmap_layer_mask;
+	struct { uint8_t r, g, b; } m_palram[8];
 	bitmap_rgb32 m_text_bitmap;
+	bitmap_rgb32 m_graph_bitmap;
 
 	virtual void flush_low_bank() override;
 	virtual void flush_gvram_access() override;
 
 	virtual void gvram_map(address_map &map) override;
 
-	void draw_bitmap(bitmap_rgb32 &bitmap, const rectangle &cliprect, palette_device *palette, std::function<u8(u32 bitmap_offset, int y, int x, int xi)> dot_func);
+	void draw_bitmap_w80(bitmap_rgb32 &bitmap, const rectangle &cliprect, palette_device *palette, std::function<u8(u32 bitmap_offset, int y, int x, int xi)> dot_func);
+	void draw_bitmap_w40(bitmap_rgb32 &bitmap, const rectangle &cliprect, palette_device *palette, std::function<u8(int layer_n, u32 bitmap_offset, int y, int x, int xi)> dot_func);
+	void draw_bitmap_2bpp(bitmap_rgb32 &bitmap, const rectangle &cliprect, palette_device *palette, std::function<u8(u32 bitmap_offset, int y, int x, int xi)> dot_func);
 
 	virtual uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect) override;
 };
