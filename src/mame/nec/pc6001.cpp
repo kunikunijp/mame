@@ -12,18 +12,18 @@ TODO:
 - Confirm irq model daisy chain behaviour, and add missing irqs and features
   (namely the irq dispatch for SR mode should really honor I/O $fb and fallback to legacy
    behaviour if masked);
-- Several games are decidedly too fast, down to missing waitstates, no screen raw
-  parameters, crtkill signal and bus request;
-- Merge PC-6001 video emulation with MC6847 (is it really one or rather a M5C6847P-1?);
-- Pinpoint what VDG supersets PC-6001mkII and SR models really uses;
-- upd7752 voice speech device needs to be properly emulated (device is currently a skeleton),
-  pc6001mk2_cass:chrith is a good test case, it's supposed to talk before title screen;
+- specific behaviour for CRTKILL to video;
+- Use the actual M5C6847P device for vanilla pc6001;
+- Pinpoint what VDG supersets PC-6001mkII and SR models really use;
+- irq system needs improving, particularly for later machines (where it may really warrant exposing
+  as device);
 
 TODO (pc6001mk2):
-- refactor memory model to use address_map_bank_device;
-- confirm optional FDC used mapped at 0xd0-0xd3
+- confirm optional FDC use mapped at 0xd0-0xd3
 \- PC-6031? It looks like a 5'25 single drive with 8255 protocol, presumably earlier revision
    of PC-80S31 with no dump available;
+- upd7752 voice speech device needs to be properly emulated (device is currently a skeleton),
+  pc6001mk2_cass:chrith is a good test case, it's supposed to talk before title screen;
 
 TODO (pc6601):
 - current regression caused by an internal FDC sense interrupt status that expects a
@@ -32,11 +32,9 @@ TODO (pc6601):
   Update: tries to autoload cassette at startup for some reason.
 
 TODO (pc6601mk2sr):
-- Implement MK-2 compatibility mode via view handler(s)
-  (it changes the memory map to behave like the older versions);
+- check if there are more registers for mkII compatibility mode that are actually substituted
+  or unavailable (SR mode probably locked out for instance);
 - Video Telopper (superimposer) & TV tuner functions for later machines;
-- pc6001mk2sr/pc6601sr: currently doesn't work without -debug enabled (?), has serious keyboard
-  issues, BASIC based programs hangs at a $e6bb check (irq not fired regression? bp 102c,1,{pc+=2;g})
 
 ===================================================================================================
 
@@ -96,7 +94,7 @@ PC-6001 mkIISR (1984-12):
 PC-6001 irq table:
 irq vector 0x00: writes 0x00 to [$fa19]                                                     ;(unused)
 irq vector 0x02: (A = 0, B = 0) tests ppi port c, does something with ay ports (plus more?) ;keyboard data ready, no kanji lock, no caps lock
-irq vector 0x04:                                                                            ;uart irq
+irq vector 0x04:                                                                            ;RS-232C irq
 irq vector 0x06: operates with $fa28, $fa2e, $fd1b                                          ;timer irq
 irq vector 0x08: tests ppi port c, puts port A to $fa1d,puts 0x02 to [$fa19]                ;tape data ready
 irq vector 0x0a: writes 0x00 to [$fa19]                                                     ;(unused)
@@ -580,7 +578,12 @@ inline void pc6001mk2_state::refresh_crtc_params()
 
 	visarea.set(0, (320) - 1, 0, (y_height) - 1);
 
-	m_screen->configure(m_screen->width(), m_screen->height(), visarea, m_screen->frame_period().attoseconds());
+	const int htotal = 456;
+	const int vtotal = 262;
+	const XTAL pclock = XTAL(28'636'363) / 4;
+
+	m_screen->configure(htotal, vtotal, visarea, attotime::from_ticks(htotal * vtotal, pclock).as_attoseconds());
+
 }
 
 void pc6001mk2_state::mk2_vram_bank_w(uint8_t data)
@@ -608,19 +611,18 @@ void pc6001mk2_state::mk2_col_bank_w(uint8_t data)
 	m_bgcol_bank = data & 7;
 }
 
-
+/*
+ * x--- ---- M1 wait setting
+ * -x-- ---- ROM wait setting
+ * --x- ---- RAM wait setting
+ * ---x ---- joystick irq vector override (mkII mode only)
+ * ---- x--- sub CPU irq vector override (mkII mode only)
+ * ---- -x-- timer irq mask
+ * ---- --x- joystick irq mask
+ * ---- ---x sub CPU irq mask
+ */
 void pc6001mk2_state::mk2_0xf3_w(uint8_t data)
 {
-	/*
-	x--- ---- M1 wait setting
-	-x-- ---- ROM wait setting
-	--x- ---- RAM wait setting
-	---x ---- custom irq 2 address output
-	---- x--- custom irq 1 address output
-	---- -x-- timer irq mask 2 (mirror?)
-	---- --x- custom irq 2 mask
-	---- ---x custom irq 1 mask
-	*/
 	m_timer_irq_mask = BIT(data, 2);
 }
 
@@ -694,8 +696,8 @@ void pc6001mk2_state::pc6001mk2_io(address_map &map)
 	map(0xf1, 0xf1).rw(FUNC(pc6001mk2_state::mk2_bank_r1_r), FUNC(pc6001mk2_state::mk2_bank_r1_w));
 	map(0xf2, 0xf2).rw(FUNC(pc6001mk2_state::mk2_bank_w0_r), FUNC(pc6001mk2_state::mk2_bank_w0_w));
 	map(0xf3, 0xf3).w(FUNC(pc6001mk2_state::mk2_0xf3_w));
-//  map(0xf4
-//  map(0xf5
+//  map(0xf4, 0xf4) sub CPU irq vector override
+//  map(0xf5, 0xf5) joystick irq vector override
 	map(0xf6, 0xf6).w(FUNC(pc6001mk2_state::mk2_timer_adj_w));
 	map(0xf7, 0xf7).w(FUNC(pc6001mk2_state::mk2_timer_irqv_w));
 }
@@ -855,15 +857,18 @@ void pc6001mk2sr_state::sr_mode_w(u8 data)
 //      popmessage("VRAM bank select enabled");
 
 	m_mk2_mode = BIT(data, 0);
+	// TODO: clock bumps are assumed really
 	if(m_mk2_mode)
 	{
 		m_mk2_view.select(0);
 		m_mk2_io_view.select(0);
+		m_maincpu->set_unscaled_clock(XTAL(4'000'000));
 	}
 	else
 	{
 		m_mk2_view.disable();
 		m_mk2_io_view.disable();
+		m_maincpu->set_unscaled_clock(XTAL(3'579'545));
 	}
 }
 
@@ -920,7 +925,12 @@ inline void pc6001mk2sr_state::refresh_crtc_params()
 
 	visarea.set(0, (x_width) - 1, 0, (y_height) - 1);
 
-	m_screen->configure(m_screen->width(), m_screen->height(), visarea, m_screen->frame_period().attoseconds());
+	// TODO: guessed
+	const int htotal = 456 * (m_width80 + 1);
+	const int vtotal = 262;
+	const XTAL pclock = XTAL(28'636'363) / (4 >> m_width80);
+
+	m_screen->configure(htotal, vtotal, visarea, attotime::from_ticks(htotal * vtotal, pclock).as_attoseconds());
 }
 
 void pc6001mk2sr_state::pc6001mk2sr_map(address_map &map)
@@ -1002,10 +1012,13 @@ void pc6001mk2sr_state::pc6001mk2sr_io(address_map &map)
 	map(0xf1, 0xf1).rw(FUNC(pc6001mk2sr_state::mk2_bank_r1_r), FUNC(pc6001mk2sr_state::mk2_bank_r1_w));
 	map(0xf2, 0xf2).rw(FUNC(pc6001mk2sr_state::mk2_bank_w0_r), FUNC(pc6001mk2sr_state::mk2_bank_w0_w));
 	map(0xf3, 0xf3).w(FUNC(pc6001mk2sr_state::mk2_0xf3_w));
-//  map(0xf4
-//  map(0xf5
+//  map(0xf4, 0xf4) sub CPU irq vector override
+//  map(0xf5, 0xf5) joystick irq vector override
 	map(0xf6, 0xf6).w(FUNC(pc6001mk2sr_state::mk2_timer_adj_w));
 	map(0xf7, 0xf7).w(FUNC(pc6001mk2sr_state::mk2_timer_irqv_w));
+
+//  map(0xfa, 0xfa) SR Mode irq mask
+//  map(0xfb, 0xfb) SR Mode irq vector override
 
 	// TODO: likely more registers are concealed in compatible modes
 	map(0x00, 0xff).view(m_mk2_io_view);
@@ -1141,8 +1154,10 @@ void pc6001_state::ppi_portb_w(uint8_t data)
 
 void pc6001_state::ppi_portc_w(uint8_t data)
 {
-	//printf("ppi_portc_w %02x\n",data);
 	m_centronics->write_strobe(BIT(~data, 0));
+	m_crtkill = BIT(~data, 1);
+	if (m_crtkill)
+		m_maincpu->set_input_line(Z80_INPUT_LINE_BUSREQ, CLEAR_LINE);
 }
 
 uint8_t pc6001_state::ppi_portc_r()
@@ -1189,15 +1204,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(pc6001_state::cassette_callback)
 	}
 }
 
-void pc6001_state::machine_start()
-{
-	m_timer_irq_timer = timer_alloc(FUNC(pc6001_state::audio_callback), this);
-
-	save_item(NAME(m_cas_data));
-	save_item(NAME(m_cas_offset));
-	save_item(NAME(m_cas_maxsize));
-}
-
 void pc6001_state::write_centronics_busy(int state)
 {
 	m_centronics_busy = state;
@@ -1236,6 +1242,59 @@ void pc6001_state::irq_reset(u8 timer_default_setting)
 	set_timer_divider();
 }
 
+bool pc6001_state::screen_blanked()
+{
+	return m_crtkill;
+}
+
+bool pc6001mk2sr_state::screen_blanked()
+{
+	// TODO: investigate why SR mode is unhappy with bus request line
+	// jewels (at very least) will crash with a UL Error during title screen composition
+	// 1. perhaps CRTKILL is relocated;
+	// or
+	// 2. the lowered CPU clock takes care of this in some way;
+	if (m_mk2_mode)
+		return pc6001mk2_state::screen_blanked();
+	return true;
+}
+
+TIMER_CALLBACK_MEMBER(pc6001_state::video_sync_cb)
+{
+	// pc6001mk2:digdug intro clearly wants timing itself by 240 vertical
+	// assume mk2 bitmap mode cutoff is border overscan, not blanking
+	// TODO: mkIISR width80 needs to bump hsync by 640
+	int hsync = m_screen->hpos() >= 320;
+	int vsync = m_screen->vpos() >= 240;
+
+	m_maincpu->set_input_line(Z80_INPUT_LINE_BUSREQ, hsync || vsync || screen_blanked() ? CLEAR_LINE : ASSERT_LINE);
+
+	if (vsync)
+	{
+		m_video_sync_timer->adjust(m_screen->time_until_pos(0, 0));
+	}
+	else
+	{
+		int scanline = m_screen->vpos();
+
+		if (hsync)
+			m_video_sync_timer->adjust(m_screen->time_until_pos(scanline + 1, 0));
+		else
+			m_video_sync_timer->adjust(m_screen->time_until_pos(scanline, 320));
+	}
+}
+
+void pc6001_state::machine_start()
+{
+	m_timer_irq_timer = timer_alloc(FUNC(pc6001_state::audio_callback), this);
+	m_video_sync_timer = timer_alloc(FUNC(pc6001_state::video_sync_cb), this);
+
+	save_item(NAME(m_cas_data));
+	save_item(NAME(m_cas_offset));
+	save_item(NAME(m_cas_maxsize));
+	save_item(NAME(m_crtkill));
+}
+
 void pc6001_state::machine_reset()
 {
 	m_video_base = &m_ram->pointer()[0xc000 - 0x8000];
@@ -1243,7 +1302,11 @@ void pc6001_state::machine_reset()
 	m_cas_offset = 0;
 	irq_reset(3);
 	m_port_c_8255 = 0;
+
+	m_crtkill = false;
+	m_video_sync_timer->adjust(m_screen->time_until_pos(0, 0));
 }
+
 
 void pc6001mk2_state::machine_start()
 {
@@ -1260,13 +1323,9 @@ void pc6001mk2_state::machine_start()
 
 void pc6001mk2_state::machine_reset()
 {
-//  pc6001_state::machine_reset();
+	pc6001_state::machine_reset();
 //	set_videoram_bank(0xc000 + 0x28000);
 	m_video_base = &m_ram->pointer()[0xc000];
-
-	m_cas_offset = 0;
-	irq_reset(3);
-	m_port_c_8255 = 0;
 
 	/* set default bankswitch */
 	{
@@ -1301,6 +1360,7 @@ void pc6001mk2sr_state::machine_reset()
 	m_mk2_view.disable();
 	m_mk2_io_view.disable();
 	m_mk2_mode = false;
+	m_maincpu->set_unscaled_clock(XTAL(3'579'545));
 
 	// TODO: checkout where cart actually maps in SR model
 	// should be mirrored into the EXROM regions?
@@ -1372,7 +1432,9 @@ static GFXDECODE_START( gfx_pc6001m2 )
 	GFXDECODE_ENTRY( "gfx2", 0x0000, kanji_layout, 0x10, 1 )
 GFXDECODE_END
 
-// TODO: same as PC-88 / PC-98 31'948'800 ?
+// TODO: all clocks needs to be verified from HWs
+// same as PC-88 / PC-98 31'948'800 ?
+// different for mkIISR machines
 #define PC6001_MAIN_CLOCK 7987200
 
 void pc6001_state::pc6001(machine_config &config)
@@ -1400,12 +1462,9 @@ void pc6001_state::pc6001(machine_config &config)
 
 	/* video hardware */
 	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
-	m_screen->set_refresh_hz(60);
 	m_screen->set_screen_update(FUNC(pc6001_state::screen_update));
-	// FIXME: actual parameters, particularly for later iterations
-	m_screen->set_size(320, 25+192+26);
-	m_screen->set_visarea(0, 319, 0, 239);
-	m_screen->set_vblank_time(ATTOSECONDS_IN_USEC(2500));
+	// allegedly NTSC clock, PC8801FH_OSC1 equivalent
+	m_screen->set_raw(XTAL(28'636'363) / 4, 456, 0, 319, 262, 0, 239);
 	m_screen->set_palette(m_palette);
 
 	PALETTE(config, m_palette, FUNC(pc6001_state::palette_init), 16 + 4);
@@ -1430,7 +1489,9 @@ void pc6001_state::pc6001(machine_config &config)
 //  m_cassette->add_route(ALL_OUTPUTS, "mono", 0.05);
 
 	// TODO: move this as a dedicated device, get rid of timer_device
-	TIMER(config, "cassette_timer").configure_periodic(FUNC(pc6001_state::cassette_callback), attotime::from_hz(1200/12));
+	// was 1200 / 12 pre-bus request
+	// - check random failures in pc6001mk2 plazmaln, digdug, nfanfun loaders if modified
+	TIMER(config, "cassette_timer").configure_periodic(FUNC(pc6001_state::cassette_callback), attotime::from_hz(1200/16));
 
 	// cas and p6 are raw binary files with no tape markers
 	snapshot_image_device &snapshot(SNAPSHOT(config, "snapshot", "cas,p6"));
@@ -1553,8 +1614,9 @@ void pc6601_state::pc6601(machine_config &config)
 
 	pc6601_fdc_config(config);
 
-	// TODO: move this option to both regular mk2 and mk2sr
-	SOFTWARE_LIST(config, "flop_list_pc6001mk2").set_original("pc6001mk2_flop");
+	// TODO: move this option to regular mk2
+	// (needs mountable option from pc80s31 device)
+	SOFTWARE_LIST(config, "flop_list_mk2").set_original("pc6001mk2_flop");
 }
 
 void pc6001mk2sr_state::pc6001mk2sr(machine_config &config)
@@ -1589,6 +1651,7 @@ void pc6001mk2sr_state::pc6001mk2sr(machine_config &config)
 
 	SOFTWARE_LIST(config, "cass_list_mk2sr").set_original("pc6001mk2sr_cass");
 	SOFTWARE_LIST(config, "flop_list_mk2sr").set_original("pc6001mk2sr_flop");
+	SOFTWARE_LIST(config, "flop_list_mk2").set_original("pc6001mk2_flop");
 }
 
 void pc6601sr_state::pc6601sr(machine_config &config)
@@ -1632,71 +1695,54 @@ ROM_START( pc6001a )
 ROM_END
 
 ROM_START( pc6001mk2 )
-	ROM_REGION( 0x50000, "maincpu", ROMREGION_ERASEFF )
-	ROM_LOAD( "basicrom.62", 0x10000, 0x8000, CRC(950ac401) SHA1(fbf195ba74a3b0f80b5a756befc96c61c2094182) )
-	ROM_LOAD( "voicerom.62", 0x18000, 0x4000, CRC(49b4f917) SHA1(1a2d18f52ef19dc93da3d65f19d3abbd585628af) )
-	ROM_LOAD( "cgrom60.62",  0x1c000, 0x2000, CRC(81eb5d95) SHA1(53d8ae9599306ff23bf95208d2f6cc8fed3fc39f) )
-	ROM_LOAD( "cgrom60m.62", 0x1e000, 0x2000, CRC(3ce48c33) SHA1(f3b6c63e83a17d80dde63c6e4d86adbc26f84f79) )
-	ROM_LOAD( "kanjirom.62", 0x20000, 0x8000, CRC(20c8f3eb) SHA1(4c9f30f0a2ebbe70aa8e697f94eac74d8241cadd) )
-	// work ram              0x28000,0x10000
-	// extended work ram     0x38000,0x10000
-	// exrom                 0x48000, 0x4000
-	// <invalid>             0x4c000, 0x4000
-
 	ROM_REGION( 0x8000, "basic_rom", ROMREGION_ERASEFF )
-	ROM_COPY( "maincpu", 0x10000, 0, 0x8000 )
+	ROM_LOAD( "basicrom.62", 0x0000, 0x8000, CRC(950ac401) SHA1(fbf195ba74a3b0f80b5a756befc96c61c2094182) )
 
 	ROM_REGION( 0x4000, "voice_rom", ROMREGION_ERASEFF )
-	ROM_COPY( "maincpu", 0x18000, 0, 0x4000 )
+	ROM_LOAD( "voicerom.62", 0x0000, 0x4000, CRC(49b4f917) SHA1(1a2d18f52ef19dc93da3d65f19d3abbd585628af) )
 
 	ROM_REGION( 0x8000, "kanji_rom", ROMREGION_ERASEFF )
-	ROM_COPY( "maincpu", 0x20000, 0, 0x8000 )
+	ROM_LOAD( "kanjirom.62", 0x0000, 0x8000, CRC(20c8f3eb) SHA1(4c9f30f0a2ebbe70aa8e697f94eac74d8241cadd) )
 
 	ROM_REGION( 0x8000, "tv_rom", ROMREGION_ERASEFF )
-	ROM_COPY( "maincpu",   0x1c000, 0x0000, 0x4000 )
-	ROM_COPY( "kanji_rom", 0x00000, 0x4000, 0x2000 )
+	ROM_LOAD( "cgrom60.62",          0x0000, 0x2000, CRC(81eb5d95) SHA1(53d8ae9599306ff23bf95208d2f6cc8fed3fc39f) )
+	ROM_LOAD( "cgrom60m.62",         0x2000, 0x2000, CRC(3ce48c33) SHA1(f3b6c63e83a17d80dde63c6e4d86adbc26f84f79) )
+	ROM_COPY( "kanji_rom",   0x0000, 0x4000, 0x2000 ) // TVROM(2)?
 
 	ROM_REGION( 0x800, "mcu", ROMREGION_ERASEFF )
 	ROM_LOAD( "i8049", 0x000, 0x800, NO_DUMP )
 
 	ROM_REGION( 0x4000, "gfx1", 0 )
-	ROM_COPY( "maincpu", 0x1c000, 0x00000, 0x4000 )
+	ROM_COPY( "tv_rom", 0x0000, 0x0000, 0x4000 )
 
 	ROM_REGION( 0x8000, "gfx2", 0 )
-	ROM_COPY( "maincpu", 0x20000, 0x00000, 0x8000 )
+	ROM_COPY( "kanji_rom", 0x0000, 0x0000, 0x8000 )
 ROM_END
 
 /* Variant of pc6001mk2 */
 ROM_START( pc6601 )
-	ROM_REGION( 0x50000, "maincpu", ROMREGION_ERASEFF )
-	ROM_LOAD( "basicrom.66", 0x10000, 0x8000, CRC(c0b01772) SHA1(9240bb6b97fe06f5f07b5d65541c4d2f8758cc2a) )
-	ROM_LOAD( "voicerom.66", 0x18000, 0x4000, CRC(91d078c1) SHA1(6a93bd7723ef67f461394530a9feee57c8caf7b7) )
-	ROM_LOAD( "cgrom60.66",  0x1c000, 0x2000, CRC(d2434f29) SHA1(a56d76f5cbdbcdb8759abe601eab68f01b0a8fe8) )
-	ROM_LOAD( "cgrom66.66",  0x1e000, 0x2000, CRC(3ce48c33) SHA1(f3b6c63e83a17d80dde63c6e4d86adbc26f84f79) )
-	ROM_LOAD( "kanjirom.66", 0x20000, 0x8000, CRC(20c8f3eb) SHA1(4c9f30f0a2ebbe70aa8e697f94eac74d8241cadd) )
-	// exrom                 0x48000, 0x4000
-
 	ROM_REGION( 0x8000, "basic_rom", ROMREGION_ERASEFF )
-	ROM_COPY( "maincpu", 0x10000, 0, 0x8000 )
+	ROM_LOAD( "basicrom.66", 0x0000, 0x8000, CRC(c0b01772) SHA1(9240bb6b97fe06f5f07b5d65541c4d2f8758cc2a) )
 
 	ROM_REGION( 0x4000, "voice_rom", ROMREGION_ERASEFF )
-	ROM_COPY( "maincpu", 0x18000, 0, 0x4000 )
+	ROM_LOAD( "voicerom.66", 0x0000, 0x4000, CRC(91d078c1) SHA1(6a93bd7723ef67f461394530a9feee57c8caf7b7) )
 
 	ROM_REGION( 0x8000, "kanji_rom", ROMREGION_ERASEFF )
-	ROM_COPY( "maincpu", 0x20000, 0, 0x8000 )
+	ROM_LOAD( "kanjirom.66", 0x0000, 0x8000, CRC(20c8f3eb) SHA1(4c9f30f0a2ebbe70aa8e697f94eac74d8241cadd) )
 
 	ROM_REGION( 0x8000, "tv_rom", ROMREGION_ERASEFF )
-	ROM_COPY( "maincpu",   0x1c000, 0x0000, 0x4000 )
-	ROM_COPY( "kanji_rom", 0x00000, 0x4000, 0x2000 )
+	ROM_LOAD( "cgrom60.66",         0x0000, 0x2000, CRC(d2434f29) SHA1(a56d76f5cbdbcdb8759abe601eab68f01b0a8fe8) )
+	ROM_LOAD( "cgrom66.66",         0x2000, 0x2000, CRC(3ce48c33) SHA1(f3b6c63e83a17d80dde63c6e4d86adbc26f84f79) )
+	ROM_COPY( "kanji_rom",  0x0000, 0x4000, 0x2000 )  // TVROM(2)?
 
 	ROM_REGION( 0x800, "mcu", ROMREGION_ERASEFF )
 	ROM_LOAD( "i8049", 0x000, 0x800, NO_DUMP )
 
 	ROM_REGION( 0x4000, "gfx1", 0 )
-	ROM_COPY( "maincpu", 0x1c000, 0x00000, 0x4000 )
+	ROM_COPY( "tv_rom", 0x0000, 0x0000, 0x4000 )
 
 	ROM_REGION( 0x8000, "gfx2", 0 )
-	ROM_COPY( "maincpu", 0x20000, 0x00000, 0x8000 )
+	ROM_COPY( "kanji_rom", 0x0000, 0x0000, 0x8000 )
 ROM_END
 
 ROM_START( pc6001mk2sr )
@@ -1706,18 +1752,18 @@ ROM_START( pc6001mk2sr )
 
 	// TODO: mk2sr in mk2 mode aren't dumped, using pc6601sr for now
 	ROM_REGION( 0x8000, "basic_rom", ROMREGION_ERASEFF )
-	ROM_LOAD( "basicrom.68",  0x00000, 0x008000, CRC(516b1be3) SHA1(e9977fc13f65f009f03d0340b1f1eb9a3e586739) )
+	ROM_LOAD( "basicrom.68",  0x0000, 0x8000, CRC(516b1be3) SHA1(e9977fc13f65f009f03d0340b1f1eb9a3e586739) )
 
 	ROM_REGION( 0x8000, "kanji_rom", ROMREGION_ERASEFF )
-	ROM_COPY( "sr_sysrom", 0x18000, 0x00000, 0x8000 )
+	ROM_COPY( "sr_sysrom", 0x18000,  0x0000, 0x8000 )
 
 	ROM_REGION( 0x8000, "tv_rom", ROMREGION_ERASEFF )
-	ROM_LOAD( "cgrom60.68",   0x00000, 0x002000, CRC(331473a9) SHA1(361836f9758d6d9b5133c9dc7860a7c74f9cf596) )
-	ROM_LOAD( "cgrom66.68",   0x02000, 0x002000, CRC(03ba2cf1) SHA1(6fb32a4332b26aba2f28c3d8872cac5606be3998) )
+	ROM_LOAD( "cgrom60.68",           0x0000, 0x2000, CRC(331473a9) SHA1(361836f9758d6d9b5133c9dc7860a7c74f9cf596) )
+	ROM_LOAD( "cgrom66.68",           0x2000, 0x2000, CRC(03ba2cf1) SHA1(6fb32a4332b26aba2f28c3d8872cac5606be3998) )
 	ROM_COPY( "kanji_rom",   0x00000, 0x4000, 0x2000 )
 
 	ROM_REGION( 0x4000, "voice_rom", ROMREGION_ERASEFF )
-	ROM_LOAD( "voicerom.68",  0x00000, 0x004000, CRC(37ff3829) SHA1(f887e95e29d071df8329168b48c07b78e492c837) )
+	ROM_LOAD( "voicerom.68",  0x0000, 0x4000, CRC(37ff3829) SHA1(f887e95e29d071df8329168b48c07b78e492c837) )
 
 	ROM_REGION( 0x800, "mcu", ROMREGION_ERASEFF )
 	ROM_LOAD( "i8049", 0x000, 0x800, NO_DUMP )
@@ -1778,14 +1824,15 @@ ROM_START( pc6601sr )
 	ROM_COPY( "sr_sysrom", 0x18000, 0x00000, 0x8000 )
 ROM_END
 
-COMP( 1981, pc6001,       0,           0,        pc6001,      pc6001, pc6001_state,       empty_init, "NEC",   "PC-6001 (Japan)",              MACHINE_NOT_WORKING | MACHINE_IMPERFECT_TIMING )
-COMP( 1981, pc6001a,      pc6001,      0,        pc6001,      pc6001, pc6001_state,       empty_init, "NEC",   "PC-6001A \"NEC Trek\" (US)",   MACHINE_NOT_WORKING | MACHINE_IMPERFECT_TIMING )
+COMP( 1981, pc6001,       0,           0,        pc6001,      pc6001, pc6001_state,       empty_init, "NEC",   "PC-6001 (Japan)",              MACHINE_NOT_WORKING )
+COMP( 1981, pc6001a,      pc6001,      0,        pc6001,      pc6001, pc6001_state,       empty_init, "NEC",   "PC-6001A \"NEC Trek\" (US)",   MACHINE_NOT_WORKING )
 
-COMP( 1983, pc6001mk2,    0,           0,        pc6001mk2,   pc6001, pc6001mk2_state,    empty_init, "NEC",   "PC-6001mkII (Japan)",          MACHINE_NOT_WORKING | MACHINE_IMPERFECT_TIMING )
-COMP( 1983, pc6601,       pc6001mk2,   0,        pc6601,      pc6001, pc6601_state,       empty_init, "NEC",   "PC-6601 (Japan)",              MACHINE_NOT_WORKING | MACHINE_IMPERFECT_TIMING )
+// MACHINE_IMPERFECT_SOUND for lack of upd7752 semantics
+COMP( 1983, pc6001mk2,    0,           0,        pc6001mk2,   pc6001, pc6001mk2_state,    empty_init, "NEC",   "PC-6001mkII (Japan)",          MACHINE_NOT_WORKING | MACHINE_IMPERFECT_SOUND )
+COMP( 1983, pc6601,       pc6001mk2,   0,        pc6601,      pc6001, pc6601_state,       empty_init, "NEC",   "PC-6601 (Japan)",              MACHINE_NOT_WORKING | MACHINE_IMPERFECT_SOUND )
 // al-Warka PC-6001, official Iraqi mkII equivalent with Arabic charset (allegedly without voice chip)
 // prototype English mkII
 
-COMP( 1984, pc6001mk2sr,  0,           0,        pc6001mk2sr, pc6001, pc6001mk2sr_state,  empty_init, "NEC",   "PC-6001mkIISR (Japan)",        MACHINE_NOT_WORKING | MACHINE_IMPERFECT_TIMING )
-COMP( 1984, pc6601sr,     pc6001mk2sr, 0,        pc6601sr,    pc6001, pc6601sr_state,     empty_init, "NEC",   "PC-6601SR \"Mr. PC\" (Japan)", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_TIMING )
+COMP( 1984, pc6001mk2sr,  0,           0,        pc6001mk2sr, pc6001, pc6001mk2sr_state,  empty_init, "NEC",   "PC-6001mkIISR (Japan)",        MACHINE_NOT_WORKING | MACHINE_IMPERFECT_SOUND )
+COMP( 1984, pc6601sr,     pc6001mk2sr, 0,        pc6601sr,    pc6001, pc6601sr_state,     empty_init, "NEC",   "PC-6601SR \"Mr. PC\" (Japan)", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_SOUND )
 // al-Warka PC-6002, mkIISR equivalent (allegedly with *both* YM and PSG chips)
