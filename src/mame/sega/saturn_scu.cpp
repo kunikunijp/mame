@@ -135,7 +135,11 @@ template <unsigned level> void saturn_scu_device::dma_map(address_map &map)
 			if (ACCESSING_BITS_8_15)
 				m_dma[level].wup = BIT(data, 8);
 			if (ACCESSING_BITS_0_7)
+			{
 				m_dma[level].start_factor = data & 7;
+				if (m_dma[level].start_factor != 7)
+					LOG("DMA%d start factor set %02x\n", level, m_dma[level].start_factor);
+			}
 		})
 	);
 }
@@ -492,11 +496,6 @@ void saturn_scu_device::trigger_dma_direct(uint8_t level)
 	if ((m_dma[level].dst & 0x07f0'0000) == 0x05c0'0000 && m_dma[level].size >= 0x80000)
 		m_dma[level].size = 0x80000 - (m_dma[level].dst & 0x7fffe);
 
-	// stv:colmns97 & stv:wwshin, which doesn't work right
-	// (timing more likely, also ST-V has more soundram)
-//  if ((m_dma[level].dst & 0x07f0'0000) == 0x05a0'0000 && m_dma[level].size >= 0x80000)
-//      m_dma[level].size = 0x80000 - (m_dma[level].dst & 0x7ffff);
-
 	m_dma[level].mode = DMA_MODE_RESET;
 
 	// CD transfers are special even without the hack below
@@ -525,7 +524,12 @@ void saturn_scu_device::trigger_dma_direct(uint8_t level)
 
 	update_dma_status(level, DMA_STATE_WAIT);
 
-	m_dma_tick_timer->adjust(attotime::from_ticks(1, m_dma_clock_ref));
+	// yield a bunch of cycles between WAIT and actual execution.
+	// Some games will set a buffer at $60ffcbd and expects that the irq happens *after* it.
+	// - avg (character selection)
+	// - dejig* (main menu moving cursor)
+	// - stv:danchih/danchiq (title screen)
+	m_dma_tick_timer->adjust(attotime::from_ticks(2 * 4, m_dma_clock_ref));
 }
 
 void saturn_scu_device::trigger_dma_indirect(uint8_t level)
@@ -549,7 +553,7 @@ void saturn_scu_device::trigger_dma_indirect(uint8_t level)
 
 	update_dma_status(level, DMA_STATE_WAIT);
 
-	m_dma_tick_timer->adjust(attotime::from_ticks(1, m_dma_clock_ref));
+	m_dma_tick_timer->adjust(attotime::from_ticks(2 * 4, m_dma_clock_ref));
 }
 
 // TODO: reimplement me
