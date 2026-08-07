@@ -1320,6 +1320,12 @@ macsefd
 unitron
 utrn1024
 
+@source:apple/maccatalyst.cpp
+pmac7200
+pmac7200_90
+pmac7200_100
+pmac7200_120
+
 @source:apple/macii.cpp
 mac2fdhd
 macii
@@ -39989,6 +39995,9 @@ rfsantafeg
 
 @source:regnecentralen/rc702.cpp
 rc702
+rc702mini
+rc702sem702
+rc703
 
 @source:regnecentralen/rc759.cpp
 rc759
@@ -40518,8 +40527,10 @@ kofxi
 kov7sprt
 maxspeed
 mslug6
+mirstad
 ngbc
 ngbcj
+prem11
 rangrmsn
 rumblef
 rumblef2
