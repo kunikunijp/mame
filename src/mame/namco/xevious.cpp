@@ -325,79 +325,148 @@ ROM 3M,3L color replace table for sprite
 
 void xevious_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
 {
+	int const bank = 2;
+	int const pxlx = 16;
+	int const pxly = 16;
+	int const adjx = -40;
+	int const adjy = 28*8 - 1;
+
 	uint8_t *spriteram = m_xevious_sr3 + 0x780;
 	uint8_t *spriteram_2 = m_xevious_sr1 + 0x780;
 	uint8_t *spriteram_3 = m_xevious_sr2 + 0x780;
-	int offs,sx,sy;
 
-	for (offs = 0;offs < 0x80;offs += 2)
+	uint8_t latestread = 0xff;
+	static int noisecounter;
+	noisecounter = (noisecounter + 1) % 10;
+
+	// ram1[0] TTTT TTTT // code{7-0}
+	// ram1[1] -CCC CCCC // color
+	// ram2[0] YYYY YYYY // y-coordinate
+	// ram2[1] XXXX XXXX // x-coordinate{7-0}
+	// ram3[0] T--- FFSS // code{8}, y-flip, x-flip, y-size, x-size
+	// ram3[1] ---- ---X // x-coordinate{8}
+	for (int offs = 0; offs < 0x80; offs += 2)
 	{
 		if ((spriteram[offs + 1] & 0x40) == 0)  /* I'm not sure about this one */
 		{
-			int bank,code,color,flipx,flipy;
-			uint32_t transmask;
-
-			if (spriteram_3[offs] & 0x80)
+			static int const gfx_offs[2][2] =
 			{
-				bank = 2;
-				code = (spriteram[offs] & 0x3f) + 0x100;
-			}
-			else
-			{
-				bank = 2;
-				code = spriteram[offs];
-			}
+				{ 0, 1 },
+				{ 2, 3 }
+			};
+			int const color = (spriteram[offs + 1] & 0x7f);
+			int const sx = ((uint16_t)(spriteram_3[offs + 1] & 0x01) << 8) + spriteram_2[offs + 1];
+			int sy = spriteram_2[offs];
+			int flipx = (spriteram_3[offs] & 0x04) >> 2;
+			int flipy = (spriteram_3[offs] & 0x08) >> 3;
+			int const sizex = (spriteram_3[offs] & 0x01);
+			int const sizey = (spriteram_3[offs] & 0x02) >> 1;
 
-			color = spriteram[offs + 1] & 0x7f;
-			flipx = spriteram_3[offs] & 4;
-			flipy = spriteram_3[offs] & 8;
-
-			sx = spriteram_2[offs + 1] - 40 + 0x100*(spriteram_3[offs + 1] & 1);
-			sy = 28*8-spriteram_2[offs]-1;
+			int const code = (((uint16_t)(spriteram_3[offs] & 0x80) << 1) + spriteram[offs]) & (~ gfx_offs[sizey][sizex]);
+			#if false
+				if ( ((0x140 <= code) && (code <= 0x183)) || (0x188 <= code) )
+					logerror("unknown out of range sprite # %x (color %x)\n", sprite, color);
+					/* 0x184 - 0x187 : broken pieces of Gido Spario */
+			#endif
 
 			if (flip_screen())
 			{
-				flipx = !flipx;
-				flipy = !flipy;
+				flipx ^= 1;
+				flipy ^= 1;
 			}
 
-			transmask = m_palette->transpen_mask(*m_gfxdecode->gfx(bank), color, 0x80);
+			sy += pxly * sizey;
 
-			if (spriteram_3[offs] & 2)  /* double height (?) */
+			//sx &= 0x1ff;
+			sy &= 0xff;
+
+			for (int y = 0; y <= sizey; y++)
 			{
-				if (spriteram_3[offs] & 1)  /* double width, double height */
+				for (int x = 0; x <= sizex; x++)
 				{
-					code &= ~3;
+					uint32_t const transmask = m_palette->transpen_mask(*m_gfxdecode->gfx(bank), color, 0x80);
+					int const code2 = code + gfx_offs[y ^ (sizey & flipy)][x ^ (sizex & flipx)] ;
+					uint8_t * const pict = memregion("gfx3")->base() + code2 * 0x40;
+
+					if ( (0x180 <= code2) && (code2 <= 0x1ff) )
+					{
+					/* unstable graphics
+					If 0x180<=code2<=0x1ff then data pins receive high impedance. Nobody can estimate their value.
+					Alternative plan:
+					When They are switched to high impedance, thair voltage slowly approache 2.5V.
+					"H"=5V, threshold=1.4V, "L"=0V
+					"H"->"Z" = 5V->2.5V = keep "H"
+					"L"->"Z" = 0V->2.5V = change from "L" to "H"
+					If they are read while changing, they have noise.
+					*/
+
+						/* top 16x4 pixels */
+						for (int i=0x00; i<0x08; i++) pict[i] = latestread;
+						for (int i=0x20; i<0x28; i++) pict[i] = latestread;
+
+						/* next 16x4 pixels (acrossing threshold voltage while reading plane 0) */
+						{
+							enum { threshold = 14000 };
+							int d0,d2; /* I have never seen d1="L" and d3="L" */
+							if ( noisecounter < 2 )
+							{
+								d2 = threshold - 100;
+								d0 = threshold;
+							}
+							else if ( noisecounter < 6 )
+							{
+								d2 = threshold - 100 + 10 * noisecounter;
+								d0 = threshold - 10 * noisecounter;
+							}
+							else
+							{
+								d2 = threshold;
+								d0 = threshold;
+							}
+							if (latestread & 4) d2 = threshold;
+							if (latestread & 1) d0 = threshold;
+							for (int i=0x08; i<0x10; i++)
+							{
+								uint8_t b = 0xfa;
+								if ( d2 + machine().rand() % 100 >= threshold ) b |= 4;
+								if ( d0 + machine().rand() % 100 >= threshold ) b |= 1;
+								pict[i] = b;
+								d2 += 1;
+								d0 += 1;
+							}
+							for (int i=0x28; i<0x30; i++)
+							{
+								uint8_t b = 0xfa;
+								if ( d2 + machine().rand() % 100 >= threshold ) b |= 4;
+								if ( d0 + machine().rand() % 100 >= threshold ) b |= 1;
+								pict[i] = b;
+								d2 += 1;
+								d0 += 1;
+							}
+						}
+
+						/* remaining part */
+						for (int i=0x10; i<0x20; i++) pict[i] = 0xff;
+						for (int i=0x30; i<0x40; i++) pict[i] = 0xff;
+
+						/* flush cache */
+						m_gfxdecode->gfx(bank)->mark_dirty(code2);
+					}
+
 					m_gfxdecode->gfx(bank)->transmask(bitmap,cliprect,
-							code+3,color,flipx,flipy,
-							flipx ? sx : sx+16,flipy ? sy-16 : sy,transmask);
-					m_gfxdecode->gfx(bank)->transmask(bitmap,cliprect,
-							code+1,color,flipx,flipy,
-							flipx ? sx : sx+16,flipy ? sy : sy-16,transmask);
+						code2,
+						color, flipx, flipy,
+						sx + pxlx * x + adjx,
+						- sy + pxly * y + adjy,
+						transmask);
+
+					if (code2 < 0x100)
+						latestread = (pict[0x803f] & 0xf) + ((pict[0x803f] & 0xf) << 4); /* end of plane 2 */
+					else
+						latestread = (pict[0x003f] & 0xf0) + ((pict[0x003f] & 0xf0) >> 4); /* end of plane 1 */
 				}
-				code &= ~2;
-				m_gfxdecode->gfx(bank)->transmask(bitmap,cliprect,
-						code+2,color,flipx,flipy,
-						flipx ? sx+16 : sx,flipy ? sy-16 : sy,transmask);
-				m_gfxdecode->gfx(bank)->transmask(bitmap,cliprect,
-						code,color,flipx,flipy,
-						flipx ? sx+16 : sx,flipy ? sy : sy-16,transmask);
 			}
-			else if (spriteram_3[offs] & 1) /* double width */
-			{
-				code &= ~1;
-				m_gfxdecode->gfx(bank)->transmask(bitmap,cliprect,
-						code,color,flipx,flipy,
-						flipx ? sx+16 : sx,flipy ? sy-16 : sy,transmask);
-				m_gfxdecode->gfx(bank)->transmask(bitmap,cliprect,
-						code+1,color,flipx,flipy,
-						flipx ? sx : sx+16,flipy ? sy-16 : sy,transmask);
-			}
-			else    /* normal */
-			{
-				m_gfxdecode->gfx(bank)->transmask(bitmap,cliprect,
-						code,color,flipx,flipy,sx,sy,transmask);
-			}
+
 		}
 	}
 }
