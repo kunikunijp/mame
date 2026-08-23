@@ -17476,6 +17476,12 @@ prof80
 prof180x
 prof181x
 
+@source:cosmo/cosmo_ls9310.cpp
+exfever
+
+@source:cosmo/pkscram.cpp
+pkscram
+
 @source:cromemco/c10.cpp
 c10
 
@@ -33054,9 +33060,6 @@ rndrndqs
 @source:misc/pipeline.cpp
 pipeline
 
-@source:misc/pkscram.cpp
-pkscram
-
 @source:misc/playcenter.cpp
 plycntrchtr
 plycntrchtrc
@@ -40274,7 +40277,9 @@ cm300
 sc55mk2
 
 @source:roland/roland_sc88.cpp
+sc88
 sc88vl
+sc88pro
 
 @source:roland/roland_tb303.cpp
 tb303
@@ -43670,9 +43675,6 @@ cortex
 
 @source:skeleton/cosmicos.cpp
 cosmicos
-
-@source:skeleton/cosmo68k.cpp
-exfever
 
 @source:skeleton/cp1.cpp
 cp1
