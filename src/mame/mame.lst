@@ -26924,6 +26924,13 @@ jr200u
 @source:matsushita/kn5000.cpp
 kn5000
 
+@source:matsushita/kn7000.cpp
+kn6000
+kn2400
+kn2600                          // SX-KN2600, same firmware as SX-KN2400
+kn6500
+kn7000
+
 @source:matsushita/myb3k.cpp
 myb3k
 jb3000
@@ -36487,6 +36494,10 @@ drumsta
 @source:oberheim/dmx.cpp
 obdmx
 
+@source:oberheim/matrix6.cpp
+matrix6
+matrix6r
+
 @source:oberheim/ob8.cpp
 ob8
 
@@ -40554,6 +40565,9 @@ djddz
 jzuanshi
 pljh
 
+@source:seequa/chameleon.cpp
+chameleon
+
 @source:sega/angelkds.cpp
 angelkds
 spcpostn
@@ -42212,6 +42226,7 @@ pclub26wa
 pclub27s
 pclub2fc
 pclub2kc
+pclub2mb
 pclub2pe
 pclub2pf
 pclub2v3
@@ -42220,6 +42235,7 @@ pclubol
 pclubor
 pclubpok
 pclubsc5
+pclubsc6
 pclubyo
 pclubyo2
 pcpooh2
