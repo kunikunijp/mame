@@ -162,7 +162,9 @@ void cr511b_device::device_reset()
 	m_scor_cb(0);
 	m_sbcp_cb(0);
 
-	// used when playing audio cds
+	m_drq_cb(0);
+
+	// active while the motor/decoder is running
 	m_subcode_timer->adjust(attotime::never);
 
 	m_scan_timer->adjust(attotime::never);
@@ -248,8 +250,8 @@ TIMER_CALLBACK_MEMBER(cr511b_device::frame_cb)
 
 TIMER_CALLBACK_MEMBER(cr511b_device::subcode_cb)
 {
-	// if we're paused return early
-	if (m_cdda->audio_paused())
+	// if we're playing audio and are paused return early
+	if ((m_status & STATUS_PLAYING) && m_cdda->audio_paused())
 	{
 		m_scor_cb(0);
 		m_sbcp_cb(0);
@@ -262,20 +264,24 @@ TIMER_CALLBACK_MEMBER(cr511b_device::subcode_cb)
 	{
 		// the byte-ready line is inactive throughout the two sync symbols
 		m_sbcp_cb(0);
+		m_subcode_valid = false;
 
-		uint32_t const audio_lba = m_cdda->get_audio_lba();
+		if (m_status & STATUS_PLAYING)
+		{
+			uint32_t const audio_lba = m_cdda->get_audio_lba();
 
-		// get_audio_lba() can potentially change our status, so check that we still play
-		if (!(m_status & STATUS_PLAYING))
-			return;
+			// get_audio_lba() can potentially change our status, so check that we still play
+			if (!(m_status & STATUS_PLAYING))
+				return;
 
-		LOGMASKED(LOG_SUBCODE, "Fetching new subchannel data for sector %u\n", audio_lba);
+			LOGMASKED(LOG_SUBCODE, "Fetching new subchannel data for sector %u\n", audio_lba);
 
-		uint32_t const subsize = get_toc().tracks[get_track(audio_lba)].subsize;
-		m_subcode_valid = read_subcode(audio_lba, m_subcode_buffer) && (subsize == SUBCODE_DATA_SYMBOLS);
+			uint32_t const subsize = get_toc().tracks[get_track(audio_lba)].subsize;
+			m_subcode_valid = read_subcode(audio_lba, m_subcode_buffer) && (subsize == SUBCODE_DATA_SYMBOLS);
 
-		if (!m_subcode_valid)
-			LOGMASKED(LOG_SUBCODE, "No raw P-W subcode for sector %u (subsize %u)\n", audio_lba, subsize);
+			if (!m_subcode_valid)
+				LOGMASKED(LOG_SUBCODE, "No raw P-W subcode for sector %u (subsize %u)\n", audio_lba, subsize);
+		}
 	}
 	else if (m_subcode_symbol == 1)
 	{
@@ -343,16 +349,20 @@ void cr511b_device::status_change(uint8_t status)
 {
 	if (m_status != status)
 	{
+		bool const motor_was_running = bool(m_status & STATUS_MOTOR);
 		m_status = status;
 
 		if (m_status & STATUS_MOTOR)
+		{
 			m_frame_timer->adjust(attotime::from_hz(75), 0, attotime::from_hz(75));
+			if (!motor_was_running)
+				start_subcode();
+		}
 		else
+		{
 			m_frame_timer->adjust(attotime::never);
-
-		// stop the subcode timer if we no longer play
-		if (!(m_status & STATUS_PLAYING))
 			stop_subcode();
+		}
 
 		m_stch_timer->adjust(attotime::from_usec(64 * 3), 1); // TODO: Timing
 	}
@@ -424,8 +434,6 @@ void cr511b_device::play_audio(uint32_t start, uint32_t end)
 			m_input_fifo[1], m_input_fifo[2], m_input_fifo[3],
 			m_input_fifo[4], m_input_fifo[5], m_input_fifo[6], start, end);
 
-		bool const already_running = m_cdda->audio_active();
-
 		m_cdda->cancel_scan();
 		m_cdda->start_audio(start, end - start );
 
@@ -435,8 +443,6 @@ void cr511b_device::play_audio(uint32_t start, uint32_t end)
 		status |= STATUS_MOTOR;
 
 		status_change(status);
-		if (!already_running)
-			start_subcode();
 	}
 	else
 	{
@@ -718,9 +724,17 @@ void cr511b_device::cmd_read()
 	LOGMASKED(LOG_CMD, "Command: Read\n");
 	LOGPARAM;
 
+	if (m_data_ready || m_transfer_sectors > 0)
+		LOGMASKED(LOG_CMD, "-> Canceling remaining data transfer\n");
+
+	// cancel any remaining data that hasn't been transferred yet
+	m_data_ready = false;
+	m_drq_cb(0);
+
 	m_transfer_lba = (m_input_fifo[1] << 16) | (m_input_fifo[2] << 8) | (m_input_fifo[3] << 0);
 	m_transfer_sectors = (m_input_fifo[4] << 8) | (m_input_fifo[5] << 0);
 	m_transfer_length = m_transfer_sectors * m_sector_size;
+	m_transfer_buffer_pos = 0;
 
 	LOGMASKED(LOG_CMD, "-> LBA %d, sectors %d\n", m_transfer_lba, m_transfer_sectors);
 
@@ -802,14 +816,34 @@ void cr511b_device::cmd_play_track()
 	uint8_t end_track = m_input_fifo[3];
 	uint8_t end_index = m_input_fifo[4]; // TODO
 
-	if (start_track > 0 && end_track > 0)
+	// the cd+g player sends a play track command with all 0 parameters - we treat it as no-op
+	if (!(start_track == 0 && start_index == 0 && end_track == 0 && end_index == 0))
 	{
-		uint32_t start_lba = get_track_start(start_track - 1);
-		uint32_t end_lba = get_track_start(end_track - 1);
+		uint8_t const last_track = get_last_track();
 
-		LOGMASKED(LOG_CMD, "Playing audio track %d-%d to %d-%d (LBA %d to %d)\n", start_track, start_index, end_track, end_index, start_lba, end_lba);
+		if (start_track == 0 || start_track > last_track || (end_track > 0 && (end_track > last_track || start_track >= end_track)))
+		{
+			LOGMASKED(LOG_CMD, "-> Invalid track setting: start=%d, end=%d\n", start_track, end_track);
 
-		play_audio(start_lba, end_lba);
+			uint8_t status = m_status;
+
+			m_cdda->cancel_scan();
+			m_cdda->stop_audio();
+
+			status &= ~(STATUS_PLAYING | STATUS_MOTOR);
+			status |= STATUS_ERROR;
+
+			status_change(status);
+		}
+		else
+		{
+			uint32_t start_lba = get_track_start(start_track - 1);
+			uint32_t end_lba = end_track > 0 ? get_track_start(end_track - 1) : get_track_start(0xaa);
+
+			LOGMASKED(LOG_CMD, "Playing audio track %d-%d to %d-%d (LBA %d to %d)\n", start_track, start_index, end_track, end_index, start_lba, end_lba);
+
+			play_audio(start_lba, end_lba);
+		}
 	}
 
 	status_enable(0);
