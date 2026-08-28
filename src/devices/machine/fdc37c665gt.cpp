@@ -46,7 +46,7 @@ fdc37c665gt_device::fdc37c665gt_device(const machine_config &mconfig, const char
 	, m_fdc(*this, "fdc")
 	, m_serial(*this, "uart%u", 1)
 	, m_lpt(*this, "lpt")
-	, m_ide(*this, "ide%u", 1)
+	, m_ide(*this, finder_base::DUMMY_TAG, -1)
 {
 }
 
@@ -102,11 +102,6 @@ void fdc37c665gt_device::device_add_mconfig(machine_config &config)
 	m_serial[1]->out_tx_callback().set(FUNC(fdc37c665gt_device::txd_serial2_w));
 	m_serial[1]->out_dtr_callback().set(FUNC(fdc37c665gt_device::dtr_serial2_w));
 	m_serial[1]->out_rts_callback().set(FUNC(fdc37c665gt_device::rts_serial2_w));
-
-	// NOTE: irq(s) is client responsibility (no pins on Super I/O)
-	ATA_INTERFACE(config, m_ide[0]).options(ata_devices, nullptr, nullptr, false);
-
-	ATA_INTERFACE(config, m_ide[1]).options(ata_devices, nullptr, nullptr, false);
 }
 
 uint8_t fdc37c665gt_device::read(offs_t offset)
@@ -187,11 +182,6 @@ uint8_t fdc37c665gt_device::read(offs_t offset)
 
 	// IDE
 	if ((offset & 0x178) == 0x170 && enabled_logical[LogicalDevice::IDE]) {
-		// HACK: range $xx6~$xx7 looks sensitive on riscpc (and returns 0xff with current core)
-		// Will hang even if no ATA device mounted
-		if ((offset & 0x6) == 6)
-			return machine().rand();
-
 		// $1f0 IDE1 cs0
 		// $3f0 IDE1 cs1
 		// $170 IDE2 cs0
@@ -201,7 +191,8 @@ uint8_t fdc37c665gt_device::read(offs_t offset)
 
 		auto &ide_dev = m_ide[ide_target];
 
-		return cs_select ? ide_dev->cs1_r(offset & 7, 0xff) : ide_dev->cs0_r(offset & 7, 0xff);
+		if (ide_dev)
+			return cs_select ? ide_dev->cs1_r(offset & 7) : ide_dev->cs0_r(offset & 7);
 	}
 
 	return 0;
@@ -297,10 +288,13 @@ void fdc37c665gt_device::write(offs_t offset, uint8_t data)
 
 		auto &ide_dev = m_ide[ide_target];
 
-		if(cs_select)
-			ide_dev->cs1_w(offset & 7, data, 0xff);
-		else
-			ide_dev->cs0_w(offset & 7, data, 0xff);
+		if (ide_dev)
+		{
+			if (cs_select)
+				ide_dev->cs1_w(offset & 7, data);
+			else
+				ide_dev->cs0_w(offset & 7, data);
+		}
 	}
 }
 
