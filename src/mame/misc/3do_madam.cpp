@@ -7,12 +7,13 @@
 #define LOG_FENCE   (1U << 1)
 #define LOG_MMU     (1U << 2)
 #define LOG_DMA     (1U << 3)
-#define LOG_MULT    (1U << 4)
-#define LOG_VDLP    (1U << 5)
-#define LOG_CEL     (1U << 6)
-#define LOG_REGIS   (1U << 7)
+#define LOG_VDLP    (1U << 4)
+#define LOG_CEL     (1U << 5)
+#define LOG_REGIS   (1U << 6)
+#define LOG_MULT    (1U << 8) // MULT matrix ops
+#define LOG_MULTV   (1U << 9) // verbose, mult register access
 
-#define VERBOSE (LOG_GENERAL | LOG_MMU | LOG_MULT)
+#define VERBOSE (LOG_GENERAL | LOG_MMU)
 //#define VERBOSE (LOG_VDLP)
 //#define VERBOSE (LOG_CEL | LOG_REGIS)
 //#define LOG_OUTPUT_FUNC osd_printf_info
@@ -26,6 +27,7 @@
 #define LOGVDLP(...)    LOGMASKED(LOG_VDLP,    __VA_ARGS__)
 #define LOGCEL(...)     LOGMASKED(LOG_CEL,     __VA_ARGS__)
 #define LOGREGIS(...)   LOGMASKED(LOG_REGIS,   __VA_ARGS__)
+#define LOGMULTV(...)   LOGMASKED(LOG_MULTV,   __VA_ARGS__)
 
 DEFINE_DEVICE_TYPE(MADAM, madam_device, "madam", "3DO MN7A020UDA \"Madam\" Address Decoder")
 
@@ -71,7 +73,6 @@ void madam_device::device_start()
 	save_item(NAME(m_pip));
 	save_item(NAME(m_fence));
 	save_item(NAME(m_mmu));
-	save_item(NAME(m_mult));
 	save_item(NAME(m_dma));
 
 	save_item(NAME(m_msysbits));
@@ -98,6 +99,8 @@ void madam_device::device_start()
 	save_item(NAME(m_dxyl));
 	save_item(NAME(m_ddxyh));
 	save_item(NAME(m_ddxyl));
+
+	save_item(NAME(m_mult));
 	save_item(NAME(m_mult_control));
 	save_item(NAME(m_mult_status));
 
@@ -124,6 +127,9 @@ void madam_device::device_reset()
 	m_dma_exp_timer->adjust(attotime::never);
 	m_dma_playerbus_timer->adjust(attotime::never);
 	m_cel_timer->adjust(attotime::never);
+
+	// TODO: unknown init value
+	std::fill_n(m_mult, 40, 0);
 }
 
 // $0330'0000 base
@@ -377,28 +383,34 @@ void madam_device::map(address_map &map)
 	// NOTE: only 40 registers, cutoff beyond that
 	map(0x0600, 0x069f).lrw32(
 		NAME([this] (offs_t offset) {
+			LOGMULTV("Mult [%d] R\n", offset);
 			return m_mult[offset & 0x3f];
 		}),
 		NAME([this] (offs_t offset, u32 data, u32 mem_mask) {
-			LOGMULT("Mult [%d]: %08x & %08x\n", offset, data, mem_mask);
+			LOGMULTV("Mult [%d]: %08x & %08x\n", offset, data, mem_mask);
 			COMBINE_DATA(&m_mult[offset & 0x3f]);
 		})
 	);
 	map(0x07f0, 0x07f3).lrw32(
-		NAME([this] () { return m_mult_control; }),
+		NAME([this] () {
+			LOGMULTV("Control R\n");
+			return m_mult_control; }),
 		NAME([this] (offs_t offset, u32 data, u32 mem_mask) {
 			m_mult_control |= data;
-			LOGMULT("Mult control set: %08x & %08x -> %08x\n", data, mem_mask, m_mult_control);
+			LOGMULTV("Mult control set: %08x & %08x -> %08x\n", data, mem_mask, m_mult_control);
 		})
 	);
 	map(0x07f4, 0x07f7).lw32(
 		NAME([this] (offs_t offset, u32 data, u32 mem_mask) {
-			LOGMULT("Mult control clear: %08x & %08x -> %08x\n", data, mem_mask, m_mult_control);
+			LOGMULTV("Mult control clear: %08x & %08x -> %08x\n", data, mem_mask, m_mult_control);
 			m_mult_control &= ~data;
 		})
 	);
-	map(0x07f8, 0x07fb).lr32(NAME([this] () { return m_mult_status; }));
-//  map(0x07fc, 0x07ff) start process
+	map(0x07f8, 0x07fb).lr32(NAME([this] () {
+		LOGMULTV("Status R\n");
+		return m_mult_status;
+	}));
+	map(0x07fc, 0x07ff).w(FUNC(madam_device::mult_start_process_w));
 }
 
 u32 madam_device::mctl_r()
@@ -768,6 +780,7 @@ void madam_device::cel_continue_w(offs_t offset, u32 data, u32 mem_mask)
 // Test cases for the timings:
 // - ssf2xj (roughly in sync with intro);
 // - bam (seems too fast now);
+// - cfodder (gameplay);
 TIMER_CALLBACK_MEMBER(madam_device::cel_tick_cb)
 {
 	u32 tick_time;
@@ -855,13 +868,18 @@ TIMER_CALLBACK_MEMBER(madam_device::cel_tick_cb)
 				, m_cel.packed
 			);
 			m_cel.bgnd = !!BIT(m_cel.current_ccb, 5);
+			m_cel.pluta = (m_cel.current_ccb & 0xe);
 			LOGCEL("        pover=%d plutpos=%d bgnd=%d noblk=%d pluta=%d\n"
 				, (m_cel.current_ccb & 0x180) >> 7
 				, BIT(m_cel.current_ccb, 6)
 				, m_cel.bgnd
 				, BIT(m_cel.current_ccb, 4)
-				, (m_cel.current_ccb & 0xe) >> 1
+				, m_cel.pluta
 			);
+
+			// should be easy to implement
+			if (m_cel.pluta)
+				popmessage("3do_madam.cpp: unsupported PLUTA CEL %d", m_cel.pluta);
 
 			// relative spabs/ppabs offsets are trusted against orbatak
 			// TODO: negative values, used by bam PLUT entries (can't decode it properly yet)
@@ -932,6 +950,10 @@ TIMER_CALLBACK_MEMBER(madam_device::cel_tick_cb)
 				m_cel.pixc = m_dma32_read_cb(m_cel.address + 0x30);
 				tick_time += 1;
 				LOGCEL("    pixc=%08x\n", m_cel.pixc);
+				// TODO: only if MS not 2
+				const u8 df_table[4] = { 4, 1, 2, 3 };
+				m_cel.pixc_df[0] = df_table[BIT(m_cel.pixc, 24, 2)];
+				m_cel.pixc_df[1] = df_table[BIT(m_cel.pixc, 8, 2)];
 			}
 
 			// fetch the Preamble words
@@ -985,7 +1007,6 @@ TIMER_CALLBACK_MEMBER(madam_device::cel_tick_cb)
 		{
 			tick_time = 1;
 
-			// TODO: doubled with lrform = 1 (?)
 			const u16 vcnt = ((m_cel.pre0 >> 6) & 0xfff) + 1;
 			const bool uncoded = !!BIT(m_cel.pre0, 4);
 			const u8 bpp = (m_cel.pre0 >> 0) & 0x7;
@@ -1025,13 +1046,17 @@ TIMER_CALLBACK_MEMBER(madam_device::cel_tick_cb)
 				double actual_hdx = m_cel.hdx;
 				double actual_hdy = m_cel.hdy;
 
-				for (int y = 0; y < vcnt; y++)
+				// lrform enabled doubles vcnt
+				// - plumber choice screen
+				// - conandl FMV playbacks
+				// - retfire main menu
+				for (int y = 0; y < vcnt << lrform; y++)
 				{
 					for (int x = 0; x < tlhpcnt; x++)
 					{
 						// According to "The Projector" section this floors down,
 						// discarding the fractional part
-						// TODO: understand how enlarging truly works
+						// TODO: understand how enlarging truly works (check acw/accw)
 						int ypos = (s32)(m_cel.ypos + y * m_cel.vdy + x * actual_hdy);
 
 						if (ypos != std::clamp<unsigned>(ypos, 0, yclip))
@@ -1209,7 +1234,7 @@ std::tuple<u16, u32> madam_device::get_coded_6bpp(u32 ptr, u8 frac)
 	return std::make_tuple((m_dma8_read_cb(plut_ptr + idx) << 8) | m_dma8_read_cb(plut_ptr + idx + 1), ptr);
 }
 
-// - sailormn gameplay
+// - sailormn gameplay (DF = 3, used for background shading away from camera)
 // - aquawrld
 // - oyajihmj versus screen (zoom letters shrink)
 std::tuple<u16, u32> madam_device::get_coded_8bpp(u32 ptr, u8 frac)
@@ -1228,10 +1253,9 @@ std::tuple<u16, u32> madam_device::get_coded_8bpp(u32 ptr, u8 frac)
 	s16 g = (src_data & 0x03e0) >> 5;
 	s16 b = (src_data & 0x001f) >> 0;
 
-	// TODO: >> 3 may really be a setting (sailormn expect it like this) ...
-	r = std::min((r * alt_multiply) >> 3, 0x1f);
-	g = std::min((g * alt_multiply) >> 3, 0x1f);
-	b = std::min((b * alt_multiply) >> 3, 0x1f);
+	r = std::min((r * alt_multiply) >> m_cel.pixc_df[0], 0x1f);
+	g = std::min((g * alt_multiply) >> m_cel.pixc_df[0], 0x1f);
+	b = std::min((b * alt_multiply) >> m_cel.pixc_df[0], 0x1f);
 
 	const u16 dst_data = (r << 10) | (g << 5) | b;
 
@@ -1249,7 +1273,7 @@ std::tuple<u16, u32> madam_device::get_uncoded_8bpp(u32 ptr, u8 frac)
 
 // - 3do_try on Sanyo 3DO logo
 // A wasteful use case, sets woffset10 and 2 bytes per color fetch for a PLUT lookup trip.
-// TODO: other things should actually expect 32 PLUTs and the alternate multiply instead
+// TODO: actual SW should actually really use 32 PLUTs and the alternate multiply instead
 std::tuple<u16, u32> madam_device::get_coded_16bpp(u32 ptr, u8 frac)
 {
 	const u32 plut_ptr = m_cel.plut_ptr;
@@ -1526,8 +1550,8 @@ u16 madam_device::get_pixel_6bpp_coded_lrform0(int x, int y, u16 woffset)
 }
 
 // - fz10 Storage Managers
-// - demoman FMVs (options -> difficulty select)
-// - cfodder gameplay
+// - demoman FMVs (options -> difficulty select, DF = 2)
+// - cfodder gameplay (DF = 3)
 u16 madam_device::get_pixel_8bpp_coded_lrform0(int x, int y, u16 woffset)
 {
 	u32 cel_address = m_cel.source_ptr;
@@ -1553,10 +1577,9 @@ u16 madam_device::get_pixel_8bpp_coded_lrform0(int x, int y, u16 woffset)
 	s16 g = (src_data & 0x03e0) >> 5;
 	s16 b = (src_data & 0x001f) >> 0;
 
-	// >> 1 makes colors too bright in cfodder
-	r = std::min((r * alt_multiply) >> 2, 0x1f);
-	g = std::min((g * alt_multiply) >> 2, 0x1f);
-	b = std::min((b * alt_multiply) >> 2, 0x1f);
+	r = std::min((r * alt_multiply) >> m_cel.pixc_df[0], 0x1f);
+	g = std::min((g * alt_multiply) >> m_cel.pixc_df[0], 0x1f);
+	b = std::min((b * alt_multiply) >> m_cel.pixc_df[0], 0x1f);
 
 	u16 dst_data = (r << 10) | (g << 5) | b;
 
@@ -1599,7 +1622,7 @@ u16 madam_device::get_pixel_16bpp_uncoded_lrform1(int x, int y, u16 woffset)
 {
 	u32 cel_address = m_cel.source_ptr;
 
-	cel_address += ((y & ~1) * (woffset)) << 2;
+	cel_address += ((y & ~1) * (woffset)) << (1);
 	cel_address += ((x) << 2);
 	u8 src_shift = (y & 1) ^ 1;
 
@@ -1619,4 +1642,105 @@ u16 madam_device::get_pixel_packed(int x, int y, u16 woffset)
 	// Location here is primarily performance oriented, would tank if we 0-fill the full vector stack.
 	m_cel.buffer[src_address] = 0;
 	return src_data;
+}
+
+/******************
+ *
+ * Mult(iplier) Math stack
+ *
+ ******************/
+
+// TODO: details of this are sketchy
+// in particular timings and what happens with creative use of it.
+// - docthauz is reportedly slow on real HW
+void madam_device::mult_start_process_w(offs_t offset, u32 data, u32 mem_mask)
+{
+	// any data > 0xf has kinky behaviour on HW
+	if (mem_mask != 0xffff'ffff)
+	{
+		popmessage("Mult: illegal access attempt %08x & %08x", data, mem_mask);
+		return;
+	}
+
+	switch(data)
+	{
+		// 0: swap
+		case 0:
+		{
+			LOGMULT("SWAP\n");
+			for (int i = 0; i < 4; i++)
+				m_mult[16 + 8 + i] = m_mult[16 + 12 + i];
+
+			break;
+		}
+		// 1: 4x4 MAC
+		// ...
+
+		// 2: 3x3 MAC
+		// - slayer, docthauz, retfire
+		case 2:
+		{
+			int x, y;
+			double matrix_stack[3][3];
+			//const u8 op_size = 3 + (data == 1);
+
+			// populate the *previous* operation result
+			// i.e. perform a swap first
+			for (x = 0; x < 3; x++)
+				m_mult[16 + 8 + x] = m_mult[16 + 12 + x];
+
+			LOGMULT("3x3 MAC: ");
+			for (y = 0; y < 3; y++)
+			{
+				for (x = 0; x < 3; x++)
+				{
+					matrix_stack[x][y] = (double)m_mult[x + y * 4] / 65536.0;
+					LOGMULT("%f ", matrix_stack[x][y]);
+				}
+				LOGMULT("| ");
+			}
+			LOGMULT("\n");
+			double b_bank[3];
+			double result[3] { 0.0, 0.0, 0.0 };
+
+			for (x = 0; x < 3; x++)
+				b_bank[x] = (double)m_mult[16 + x] / 65536.0;
+
+			LOGMULT("bank [%d]: %f %f %f\n", 16, b_bank[0], b_bank[1], b_bank[2]);
+
+			// perform dot product
+			for (x = 0; x < 3; x++)
+			{
+				for (y = 0; y < 3; y++)
+				{
+					result[y] += matrix_stack[x][y] * b_bank[x];
+				}
+			}
+			LOGMULT("-----\nresult [%d] = ", 16 + 12);
+
+			// TODO: how 4th value gets populated by a 3x3? Untouched? Zero? Other?
+			// Requires a SW that mixes 4x4 with 3x3 ops
+			for (x = 0; x < 3; x++)
+			{
+				m_mult[16 + 12 + x] = (s32)(result[x] * 65536.0);
+				LOGMULT("%f ", result[x]);
+				//LOGMULT("%08x ", m_mult[bank_src + 8 + x]);
+			}
+			LOGMULT("\n\n");
+			//m_mult_control ^= 0x10;
+			break;
+		}
+		// 3: 3x3 MAC w/divide and multiply
+		// 4: 4x1 MAC
+		// 5: 1x1 MAC (4 sets)
+		// 8: CCoB conversion
+		// 9: CCoB conversion w/ pre-divided values
+		// c: Small Divide
+		// d: Big Divide (not implemented on stock 3do)
+
+		// 6,7,a,b,e,f: <reserved>
+		default:
+			popmessage("Mult: unemulated or invalid trigger %02x & %08x", data, mem_mask);
+			break;
+	}
 }
