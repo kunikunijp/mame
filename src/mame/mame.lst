@@ -29517,6 +29517,7 @@ rodent
 3do_hc21
 3do_try
 alg3do
+crime3do
 md23do
 orbatak
 sht3do
@@ -36566,6 +36567,7 @@ ob8
 obsx
 
 @source:oberheim/xpander.cpp
+matrix12
 xpander
 
 @source:olivetti/att6300p.cpp
