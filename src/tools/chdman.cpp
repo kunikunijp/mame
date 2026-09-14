@@ -311,29 +311,32 @@ class chd_rawfile_compressor : public chd_file_compressor
 {
 public:
 	// construction/destruction
-	chd_rawfile_compressor(util::random_read &file, std::uint64_t offset = 0, std::uint64_t maxoffset = std::numeric_limits<std::uint64_t>::max())
+	chd_rawfile_compressor(util::random_read &file, std::uint64_t offset, std::uint64_t maxoffset)
 		: m_file(file)
 		, m_offset(offset)
+		, m_maxoffset(maxoffset)
 	{
-		// TODO: what to do about error getting file size?
-		std::uint64_t filelen;
-		if (!file.length(filelen))
-			m_maxoffset = (std::min)(maxoffset, filelen);
-		else
-			m_maxoffset = maxoffset;
 	}
 
 	// read interface
 	virtual std::uint32_t read_data(void *dest, std::uint64_t offset, std::uint32_t length) override
 	{
-		offset += m_offset;
-		if (offset >= m_maxoffset)
+		// initialize destination to 0 so that data beyond the input is padded
+		std::memset(dest, 0, length);
+
+		std::uint64_t const input_length = m_maxoffset - m_offset;
+		if (offset >= input_length)
 			return 0;
-		if (offset + length > m_maxoffset)
-			length = m_maxoffset - offset;
-		if (m_file.seek(offset, SEEK_SET)) // FIXME: better error reporting?
-			return 0;
-		auto const [err, actual] = read(m_file, dest, length); // FIXME: check for error return
+		if (length > input_length - offset)
+			length = input_length - offset;
+
+		// read the portion backed by the input file
+		auto const [err, actual] = read_at(m_file, m_offset + offset, dest, length);
+		if (err)
+			throw err;
+		if (actual != length)
+			throw std::error_condition(std::errc::io_error);
+
 		return actual;
 	}
 
@@ -2947,7 +2950,8 @@ static void do_extract_cd(parameters_map &params)
 				}
 
 				// read the data
-				cdrom->read_data(cdrom->get_track_start_phys(trk) + frameofs, &buffer[bufferoffs], toc.tracks[trk].trktype, true);
+				if (!cdrom->read_data(cdrom->get_track_start_phys(trk) + frameofs, &buffer[bufferoffs], toc.tracks[trk].trktype, true))
+					report_error(1, "Error reading frame %d from track %d", frame, trk + 1);
 
 				// for CDRWin and GDI audio tracks must be reversed
 				// in the case of GDI and CHD version < 5 we assuming source CHD image is GDROM so audio tracks is already reversed
@@ -2964,7 +2968,8 @@ static void do_extract_cd(parameters_map &params)
 				// read the subcode data
 				if (toc.tracks[trk].subtype != cdrom_file::CD_SUB_NONE && (mode == MODE_NORMAL))
 				{
-					cdrom->read_subcode(cdrom->get_track_start_phys(trk) + frameofs, &buffer[bufferoffs], true);
+					if (!cdrom->read_subcode(cdrom->get_track_start_phys(trk) + frameofs, &buffer[bufferoffs], true))
+						report_error(1, "Error reading subcode for frame %d from track %d", frame, trk + 1);
 					bufferoffs += toc.tracks[trk].subsize;
 				}
 
@@ -3338,16 +3343,18 @@ static void do_dump_metadata(parameters_map &params)
 		else
 		{
 			// flush to stdout
-			// FIXME: check for errors
-			fwrite(buffer.data(), 1, buffer.size(), stdout);
-			fflush(stdout);
+			if (fwrite(buffer.data(), 1, buffer.size(), stdout) != buffer.size())
+				report_error(1, "Error writing metadata to stdout");
+			if (fflush(stdout) != 0)
+				report_error(1, "Error flushing metadata to stdout");
 		}
 	}
 	catch (...)
 	{
 		// delete the output file
 		output_file.reset();
-		osd_file::remove(*output_file_str->second);
+		if (output_file_str != params.end())
+			osd_file::remove(*output_file_str->second);
 		throw;
 	}
 }
