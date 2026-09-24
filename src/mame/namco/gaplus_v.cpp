@@ -111,23 +111,31 @@ TILE_GET_INFO_MEMBER(gaplus_base_state::get_tile_info)
     a001 ---> starfield plane 0 control
     a002 ---> starfield plane 1 control
     a003 ---> starfield plane 2 control
+
+screen : 224*288
+starfield : 256*256 (sticking out : 32*256)
+|----screen----|
+|---starfield--|-|
+|              | |
+|              | |
+|              | |
+|              | |
+|              | |
+|              | |
+|              | |
+|---starfield--|-|
+|----screen----|
 ***************************************************************************/
 
-/* starfield speed constants (bigger = faster) */
-#define SPEED_1 1.0f
-#define SPEED_2 2.0f
-#define SPEED_3 3.0f
-
-/* starfield: top and bottom clipping size */
-#define STARFIELD_CLIPPING_X 16
+#define STARFIELD_OFFSET_X 16
+#define STARFIELD_OFFSET_Y 0
+#define STARFIELD_WIDTH 256
+#define STARFIELD_HEIGHT 256
 
 void gaplus_base_state::starfield_init()
 {
 	int generator = 0;
 	int set = 0;
-
-	const int width = m_screen->width();
-	const int height = m_screen->height();
 
 	m_total_stars = 0;
 	m_starfield_framecount = 0;
@@ -135,9 +143,9 @@ void gaplus_base_state::starfield_init()
 	/* precalculate the star background */
 	/* this comes from the Galaxian hardware, Gaplus is probably different */
 
-	for (int y = 0; y < height; y++)
+	for (int y = 0; y < STARFIELD_HEIGHT; y++)
 	{
-		for (int x = width - (STARFIELD_CLIPPING_X * 2) - 1; x >= 0; x--)
+		for (int x = 0; x < STARFIELD_WIDTH; x++)
 		{
 			generator <<= 1;
 			const int bit1 = (~generator >> 17) & 1;
@@ -165,7 +173,7 @@ void gaplus_base_state::starfield_init()
 
 				if (color && m_total_stars < MAX_STARS)
 				{
-					m_stars[m_total_stars].x = x + STARFIELD_CLIPPING_X;
+					m_stars[m_total_stars].x = x;
 					m_stars[m_total_stars].y = y;
 					m_stars[m_total_stars].col = color_base + color;
 					m_stars[m_total_stars].set = set++;
@@ -246,8 +254,8 @@ void gaplus_base_state::starfield_render(bitmap_ind16 &bitmap)
 	/* draw the starfields */
 	for (int i = 0; i < m_total_stars; i++)
 	{
-		int x = m_stars[i].x;
-		int y = m_stars[i].y;
+		int x = (signed int)m_stars[i].x + STARFIELD_OFFSET_X;
+		int y = (signed int)m_stars[i].y + STARFIELD_OFFSET_Y;
 
 		/* Some stars in the second layer will flash erratically when changing their movements.
 		   (It is when at reverse scrolling stage or get elephant head.)
@@ -347,71 +355,23 @@ void gaplus_base_state::screen_vblank(int state) /* update starfields */
 		struct star *stars = m_stars;
 		int i;
 
-		int width = m_screen->width();
-		int height = m_screen->height();
-
 		m_starfield_framecount ++;
 
 		/* check if we're running */
-		if ( ( m_starfield_control[0] & 1 ) == 0 )
+		if (( m_starfield_control[0] & 1 ) == 0)
 			return;
 
 		/* update the starfields */
-		for ( i = 0; i < m_total_stars; i++ ) {
-			switch( m_starfield_control[stars[i].set + 1] ) {
-				case 0x87:
-					/* stand still */
-				break;
+		for (i = 0; i < m_total_stars; i++) {
+			static const int x_speed[8] = {-1, -2, -3, -4, 3, 2, 1, 0};
+			static const int y_speed[8] = {0, -1, -2, -3, -4, 3, 2, 1};
+			const uint8_t stts = m_starfield_control[stars[i].set + 1];
 
-				case 0x85:
-				case 0x86:
-					/* scroll down (speed 1) */
-					stars[i].x += SPEED_1;
-				break;
-
-				case 0x06:
-					/* scroll down (speed 2) */
-					stars[i].x += SPEED_2;
-				break;
-
-				case 0x80:
-					/* scroll up (speed 1) */
-					stars[i].x -= SPEED_1;
-				break;
-
-				case 0x82:
-					/* scroll up (speed 2) */
-					stars[i].x -= SPEED_2;
-				break;
-
-				case 0x81:
-					/* scroll up (speed 3) */
-					stars[i].x -= SPEED_3;
-				break;
-
-				case 0x9f:
-					/* scroll left (speed 3) */
-					stars[i].y += SPEED_3;
-				break;
-
-				case 0xaf:
-					/* scroll right (speed 3) */
-					stars[i].y -= SPEED_3;
-				break;
-			}
+			stars[i].x += x_speed[stts & 0x07];
+			stars[i].y += y_speed[(stts & 0x38)>>3];
 
 			/* wrap */
-			if ( stars[i].x < STARFIELD_CLIPPING_X )
-				stars[i].x = ( float )( width-STARFIELD_CLIPPING_X*2) + stars[i].x;
-
-			if ( stars[i].x >= ( float )( width-STARFIELD_CLIPPING_X) )
-				stars[i].x -= ( float )( width-STARFIELD_CLIPPING_X*2);
-
-			if ( stars[i].y < 0 )
-				stars[i].y = ( float )( height ) + stars[i].y;
-
-			if ( stars[i].y >= ( float )( height ) )
-				stars[i].y -= ( float )( height );
+			/* unnecessary, because 'uint8_t's circulate 0-255 automatically */
 		}
 	}
 }
