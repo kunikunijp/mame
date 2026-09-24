@@ -51,7 +51,7 @@ void mrdo_state::palette_init(palette_device &palette) const
 	constexpr int R3 = 100;
 	constexpr int R4 = 75;
 	constexpr int pull = 220;
-	constexpr float potadjust = 0.7f;   /* diode voltage drop */
+	constexpr float potadjust = 0.5f;   /* diode voltage drop */
 
 	float pot[16];
 	int weight[16];
