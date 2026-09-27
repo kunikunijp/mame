@@ -1111,7 +1111,6 @@ void xevious_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
 						latestread = (pict[0x003f] & 0xf0) + ((pict[0x003f] & 0xf0) >> 4); /* end of plane 1 */
 				}
 			}
-
 		}
 	}
 }
