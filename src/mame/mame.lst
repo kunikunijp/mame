@@ -21199,6 +21199,9 @@ mbs1
 @source:homebrew/68ksbc.cpp
 68ksbc
 
+@source:homebrew/arduboy.cpp
+arduboy
+
 @source:homebrew/chaos.cpp
 chaos
 
@@ -33482,6 +33485,10 @@ trvhanga
 @source:misc/spdamjes.cpp
 spdamjes
 
+@source:misc/spitfire.cpp
+spitfire
+spitfirea
+
 @source:misc/spool99.cpp
 scardy2k
 spool99
@@ -33719,7 +33726,8 @@ newxpanga
 poosho
 puzlbang
 puzlbanga
-solitaire
+solitair
+solitaira
 suplup
 toyland
 vamphalf
