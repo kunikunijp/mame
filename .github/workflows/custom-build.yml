@@ -52,8 +52,11 @@ jobs:
       uses: actions/cache@v4
       with:
         path: .ccache
-        key: ${{ runner.os }}-gcc-x64-ccache-${{ github.sha }}
+        # コミットハッシュではなく、ブランチ名やリファレンスをキーにする
+        key: ${{ runner.os }}-gcc-x64-ccache-${{ github.ref_name }}-${{ github.sha }}
+        # ヒットしなかった場合に、過去の同名ブランチ（またはデフォルトブランチ）のキャッシュをフォールバックとして部分一致（前方一致）で取得する
         restore-keys: |
+          ${{ runner.os }}-gcc-x64-ccache-${{ github.ref_name }}-
           ${{ runner.os }}-gcc-x64-ccache-
 
     # 3. ビルドの実行（ccache を強制適用）
