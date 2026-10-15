@@ -357,7 +357,8 @@ public:
 	void re800(machine_config &config) ATTR_COLD;
 	void luckyrlta(machine_config &config) ATTR_COLD;
 	void monte(machine_config &config) ATTR_COLD;
-	void init_rulam() ATTR_COLD;
+	void rula(machine_config &config) ATTR_COLD;
+	void init_monte() ATTR_COLD;
 
 protected:
 	virtual void video_start() override ATTR_COLD;
@@ -377,6 +378,7 @@ private:
 	void wc_meters_w(uint8_t data);
 	void blitter_execute(int x, int y, int color, int width, int flag);
 	void corona_palette(palette_device &palette) const;
+	void monte_palette(palette_device &palette) const;
 	uint32_t screen_update_winner(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_luckyrlt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void luckyrlt_cpu_io_map(address_map &map) ATTR_COLD;
@@ -438,6 +440,32 @@ void corona_state::corona_palette(palette_device &palette) const
 		bit0 = BIT(color_prom[i], 4);
 		bit1 = BIT(color_prom[i], 5);
 		int const r = 0x0e * bit6 + 0x1f * bit7 + 0x43 * bit0 + 0x8f * bit1;
+
+		palette.set_pen_color(i, rgb_t(r, g, b));
+	}
+}
+
+void corona_state::monte_palette(palette_device &palette) const
+{
+	uint8_t const *const color_prom = memregion("proms")->base();
+
+	for (int i = 0; i < 0x20; ++i)
+	{
+		int bit0, bit1;
+		int const bit7 = BIT(color_prom[i], 7);
+		int const bit6 = BIT(color_prom[i], 6);
+
+		bit0 = BIT(color_prom[i], 0);
+		bit1 = BIT(color_prom[i], 1);
+		int const r = 0x0e * bit6 + 0x1f * bit7 + 0x43 * bit0 + 0x8f * bit1;
+
+		bit0 = BIT(color_prom[i], 2);
+		bit1 = BIT(color_prom[i], 3);
+		int const g = 0x0e * bit6 + 0x1f * bit7 + 0x43 * bit0 + 0x8f * bit1;
+
+		bit0 = BIT(color_prom[i], 4);
+		bit1 = BIT(color_prom[i], 5);
+		int const b = 0x0e * bit6 + 0x1f * bit7 + 0x43 * bit0 + 0x8f * bit1;
 
 		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
@@ -883,6 +911,7 @@ void corona_state::monte_map(address_map &map)
 	map(0x0000, 0x3fff).rom();
 	map(0x4000, 0x5fff).ram().share("nvram");
 	map(0x8000, 0xbfff).rom().region("maincpu", 0x4000);
+//	map(0xc000, 0xc7ff).ram();  // place some cards upside-down and counts the machine turning on
 }
 
 
@@ -1404,6 +1433,119 @@ static INPUT_PORTS_START( luckyrlt )
 INPUT_PORTS_END
 
 
+static INPUT_PORTS_START( monte )
+	PORT_START("IN0")  // players 1 & 2 controls
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_A)     PORT_NAME("Player 1 (Bastos) - Bet x10")      // P1: bet x10
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_Q)     PORT_NAME("Player 1 (Bastos) - Credits Out")  // P1: credits out
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_Z)     PORT_NAME("Player 1 (Bastos) - Bet x1")       // P1: bet x1
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_S)     PORT_NAME("Player 2 (Copas) - Bet x10")       // P2: bet x10
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_W)     PORT_NAME("Player 2 (Copas) - Credits Out")   // P2: credits out
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_X)     PORT_NAME("Player 2 (Copas) - Bet x1")        // P2: bet x1
+
+	PORT_START("IN1")  //credits
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_6) PORT_NAME("Player 2 (Copas) - Coin 2")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_5) PORT_NAME("Player 1 (Bastos) - Coin 2")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_8) PORT_NAME("Player 4 (Espadas) - Coin 2")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_7) PORT_NAME("Player 3 (Oros) - Coin 2")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_2) PORT_NAME("Player 2 (Copas) - Coin 1")
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_1) PORT_NAME("Player 1 (Bastos) - Coin 1")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_4) PORT_NAME("Player 4 (Espadas) - Coin 1")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_3) PORT_NAME("Player 3 (Oros) - Coin 1")
+
+	PORT_START("IN2")  // players 3 & 4 controls
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_D)     PORT_NAME("Player 3 (Oros) - Bet x10")         // P3: bet x10
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_E)     PORT_NAME("Player 3 (Oros) - Credits Out")     // P3: credits out
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_C)     PORT_NAME("Player 3 (Oros) - Bet x1")          // P3: bet x1
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_F)     PORT_NAME("Player 4 (Espadas) - Bet x10")      // P4: bet x10
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_R)     PORT_NAME("Player 4 (Espadas) - Credits Out")  // P4: credits out
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_V)     PORT_NAME("Player 4 (Espadas) - Bet x1")       // P4: bet x1
+
+	PORT_START("IN3")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_START("IN4")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_START("DSW1")
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coinage ) )
+	PORT_DIPSETTING(    0x00, "x10" )
+	PORT_DIPSETTING(    0x01, "x5" )
+	PORT_DIPSETTING(    0x02, "x2" )
+	PORT_DIPSETTING(    0x03, "x1" )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, "Borrado (Erase)" )
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, "Service Mode" )
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+
+	PORT_START("DSW2")
+	PORT_DIPNAME( 0x01, 0x01, "DSW2" )
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+INPUT_PORTS_END
+
+static INPUT_PORTS_START( rula )
+	PORT_START("IN0")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	
+	PORT_START("IN1")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_START("IN2")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_START("IN3")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_START("IN4")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_START("DSW1")
+	PORT_BIT( 0xff, IP_ACTIVE_HIGH, IPT_UNKNOWN )
+
+	PORT_START("DSW2")
+	PORT_BIT( 0xff, IP_ACTIVE_HIGH, IPT_UNKNOWN )
+INPUT_PORTS_END
+
+
 /*******************************************
 *             Machine Drivers              *
 *******************************************/
@@ -1578,11 +1720,11 @@ void corona_state::luckyrlt(machine_config &config)
 void corona_state::luckyrlta(machine_config &config)
 {
 	// basic machine hardware
-	Z80(config, m_maincpu, RE_MAIN_XTAL/8);  // measured 2MHz
+	Z80(config, m_maincpu, RE_MAIN_XTAL/8);
 	m_maincpu->set_addrmap(AS_PROGRAM, &corona_state::luckyrlt_map);
 	m_maincpu->set_addrmap(AS_IO, &corona_state::luckyrlt_cpu_io_map);
 
-	Z80(config, m_soundcpu, RE_MAIN_XTAL/8);  // measured 2MHz
+	Z80(config, m_soundcpu, RE_MAIN_XTAL/8);
 	m_soundcpu->set_addrmap(AS_PROGRAM, &corona_state::luckyrlt_sound_map);
 	m_soundcpu->set_addrmap(AS_IO, &corona_state::luckyrlt_sound_cpu_io_map);
 
@@ -1617,6 +1759,23 @@ void corona_state::monte(machine_config &config)
 
 	// video hardware
 	m_screen->set_visarea(0*8, 32*8-1, 2*8, 32*8-1);
+
+	PALETTE(config.replace(), "palette", FUNC(corona_state::monte_palette), 0x100);
+}
+
+void corona_state::rula(machine_config &config)
+{
+	winner82(config);
+
+	// basic machine hardware
+	m_maincpu->set_addrmap(AS_PROGRAM, &corona_state::monte_map);
+	m_maincpu->set_addrmap(AS_IO, &corona_state::winner81_cpu_io_map);
+
+	// video hardware
+	m_screen->set_visarea(0*8, 32*8-1, 1*8, 30*8-1);
+	m_screen->set_screen_update(FUNC(corona_state::screen_update_luckyrlt));
+
+	PALETTE(config.replace(), "palette", FUNC(corona_state::monte_palette), 0x100);
 }
 
 
@@ -1888,32 +2047,9 @@ ROM_END
 /************  Miki S.R.L. sets  ************/
 
 /*
-  Rula (roulette)
-  Miki S.R.L.
-  1991.
-
-  Argentina.
-
-  Program is encrypted.
-
-  Notes:
-  blitter and inputs seems mapped as winner81.
-
-*/
-ROM_START(rulamiky)
-	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD("rula.bin", 0x0000, 0x8000, CRC(a866cb05) SHA1(ffc9b05d26f312c0ba1468c33b00ac503876c836) )
-
-	ROM_REGION( 0x10000, "soundcpu", 0 )  // IM1 instead of NMI. Identical halves
-	ROM_LOAD("son_2732.bin",   0x0000, 0x1000, CRC(c944a4ae) SHA1(989ec9f39a7761aa73d08ca39b081cb2c4c75a7c) )
-
-	ROM_REGION( 0x0020, "proms", 0 )
-	ROM_LOAD( "corona_82s123.bin",  0x0000, 0x0020, CRC(051e5edc) SHA1(2305c056fa1fc21432189af12afb7d54c6569484) )
-ROM_END
-
-/*
   Monte.
   40 cards game with 4 jokers.
+  4-players
   Miki S.R.L.
   1989.
 
@@ -1936,12 +2072,36 @@ ROM_START(monte)
 	ROM_LOAD( "corona_82s123.bin",  0x0000, 0x0020, CRC(051e5edc) SHA1(2305c056fa1fc21432189af12afb7d54c6569484) )
 ROM_END
 
+/*
+  Rula (roulette)
+  Miki S.R.L.
+  1991.
+
+  Argentina.
+
+  Program is encrypted.
+
+  Notes:
+  blitter and inputs seems mapped as winner81.
+
+*/
+ROM_START(rula)
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD("rula.bin", 0x0000, 0x8000, CRC(a866cb05) SHA1(ffc9b05d26f312c0ba1468c33b00ac503876c836) )
+
+	ROM_REGION( 0x10000, "soundcpu", 0 )  // IM1 instead of NMI. Identical halves
+	ROM_LOAD("son_2732.bin",   0x0000, 0x1000, CRC(c944a4ae) SHA1(989ec9f39a7761aa73d08ca39b081cb2c4c75a7c) )
+
+	ROM_REGION( 0x0020, "proms", 0 )
+	ROM_LOAD( "corona_82s123.bin",  0x0000, 0x0020, CRC(051e5edc) SHA1(2305c056fa1fc21432189af12afb7d54c6569484) )
+ROM_END
+
 
 /******************************************
 *              Driver Init                *
 ******************************************/
 
-void corona_state::init_rulam()
+void corona_state::init_monte()
 {
 	uint8_t *rom = memregion("maincpu")->base();
 
@@ -1972,5 +2132,5 @@ GAMEL( 199?, rcirulet,  0,        rcirulet,  re800,    corona_state, empty_init,
 GAMEL( 1990, luckyrlt,  0,        luckyrlt,  luckyrlt, corona_state, empty_init, ROT90,  "<unknown>",                "Lucky Roulette Plus (6-players, Spanish, set 1)", 0,                        layout_luckyrlt )
 GAMEL( 1991, luckyrlta, luckyrlt, luckyrlta, luckyrlt, corona_state, empty_init, ROT90,  "<unknown>",                "Lucky Roulette Plus (6-players, Spanish, set 2)", 0,                        layout_luckyrlt )
 
-GAME(  1989, monte,     0,        monte,     winner82, corona_state, init_rulam, ROT0,   "Miky S.R.L.",              "Monte (6-players Spanish cards game, encrypted)", MACHINE_NOT_WORKING )
-GAME(  1991, rulamiky,  0,        winner82,  winner82, corona_state, init_rulam, ROT90,  "Miky S.R.L.",              "Rula (roulette, encrypted)",                      MACHINE_NOT_WORKING )
+GAME(  1989, monte,     0,        monte,     monte,    corona_state, init_monte, ROT0,   "Miky S.R.L.",              "Monte (4-players Spanish cards game, encrypted)", 0 )
+GAME(  1991, rula,      0,        rula,      rula,     corona_state, init_monte, ROT90,  "Miky S.R.L.",              "Rula (6-players roulette, encrypted)",            MACHINE_NOT_WORKING )
