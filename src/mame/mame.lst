@@ -30892,7 +30892,7 @@ baibians
 btlfront
 cjmx
 crzclass
-ddz
+kxddz
 
 @source:misc/deecoseal.cpp
 deecoseal
@@ -32691,6 +32691,15 @@ fruitstbh
 fruitstbi
 goldnjkr
 goldnjkra
+
+@source:misc/mpu2000.cpp
+gw606
+gw603
+gw562
+gw558
+gw557
+gw552
+gw545
 
 @source:misc/mtu130.cpp
 mtu130
@@ -37728,6 +37737,7 @@ paranoia
 
 @source:pce/tourvis.cpp
 tourvis
+tourvisv1
 
 @source:pce/uapce.cpp
 aliencr
@@ -40791,6 +40801,7 @@ fkddzz80
 jzuanshi
 lucky168
 pljh
+wakenz80
 
 @source:seequa/chameleon.cpp
 chameleon
