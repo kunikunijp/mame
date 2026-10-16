@@ -40445,6 +40445,10 @@ d550
 @source:roland/roland_d70.cpp
 d70
 
+@source:roland/roland_dep5.cpp
+dep5
+re3
+
 @source:roland/roland_jd800.cpp
 jd800
 
@@ -47315,7 +47319,7 @@ tmc1800
 tmc2000
 
 @source:telercas/tmc600.cpp
-tmc600s2
+tmc600
 
 @source:telercas/tmc2000e.cpp
 tmc2000e
