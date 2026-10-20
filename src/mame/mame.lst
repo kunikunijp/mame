@@ -37479,6 +37479,9 @@ ecssi5pi
 @source:pc/champ2.cpp
 champ2
 
+@source:pc/cmltgame.cpp
+cmltgame
+
 @source:pc/compc.cpp
 compc10
 pc10iii
@@ -37546,6 +37549,9 @@ megapcpl
 
 @source:pc/nforcepc.cpp
 nforcepc
+
+@source:pc/octavian_g650.cpp
+sweetstr
 
 @source:pc/pangofun.cpp
 pangofun
