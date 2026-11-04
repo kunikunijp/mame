@@ -2360,6 +2360,21 @@ end
 
 ---------------------------------------------------
 --
+--@src/devices/bus/elf2/exp.h,BUSES["ELF2"] = true
+---------------------------------------------------
+
+if BUSES["ELF2"] then
+	files {
+		MAME_DIR .. "src/devices/bus/elf2/exp.cpp",
+		MAME_DIR .. "src/devices/bus/elf2/exp.h",
+		MAME_DIR .. "src/devices/bus/elf2/giant.cpp",
+		MAME_DIR .. "src/devices/bus/elf2/giant.h",
+	}
+end
+
+
+---------------------------------------------------
+--
 --@src/devices/bus/ep64/exp.h,BUSES["EP64"] = true
 ---------------------------------------------------
 
@@ -6519,6 +6534,8 @@ if BUSES["VIP"] then
 		MAME_DIR .. "src/devices/bus/vip/vp590.h",
 		MAME_DIR .. "src/devices/bus/vip/vp595.cpp",
 		MAME_DIR .. "src/devices/bus/vip/vp595.h",
+	    MAME_DIR .. "src/devices/bus/vip/vp601.cpp",
+    	MAME_DIR .. "src/devices/bus/vip/vp601.h",
 		MAME_DIR .. "src/devices/bus/vip/vp700.cpp",
 		MAME_DIR .. "src/devices/bus/vip/vp700.h",
 	}
