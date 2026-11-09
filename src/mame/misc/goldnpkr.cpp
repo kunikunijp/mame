@@ -597,6 +597,46 @@
   5 -> CTRL -> DOWN -> CTRL -> DOWN -> CTRL -> DOWN -> CTRL -> DOWN -> CTRL -> DOWN
 
 
+  * Toukyuu System Poker
+
+  Press key 0 to enter the books/meters.
+  You can see the normal meters and the DIP switches state.
+
+  Pressing HOLD1, you can enter the "Analiz-2" screen,
+  where you can see the following meters:
+
+  GAME   IN
+  GAME   OUT
+  WUP    IN
+  WUP    TAKE
+  GAME   TAKE
+  GAME   COUNT
+  WIN    COUNT
+  WUP    COUNT
+  BET1   IN
+  BET1   OUT
+  BET2   IN
+  BET2   OUT
+  BET2   COUNT
+  WUP    WIN
+  WUP    LOSS
+  13K    COUNT
+  777    COUNT
+  FEVER  ODDS
+  TURBO1 HIT
+  TURBO2 HIT
+  TURBO  COUNT
+  DOUBLE TURBO
+  TURBO  ODDS
+  PROGR  COUNT
+  PROGR  ODDS
+ 
+  You can exit to the game pressing:
+  - HOLD2 (you will exit to the normal game)
+  - HOLD3 (you will exit to the "auto take" game)
+  - HOLD5 (you will exit to the game type you had before)
+
+
 ************************************************************************************
 
 
@@ -1205,6 +1245,7 @@ protected:
 	void sound_w(uint8_t data);
 	void mux_w(uint8_t data);
 	void phnxjokr_mux_w(uint8_t data);
+	void test_w(uint8_t data);
 
 	void goldnpkr_videoram_w(offs_t offset, uint8_t data);
 	void goldnpkr_colorram_w(offs_t offset, uint8_t data);
@@ -2015,6 +2056,14 @@ void goldnpkr_state::sound_w(uint8_t data)
 	// discrete sound is connected to PIA1, portA: bits 0-3
 	m_discrete->write(NODE_01, data >> 3 & 0x01);
 	m_discrete->write(NODE_10, data & 0x07);
+}
+
+
+void goldnpkr_state::test_w(uint8_t data)
+{
+	// general purpose write test
+
+	logerror("written data:%02x\n", data );
 }
 
 
@@ -5879,15 +5928,16 @@ static INPUT_PORTS_START( touksysp )
 	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW3:2")
 	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW3:3")
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW3:4")
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW3:5")
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x1c, 0x1c, DEF_STR( Coinage ) )  PORT_DIPLOCATION("SW3:3,4,5")
+	PORT_DIPSETTING(    0x00, "Coin: 1; Note1: 1; Note2: 1" )
+	PORT_DIPSETTING(    0x0c, "Coin: 1; Note1: 5; Note2: 10" )
+	PORT_DIPSETTING(    0x1c, "Coin: 1; Note1: 10; Note2: 5" )
+	PORT_DIPSETTING(    0x18, "Coin: 2; Note1: 20; Note2: 10" )
+	PORT_DIPSETTING(    0x08, "Coin: 5; Note1: 25; Note2: 50" )
+	PORT_DIPSETTING(    0x14, "Coin: 5; Note1: 50; Note2: 25" )
+	PORT_DIPSETTING(    0x04, "Coin: 10; Note1: 50; Note2: 100" )
+	PORT_DIPSETTING(    0x10, "Coin: 10; Note1: 100; Note2: 50" )
+
 	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW3:6")
 	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
@@ -6656,6 +6706,8 @@ void goldnpkr_state::touksysp(machine_config &config)
 	// basic machine hardware
 	m_maincpu->set_addrmap(AS_PROGRAM, &goldnpkr_state::touksysp_map);
 	m_maincpu->set_addrmap(AS_OPCODES, &goldnpkr_state::touksysp_opcodes_map);
+
+	m_pia[0]->writepb_handler().set(FUNC(goldnpkr_state::test_w));
 
 	SPEAKER(config, "mono").front_center();
 	DISCRETE(config, m_discrete, goldnpkr_discrete).add_route(ALL_OUTPUTS, "mono", 1.0);
@@ -15529,8 +15581,8 @@ ROM_START( touksysp )
 	ROM_LOAD( "4313.sub", 0x8000, 0x8000, CRC(59588696) SHA1(88c421747e1146e0d5df21f398166eb3178c843e) )
 
 	ROM_REGION( 0x1800, "gfx1", 0 )
-	ROM_FILL(          0x0000, 0x1000, 0x0000 )
-	ROM_LOAD( "4.8a",  0x1000, 0x0800, BAD_DUMP CRC(2c53493f) SHA1(9e71db51499294bb4b16e7d8013e5daf6f1f9d18) )  // char ROM loaned from unkicpf80
+	ROM_FILL(              0x0000, 0x1000, 0x0000 )
+	ROM_LOAD( "chars.bin", 0x1000, 0x0800, BAD_DUMP CRC(2c53493f) SHA1(9e71db51499294bb4b16e7d8013e5daf6f1f9d18) )  // char ROM loaned from unkicpf80
 
 	ROM_REGION( 0x1800, "gfx2", 0 )
 	ROM_LOAD( "pk1.4", 0x0000, 0x0800, CRC(c40dfcee) SHA1(095cf657d4ad5f39b8cc79c9aed6ac444b671b77) )
@@ -16557,4 +16609,4 @@ GAME(  198?, wing90pkr, goldnpkr, wing_w90, wing_w90, goldnpkr_state, empty_init
 
 GAMEL( 198?, phnxjokr,  0,        phnxjokr, phnxjokr, goldnpkr_state, empty_init,    ROT0,   "STP",                      "Phoenix Joker (STP, UCGS-80 PCB)",        0,                layout_goldnpkr )  // no lamps. layout for clickable controls only.
 
-GAMEL( 1986, touksysp,  0,        touksysp, touksysp, goldnpkr_state, init_touk,     ROT0,   "<unknown>",                "Toukyuu System Poker (encrypted)",        0,                layout_goldnpkr )  // no lamps. layout for clickable controls only.
+GAMEL( 1986, touksysp,  0,        touksysp, touksysp, goldnpkr_state, init_touk,     ROT0,   "<unknown>",                "Toukyuu System Poker (ROM: NO4313)",      0,                layout_goldnpkr )  // no lamps. layout for clickable controls only.
