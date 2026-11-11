@@ -1203,6 +1203,7 @@ public:
 	void smb_be4k(machine_config &config) ATTR_COLD;
 	void touksysp(machine_config &config) ATTR_COLD;
 	void pk5_07sb(machine_config &config) ATTR_COLD;
+	void jokerush(machine_config &config) ATTR_COLD;
 
 	void init_vkdlswwh() ATTR_COLD;
 	void init_icp1db() ATTR_COLD;
@@ -1238,6 +1239,7 @@ public:
 	void init_unkdep() ATTR_COLD;
 	void init_touk() ATTR_COLD;
 	void init_pk5sb() ATTR_COLD;
+	void init_jokerush() ATTR_COLD; 
 
 protected:
 	virtual void video_start() override ATTR_COLD;
@@ -1334,6 +1336,7 @@ private:
 	void touksysp_map(address_map &map) ATTR_COLD;
 	void touksysp_opcodes_map(address_map &map) ATTR_COLD;
 	void pk5_07sb_map(address_map &map) ATTR_COLD;
+	void jokerush_map(address_map &map) ATTR_COLD;
 
 	optional_device<ticket_dispenser_device> m_hopper;
 	optional_device<ay8910_device> m_ay8910;
@@ -2458,7 +2461,7 @@ void goldnpkr_state::phnxjokr_map(address_map &map)
 
 void goldnpkr_state::touksysp_map(address_map &map)
 {
-	map(0x0000, 0x07ff).ram().share("nvram");   // battery backed RAM
+	map(0x0000, 0x07ff).ram().share("nvram");  // battery backed RAM
 	map(0x0800, 0x0800).w("crtc", FUNC(mc6845_device::address_w));
 	map(0x0801, 0x0801).rw("crtc", FUNC(mc6845_device::register_r), FUNC(mc6845_device::register_w));
 	map(0x0844, 0x0847).rw("pia0", FUNC(pia6821_device::read), FUNC(pia6821_device::write));
@@ -2476,6 +2479,15 @@ void goldnpkr_state::touksysp_opcodes_map(address_map &map)
 }
 
 
+void goldnpkr_state::jokerush_map(address_map &map)
+{
+	common_io_map(map);
+
+	map(0x0000, 0x07ff).ram().share("nvram");  // battery backed RAM
+	map(0x8000, 0xffff).rom();
+}
+
+
 void blitz_state::megadpkr_map(address_map &map)
 {
 	map(0x0000, 0x07ff).ram(); //.share("nvram");   // battery backed RAM
@@ -2483,14 +2495,6 @@ void blitz_state::megadpkr_map(address_map &map)
 	map(0x0801, 0x0801).rw("crtc", FUNC(mc6845_device::register_r), FUNC(mc6845_device::register_w));
 	map(0x0844, 0x0847).rw("pia0", FUNC(pia6821_device::read), FUNC(pia6821_device::write));
 	map(0x0848, 0x084b).rw("pia1", FUNC(pia6821_device::read), FUNC(pia6821_device::write));
-
-/*  There is another set of PIAs controlled by the code.
-    Maybe they are just mirrors...
-    FIXME: this comment and commented code doesn't make sense - the video RAM is in this range
-
-    map(0x10f4, 0x10f7).rw("pia0", FUNC(pia6821_device::read), FUNC(pia6821_device::write));
-    map(0x10f8, 0x10fb).rw("pia1", FUNC(pia6821_device::read), FUNC(pia6821_device::write));
-*/
 	map(0x1000, 0x13ff).ram().w(FUNC(blitz_state::goldnpkr_videoram_w)).share(m_videoram);
 	map(0x1800, 0x1bff).ram().w(FUNC(blitz_state::goldnpkr_colorram_w)).share(m_colorram);
 
@@ -2498,6 +2502,7 @@ void blitz_state::megadpkr_map(address_map &map)
 	map(0x4000, 0x7fff).view(m_overlay);
 	m_overlay[0](0x4000, 0x7fff).r(FUNC(blitz_state::cpubank_decrypt_r<0x0000>)).nopw();
 	m_overlay[1](0x4000, 0x7fff).r(FUNC(blitz_state::cpubank_decrypt_r<0x4000>)).nopw();
+
 	map(0x8000, 0xbfff).nopr().w(FUNC(blitz_state::mcu_command_w));
 	map(0xc000, 0xffff).rom();
 }
@@ -6806,7 +6811,6 @@ void goldnpkr_state::wing_w90(machine_config &config)
 	SN76489A(config, m_snsnd, MASTER_CLOCK / 4).add_route(ALL_OUTPUTS, "mono", 2.0);
 }
 
-
 void goldnpkr_state::phnxjokr(machine_config &config)
 {
 	goldnpkr_base(config);
@@ -6830,7 +6834,6 @@ void goldnpkr_state::phnxjokr(machine_config &config)
 	m_ay8910->port_b_read_callback().set_ioport("SW2");
 }
 
-
 void goldnpkr_state::touksysp(machine_config &config)
 {
 	goldnpkr_base(config);
@@ -6841,10 +6844,10 @@ void goldnpkr_state::touksysp(machine_config &config)
 
 	m_pia[0]->writepb_handler().set(FUNC(goldnpkr_state::test_w));
 
+	// sound hardware
 	SPEAKER(config, "mono").front_center();
 	DISCRETE(config, m_discrete, goldnpkr_discrete).add_route(ALL_OUTPUTS, "mono", 1.0);
 }	
-
 
 void goldnpkr_state::pk5_07sb(machine_config &config)
 {
@@ -6853,6 +6856,23 @@ void goldnpkr_state::pk5_07sb(machine_config &config)
 	// basic machine hardware
 	m_maincpu->set_addrmap(AS_PROGRAM, &goldnpkr_state::pk5_07sb_map);
 
+	// sound hardware
+	SPEAKER(config, "mono").front_center();
+	DISCRETE(config, m_discrete, goldnpkr_discrete).add_route(ALL_OUTPUTS, "mono", 1.0);
+}	
+
+void goldnpkr_state::jokerush(machine_config &config)
+{
+	goldnpkr_base(config);
+
+	// basic machine hardware
+	m_maincpu->set_addrmap(AS_PROGRAM, &goldnpkr_state::jokerush_map);
+
+	// video hardware
+	MCFG_VIDEO_START_OVERRIDE(goldnpkr_state, smb_be4k)
+	m_gfxdecode->set_info(gfx_smb_be4k);
+
+	// sound hardware
 	SPEAKER(config, "mono").front_center();
 	DISCRETE(config, m_discrete, goldnpkr_discrete).add_route(ALL_OUTPUTS, "mono", 1.0);
 }	
@@ -6897,6 +6917,7 @@ void blitz_state::megadpkr(machine_config &config)
 	SPEAKER(config, "mono").front_center();
 	DISCRETE(config, m_discrete, goldnpkr_discrete).add_route(ALL_OUTPUTS, "mono", 1.0);
 }
+
 
 void goldnpkr_state::dash_a37(machine_config &config)
 {
@@ -8723,13 +8744,45 @@ ROM_START( witchgme )
 	ROM_LOAD( "tbp24s10n.2c",   0x0000, 0x0100, CRC(7c2aa098) SHA1(539ff9239b1b553b3883c9f0223aafcf217f9fc7) )
 ROM_END
 
-/*  Witch Game (Video Klein)
-    Video Klein original with epoxy block module.
-    Alt set....
+/*
+  Witch Game (Video Klein)
+  Video Klein original.
+
+  Program Export, WG12T1E
+
 */
 ROM_START( witchgmea )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "wc_epoxy.bin",   0x0000, 0x8000, CRC(33f1acd9) SHA1(2facb3d807b5b2a2978e567d0c1106c0a027621a) )  // epoxy block program ROM
+	ROM_LOAD( "wg12t1e.bin",  0x0000, 0x8000, CRC(551316e1) SHA1(ba66ba0cba87f554411802aa1d011f622a6a339d) )  // epoxy block program ROM
+
+	ROM_REGION( 0x3000, "gfx2", 0 )
+	ROM_LOAD( "1.2a",   0x0000, 0x0800, CRC(f2f94661) SHA1(f37f7c0dff680fd02897dae64e13e297d0fdb3e7) )  // cards deck gfx, bitplane1
+	ROM_FILL(           0x0800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "2.4a",   0x1000, 0x0800, CRC(6bbb1e2d) SHA1(51ee282219bf84218886ad11a24bc6a8e7337527) )  // cards deck gfx, bitplane2
+	ROM_FILL(           0x1800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "3.5a",   0x2000, 0x1000, CRC(8a17d1a7) SHA1(488e4eae287b05923bd6b378574e91cfe49d8c24) )  // char ROM
+
+	ROM_REGION( 0x3000, "gfx1", 0 )
+	ROM_FILL(           0x0000, 0x2000, 0x0000 )    // filling the R-G bitplanes
+	ROM_COPY( "gfx2",   0x2800, 0x2000, 0x0800 )    // srctag, srcoffs, offset, length
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "n82s137f.box",   0x0000, 0x0100, CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) )
+
+	ROM_REGION( 0x0100, "proms2", 0 )
+	ROM_LOAD( "tbp24s10n.2c",   0x0000, 0x0100, CRC(7c2aa098) SHA1(539ff9239b1b553b3883c9f0223aafcf217f9fc7) )
+ROM_END
+
+/*
+  Witch Game (Video Klein)
+  Video Klein original with epoxy block module.
+
+  Program Export, WG12T1F
+
+*/
+ROM_START( witchgmeb )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "wc_epoxy.bin",  0x0000, 0x8000, CRC(33f1acd9) SHA1(2facb3d807b5b2a2978e567d0c1106c0a027621a) )  // epoxy block program ROM
 
 	ROM_REGION( 0x3000, "gfx1", 0 )
 	ROM_FILL(            0x0000, 0x2000, 0x0000 ) // filling the R-G bitplanes
@@ -8744,6 +8797,215 @@ ROM_START( witchgmea )
 	ROM_REGION( 0x0600, "proms", 0 )
 	ROM_LOAD( "24s10.bin",          0x0000, 0x0100, CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) ) // original PCB PROM
 	ROM_LOAD( "82s137_epoxy.bin",   0x0100, 0x0400, CRC(4ae3ecf5) SHA1(e1e540ae13e7ce5ac6391f325160ec997ea6cc2f) ) // original epoxy block PROM
+ROM_END
+
+/*
+  Witch Game (Video Klein)
+  Video Klein original.
+
+  Program Export, WG12T1FL
+
+*/
+ROM_START( witchgmec )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "wg12t1fl.bin",  0x0000, 0x8000, CRC(e051ba1f) SHA1(1b524c60fb44cfa644ba3bb8abea05b9cfcd4cbf) )  // epoxy block program ROM
+
+	ROM_REGION( 0x3000, "gfx2", 0 )
+	ROM_LOAD( "1.2a",   0x0000, 0x0800, CRC(f2f94661) SHA1(f37f7c0dff680fd02897dae64e13e297d0fdb3e7) )  // cards deck gfx, bitplane1
+	ROM_FILL(           0x0800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "2.4a",   0x1000, 0x0800, CRC(6bbb1e2d) SHA1(51ee282219bf84218886ad11a24bc6a8e7337527) )  // cards deck gfx, bitplane2
+	ROM_FILL(           0x1800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "3.5a",   0x2000, 0x1000, CRC(8a17d1a7) SHA1(488e4eae287b05923bd6b378574e91cfe49d8c24) )  // char ROM
+
+	ROM_REGION( 0x3000, "gfx1", 0 )
+	ROM_FILL(           0x0000, 0x2000, 0x0000 )    // filling the R-G bitplanes
+	ROM_COPY( "gfx2",   0x2800, 0x2000, 0x0800 )    // srctag, srcoffs, offset, length
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "n82s137f.box",   0x0000, 0x0100, CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) )
+
+	ROM_REGION( 0x0100, "proms2", 0 )
+	ROM_LOAD( "tbp24s10n.2c",   0x0000, 0x0100, CRC(7c2aa098) SHA1(539ff9239b1b553b3883c9f0223aafcf217f9fc7) )
+ROM_END
+
+/*
+  Witch Game (Video Klein)
+  Video Klein original.
+
+  Program WG12T1H
+
+  At boot spit a STROM UNTERBRECHUNG message (Power interruption).
+  Surely it's a NVRAM check issue.
+
+  With F2 pressed shows the DSW mask "0000 00000000".
+  DIP switches need to be checked.
+
+*/
+ROM_START( witchgmed )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "wg12t1h.bin",  0x0000, 0x8000, CRC(a98ad004) SHA1(f6744e561a58ce1623cf045962c0166c1551b94e) )  // epoxy block program ROM
+
+	ROM_REGION( 0x3000, "gfx2", 0 )
+	ROM_LOAD( "1.2a",   0x0000, 0x0800, CRC(f2f94661) SHA1(f37f7c0dff680fd02897dae64e13e297d0fdb3e7) )  // cards deck gfx, bitplane1
+	ROM_FILL(           0x0800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "2.4a",   0x1000, 0x0800, CRC(6bbb1e2d) SHA1(51ee282219bf84218886ad11a24bc6a8e7337527) )  // cards deck gfx, bitplane2
+	ROM_FILL(           0x1800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "3.5a",   0x2000, 0x1000, CRC(8a17d1a7) SHA1(488e4eae287b05923bd6b378574e91cfe49d8c24) )  // char ROM
+
+	ROM_REGION( 0x3000, "gfx1", 0 )
+	ROM_FILL(           0x0000, 0x2000, 0x0000 )    // filling the R-G bitplanes
+	ROM_COPY( "gfx2",   0x2800, 0x2000, 0x0800 )    // srctag, srcoffs, offset, length
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "n82s137f.box",   0x0000, 0x0100, CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) )
+
+	ROM_REGION( 0x0100, "proms2", 0 )
+	ROM_LOAD( "tbp24s10n.2c",   0x0000, 0x0100, CRC(7c2aa098) SHA1(539ff9239b1b553b3883c9f0223aafcf217f9fc7) )
+ROM_END
+
+/*
+  Witch Game (Video Klein)
+  Video Klein original.
+
+  Program WG12T1L
+
+*/
+ROM_START( witchgmee )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "wg12t1l.bin",  0x0000, 0x8000, CRC(94d9c59e) SHA1(e628f8ca951d77ad1655a928d0cd6acbe723380e) )  // epoxy block program ROM
+
+	ROM_REGION( 0x3000, "gfx2", 0 )
+	ROM_LOAD( "1.2a",   0x0000, 0x0800, CRC(f2f94661) SHA1(f37f7c0dff680fd02897dae64e13e297d0fdb3e7) )  // cards deck gfx, bitplane1
+	ROM_FILL(           0x0800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "2.4a",   0x1000, 0x0800, CRC(6bbb1e2d) SHA1(51ee282219bf84218886ad11a24bc6a8e7337527) )  // cards deck gfx, bitplane2
+	ROM_FILL(           0x1800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "3.5a",   0x2000, 0x1000, CRC(8a17d1a7) SHA1(488e4eae287b05923bd6b378574e91cfe49d8c24) )  // char ROM
+
+	ROM_REGION( 0x3000, "gfx1", 0 )
+	ROM_FILL(           0x0000, 0x2000, 0x0000 )    // filling the R-G bitplanes
+	ROM_COPY( "gfx2",   0x2800, 0x2000, 0x0800 )    // srctag, srcoffs, offset, length
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "n82s137f.box",   0x0000, 0x0100, CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) )
+
+	ROM_REGION( 0x0100, "proms2", 0 )
+	ROM_LOAD( "tbp24s10n.2c",   0x0000, 0x0100, CRC(7c2aa098) SHA1(539ff9239b1b553b3883c9f0223aafcf217f9fc7) )
+ROM_END
+
+/*
+  Witch Game (Video Klein)
+  Video Klein original.
+
+  Program Export, WG6T1E
+
+*/
+ROM_START( witchgmef )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "wg6t1e.bin",  0x0000, 0x8000, CRC(6e95a530) SHA1(9107cbe2ffda5e5120b1efb0e7e7be4febf5a6d8) )  // epoxy block program ROM
+
+	ROM_REGION( 0x3000, "gfx2", 0 )
+	ROM_LOAD( "1.2a",   0x0000, 0x0800, CRC(f2f94661) SHA1(f37f7c0dff680fd02897dae64e13e297d0fdb3e7) )  // cards deck gfx, bitplane1
+	ROM_FILL(           0x0800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "2.4a",   0x1000, 0x0800, CRC(6bbb1e2d) SHA1(51ee282219bf84218886ad11a24bc6a8e7337527) )  // cards deck gfx, bitplane2
+	ROM_FILL(           0x1800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "3.5a",   0x2000, 0x1000, CRC(8a17d1a7) SHA1(488e4eae287b05923bd6b378574e91cfe49d8c24) )  // char ROM
+
+	ROM_REGION( 0x3000, "gfx1", 0 )
+	ROM_FILL(           0x0000, 0x2000, 0x0000 )    // filling the R-G bitplanes
+	ROM_COPY( "gfx2",   0x2800, 0x2000, 0x0800 )    // srctag, srcoffs, offset, length
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "n82s137f.box",   0x0000, 0x0100, CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) )
+
+	ROM_REGION( 0x0100, "proms2", 0 )
+	ROM_LOAD( "tbp24s10n.2c",   0x0000, 0x0100, CRC(7c2aa098) SHA1(539ff9239b1b553b3883c9f0223aafcf217f9fc7) )
+ROM_END
+
+/*
+  Witch Game (Video Klein)
+  Video Klein original.
+
+  Program Export, WG6T1F
+
+*/
+ROM_START( witchgmeg )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "wg6t1f.bin",  0x0000, 0x8000, CRC(08771f08) SHA1(0104d777080b1e74bd2afd9f0e96ae89df1d43e9) )  // epoxy block program ROM
+
+	ROM_REGION( 0x3000, "gfx2", 0 )
+	ROM_LOAD( "1.2a",   0x0000, 0x0800, CRC(f2f94661) SHA1(f37f7c0dff680fd02897dae64e13e297d0fdb3e7) )  // cards deck gfx, bitplane1
+	ROM_FILL(           0x0800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "2.4a",   0x1000, 0x0800, CRC(6bbb1e2d) SHA1(51ee282219bf84218886ad11a24bc6a8e7337527) )  // cards deck gfx, bitplane2
+	ROM_FILL(           0x1800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "3.5a",   0x2000, 0x1000, CRC(8a17d1a7) SHA1(488e4eae287b05923bd6b378574e91cfe49d8c24) )  // char ROM
+
+	ROM_REGION( 0x3000, "gfx1", 0 )
+	ROM_FILL(           0x0000, 0x2000, 0x0000 )    // filling the R-G bitplanes
+	ROM_COPY( "gfx2",   0x2800, 0x2000, 0x0800 )    // srctag, srcoffs, offset, length
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "n82s137f.box",   0x0000, 0x0100, CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) )
+
+	ROM_REGION( 0x0100, "proms2", 0 )
+	ROM_LOAD( "tbp24s10n.2c",   0x0000, 0x0100, CRC(7c2aa098) SHA1(539ff9239b1b553b3883c9f0223aafcf217f9fc7) )
+ROM_END
+
+/*
+  Witch Game (Video Klein)
+  Video Klein original.
+
+  Program WG6T1H
+
+*/
+ROM_START( witchgmeh )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "wg6t1h.bin",  0x0000, 0x8000, CRC(44399572) SHA1(7811ed81c8b016253f18e34cc1498589232b6215) )  // epoxy block program ROM
+
+	ROM_REGION( 0x3000, "gfx2", 0 )
+	ROM_LOAD( "1.2a",   0x0000, 0x0800, CRC(f2f94661) SHA1(f37f7c0dff680fd02897dae64e13e297d0fdb3e7) )  // cards deck gfx, bitplane1
+	ROM_FILL(           0x0800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "2.4a",   0x1000, 0x0800, CRC(6bbb1e2d) SHA1(51ee282219bf84218886ad11a24bc6a8e7337527) )  // cards deck gfx, bitplane2
+	ROM_FILL(           0x1800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "3.5a",   0x2000, 0x1000, CRC(8a17d1a7) SHA1(488e4eae287b05923bd6b378574e91cfe49d8c24) )  // char ROM
+
+	ROM_REGION( 0x3000, "gfx1", 0 )
+	ROM_FILL(           0x0000, 0x2000, 0x0000 )    // filling the R-G bitplanes
+	ROM_COPY( "gfx2",   0x2800, 0x2000, 0x0800 )    // srctag, srcoffs, offset, length
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "n82s137f.box",   0x0000, 0x0100, CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) )
+
+	ROM_REGION( 0x0100, "proms2", 0 )
+	ROM_LOAD( "tbp24s10n.2c",   0x0000, 0x0100, CRC(7c2aa098) SHA1(539ff9239b1b553b3883c9f0223aafcf217f9fc7) )
+ROM_END
+
+/*
+  Witch Game (Video Klein)
+  Video Klein original.
+
+  Program WG6T1L
+
+*/
+ROM_START( witchgmei )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "wg6t1l.bin",  0x0000, 0x8000, CRC(c6fc4947) SHA1(d32a68c89bddfb24ea56200f4fccd033c38d6c41) )  // epoxy block program ROM
+
+	ROM_REGION( 0x3000, "gfx2", 0 )
+	ROM_LOAD( "1.2a",   0x0000, 0x0800, CRC(f2f94661) SHA1(f37f7c0dff680fd02897dae64e13e297d0fdb3e7) )  // cards deck gfx, bitplane1
+	ROM_FILL(           0x0800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "2.4a",   0x1000, 0x0800, CRC(6bbb1e2d) SHA1(51ee282219bf84218886ad11a24bc6a8e7337527) )  // cards deck gfx, bitplane2
+	ROM_FILL(           0x1800, 0x0800, 0x0000 ) // filling the bitplane
+	ROM_LOAD( "3.5a",   0x2000, 0x1000, CRC(8a17d1a7) SHA1(488e4eae287b05923bd6b378574e91cfe49d8c24) )  // char ROM
+
+	ROM_REGION( 0x3000, "gfx1", 0 )
+	ROM_FILL(           0x0000, 0x2000, 0x0000 )    // filling the R-G bitplanes
+	ROM_COPY( "gfx2",   0x2800, 0x2000, 0x0800 )    // srctag, srcoffs, offset, length
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "n82s137f.box",   0x0000, 0x0100, CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) )
+
+	ROM_REGION( 0x0100, "proms2", 0 )
+	ROM_LOAD( "tbp24s10n.2c",   0x0000, 0x0100, CRC(7c2aa098) SHA1(539ff9239b1b553b3883c9f0223aafcf217f9fc7) )
 ROM_END
 
 
@@ -15794,6 +16056,48 @@ ROM_START( pk5_07sb )
 	ROM_LOAD( "tbp24s10n.7d",       0x0000, 0x0100, CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) )
 ROM_END
 
+/*
+  Joker Rush!!
+  SMH-803-J encrypted hardware.
+
+  Poker game with jokers
+  and additional features.
+
+  4 GFX banks.
+
+*/  
+ROM_START( jokerush )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "jr.sub", 0x8000, 0x8000, CRC(36b7bd79) SHA1(3c9e432ee512be6e5d329ab89e6e5d587924c53f) ) 
+
+	ROM_REGION( 0x8000, "gfxpool", 0 )
+	ROM_LOAD( "1.5l", 0x0000, 0x4000, CRC(1949c708) SHA1(f909caa7b1b6b30ca6c75ade162ae0975227f6ad) )
+	ROM_LOAD( "2.5n", 0x4000, 0x4000, CRC(dce7c83a) SHA1(8fec2fbf5dcde1c1a22952f0214e92548d97a550) )
+
+	ROM_REGION( 0x1800, "gfx1", 0 )  // chars
+	ROM_COPY( "gfxpool", 0x0000, 0x0000, 0x0800 ) // src-dest-size (empty)
+	ROM_COPY( "gfxpool", 0x0000, 0x0800, 0x0800 ) // src-dest-size (empty)
+	ROM_COPY( "gfxpool", 0x5000, 0x1000, 0x0800 ) // src-dest-size (data)
+
+	ROM_REGION( 0x1800, "gfx2", 0 )  // cards
+	ROM_COPY( "gfxpool", 0x1800, 0x0000, 0x0800 ) // src-dest-size (data)
+	ROM_COPY( "gfxpool", 0x0800, 0x0800, 0x0800 ) // src-dest-size (data)
+	ROM_COPY( "gfxpool", 0x5800, 0x1000, 0x0800 ) // src-dest-size (data)
+
+	ROM_REGION( 0x1800, "gfx3", 0 )  // title
+	ROM_COPY( "gfxpool", 0x0000, 0x0000, 0x0800 ) // src-dest-size (empty)
+	ROM_COPY( "gfxpool", 0x0000, 0x0800, 0x0800 ) // src-dest-size (empty)
+	ROM_COPY( "gfxpool", 0x6000, 0x1000, 0x0800 ) // src-dest-size (data)
+
+	ROM_REGION( 0x1800, "gfx4", 0 )  // jokers + numbers box
+	ROM_COPY( "gfxpool", 0x3800, 0x0000, 0x0800 ) // src-dest-size (data)
+	ROM_COPY( "gfxpool", 0x2800, 0x0800, 0x0800 ) // src-dest-size (data)
+	ROM_COPY( "gfxpool", 0x6800, 0x1000, 0x0800 ) // src-dest-size (data)
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "prom.2m",    0x0000, 0x0100, CRC(c4dcb312) SHA1(777c5c557a8623dd3db7dc558888f3f44ade1890) )
+ROM_END
+
 
 /*********************************************
 *                Driver Init                 *
@@ -16545,6 +16849,14 @@ void goldnpkr_state::init_pk5sb()
 	}
 }
 
+void goldnpkr_state::init_jokerush()
+{
+	uint8_t *rom = memregion("maincpu")->base();
+
+	for (offs_t i = 0x9000; i < 0x10000; i++)
+		rom[i] = bitswap<8>(rom[i], 7, 6, 0, 4, 3, 2, 1, 5) ^ 0x14;
+}
+
 
 } // anonymous namespace
 
@@ -16679,8 +16991,17 @@ GAMEL( 1994, witchcrdh, witchcrd, witchcrd, witchcdd, goldnpkr_state, empty_init
 GAMEL( 1994, witchcrdi, witchcrd, witchcrd, witchcdd, goldnpkr_state, empty_init,    ROT0,   "Proma",                    "Witch Card (German, WC3050, 27-4-94)",       0,                   layout_goldnpkr )
 GAME(  199?, witchcrdj, witchcrd, witchcdj, witchcrd, goldnpkr_state, init_icp1db,   ROT0,   "<unknown>",                "Witch Card (ICP-1, encrypted)",              0 )
 
-GAMEL( 1991, witchgme,  0,        witchcrd, witchcrd, goldnpkr_state, empty_init,    ROT0,   "Video Klein",              "Witch Game (Video Klein, set 1)",            0,                   layout_goldnpkr )
-GAMEL( 1997, witchgmea, witchgme, witchcrd, witchcrd, goldnpkr_state, empty_init,    ROT0,   "Video Klein",              "Witch Game (Video Klein, set 2)",            MACHINE_NOT_WORKING, layout_goldnpkr )
+GAMEL( 1991, witchgme,  0,        witchcrd, witchcrd, goldnpkr_state, empty_init,    ROT0,   "Video Klein",              "Witch Game (WG12T1)",                        0,                   layout_goldnpkr )
+GAMEL( 1997, witchgmea, witchgme, witchcrd, witchcrd, goldnpkr_state, empty_init,    ROT0,   "Video Klein",              "Witch Game (Export, WG12T1E)",               MACHINE_NOT_WORKING, layout_goldnpkr )
+GAMEL( 1997, witchgmeb, witchgme, witchcrd, witchcrd, goldnpkr_state, empty_init,    ROT0,   "Video Klein",              "Witch Game (Export, WG12T1F)",               MACHINE_NOT_WORKING, layout_goldnpkr )
+GAMEL( 1997, witchgmec, witchgme, witchcrd, witchcrd, goldnpkr_state, empty_init,    ROT0,   "Video Klein",              "Witch Game (Export, WG12T1FL)",              MACHINE_NOT_WORKING, layout_goldnpkr )
+GAMEL( 1994, witchgmed, witchgme, witchcrd, witchcrd, goldnpkr_state, empty_init,    ROT0,   "Video Klein",              "Witch Game (WG12T1H)",                       0,                   layout_goldnpkr )
+GAMEL( 1991, witchgmee, witchgme, witchcrd, witchcrd, goldnpkr_state, empty_init,    ROT0,   "Video Klein",              "Witch Game (WG12T1L)",                       0,                   layout_goldnpkr )
+GAMEL( 1997, witchgmef, witchgme, witchcrd, witchcrd, goldnpkr_state, empty_init,    ROT0,   "Video Klein",              "Witch Game (Export, WG6T1E)",                MACHINE_NOT_WORKING, layout_goldnpkr )
+GAMEL( 1997, witchgmeg, witchgme, witchcrd, witchcrd, goldnpkr_state, empty_init,    ROT0,   "Video Klein",              "Witch Game (Export, WG6T1F)",                MACHINE_NOT_WORKING, layout_goldnpkr )
+GAMEL( 1994, witchgmeh, witchgme, witchcrd, witchcrd, goldnpkr_state, empty_init,    ROT0,   "Video Klein",              "Witch Game (WG6T1H)",                        0,                   layout_goldnpkr )
+GAMEL( 1991, witchgmei, witchgme, witchcrd, witchcrd, goldnpkr_state, empty_init,    ROT0,   "Video Klein",              "Witch Game (WG6T1L)",                        0,                   layout_goldnpkr )
+
 
 GAME(  199?, jokercar,  witchcrd, witchcrd, witchcda, goldnpkr_state, empty_init,    ROT0,   "<unknown>",                "Joker Card (witch game)",                    0 )
 
@@ -16827,3 +17148,5 @@ GAME(  198?, wing90pkr, goldnpkr, wing_w90, wing_w90, goldnpkr_state, empty_init
 GAMEL( 198?, phnxjokr,  0,        phnxjokr, phnxjokr, goldnpkr_state, empty_init,    ROT0,   "STP",                      "Phoenix Joker (STP, UCGS-80 PCB)",        0,                layout_goldnpkr )  // no lamps. layout for clickable controls only.
 GAMEL( 1986, touksysp,  0,        touksysp, touksysp, goldnpkr_state, init_touk,     ROT0,   "<unknown>",                "Toukyuu System Poker (ROM: NO4313)",      0,                layout_goldnpkr )  // no lamps. layout for clickable controls only.
 GAMEL( 198?, pk5_07sb,  goldnpkr, pk5_07sb, pk5_07sb, goldnpkr_state, init_pk5sb,    ROT0,   "<unknown>",                "Fever Poker (pk5-07sb, encrypted)",       0,                layout_goldnpkr )  // no lamps. layout for clickable controls only.
+GAMEL( 198?, jokerush,  0,        jokerush, goldnpkr, goldnpkr_state, init_jokerush, ROT0,   "<unknown>",                "Joker Rush!! (SMH-803-J)",                0,                layout_goldnpkr )  // no lamps. layout for clickable controls only.
+
