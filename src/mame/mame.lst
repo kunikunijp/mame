@@ -18519,7 +18519,10 @@ mjmywrldt
 mjnigiri
 mjreach1
 mjreach1a
+mjrking
+mjrkingl
 mjschuka
+mjstama
 mjswacad
 mjswacads
 mjtenho
@@ -18816,6 +18819,7 @@ vintkeys
 
 @source:ensoniq/enmirage.cpp
 enmirage
+enmirdms
 
 @source:ensoniq/esq1.cpp
 esq1
@@ -29626,6 +29630,7 @@ rs3230
 
 @source:misc/39in1.cpp
 19in1
+19in1u
 39in1
 48in1
 48in1a
@@ -29634,6 +29639,7 @@ rs3230
 4in1
 4in1a
 60in1
+60in1u
 fruitwld
 fruitwlda
 jumanji
@@ -35636,6 +35642,7 @@ mjlstory
 ntopstar
 pstadium
 qmhayaku
+sttakkyu
 tokimbsj
 tokyogal
 triplew1
