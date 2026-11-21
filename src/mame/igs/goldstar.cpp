@@ -8927,10 +8927,23 @@ static INPUT_PORTS_START( pkrmastc )
 	PORT_INCLUDE( pkrmast )
 
 	PORT_MODIFY("DSW1")
-	PORT_DIPNAME( 0x02, 0x00, "Reels Roll" )      PORT_DIPLOCATION("DSW1:2")  // Default to Long so the reels spin normally.
+	PORT_DIPNAME( 0x02, 0x00, "Reels Roll" )  PORT_DIPLOCATION("DSW1:2")  // Default to Long so the reels spin normally.
 	PORT_DIPSETTING(    0x02, "Short" )
 	PORT_DIPSETTING(    0x00, "Long" )
+	PORT_DIPNAME( 0x10, 0x10, "Double Up Game Payout Rate" )  PORT_DIPLOCATION("DSW1:5")
+	PORT_DIPSETTING(    0x10, "70%" )
+	PORT_DIPSETTING(    0x00, "80%" )
 
+	PORT_MODIFY("DSW2")
+	PORT_DIPNAME( 0x07, 0x07, "Main Game Payout Rate" )  PORT_DIPLOCATION("DSW2:1,2,3")
+	PORT_DIPSETTING(    0x07, "70%" )
+	PORT_DIPSETTING(    0x06, "65%" )
+	PORT_DIPSETTING(    0x05, "60%" )
+	PORT_DIPSETTING(    0x04, "55%" )
+	PORT_DIPSETTING(    0x03, "50%" )
+	PORT_DIPSETTING(    0x02, "45%" )
+	PORT_DIPSETTING(    0x01, "35%" )
+	PORT_DIPSETTING(    0x00, "25%" )
 INPUT_PORTS_END
 
 
@@ -31883,6 +31896,64 @@ ROM_START( fl7_500_gs10 )  // Serial 000000125873.
 	ROM_LOAD( "ds1994l-f5_500.bin", 0x0000, 0x0008, CRC(b34d646f) SHA1(bcd6c4475412ecb1904b6732cf44e8f6bfce9d90) )
 ROM_END
 
+/*
+  Flaming 7's
+  Cyberdyne Systems.
+
+  Cyberdyne Systems 7V5.00 (CB500), 500 bonus.
+  Custom Hardware.
+
+  GS11: Harley Davidson Black, Diamonds 7's, Cherry Bonus, Nevada Numbers.
+
+*/
+ROM_START( fl7_500_gs11 )  // Serial 000000125873.
+	ROM_REGION( 0x8000, "maincpu", 0 )
+	ROM_LOAD( "500-main.u22",  0x0000, 0x8000, CRC(e2c82c67) SHA1(951b0044de9b6104f51aa5a3176d0ea475415f7c) )
+
+	ROM_REGION( 0x20000, "gfx1", 0 )
+	ROM_LOAD( "27c1001.u6",  0x00000, 0x20000, CRC(00eac3c1) SHA1(1a955f8bc044e17f0885b4b126a66d7ad191e410) )
+
+	ROM_REGION( 0x8000, "gfx2", 0 )
+	ROM_LOAD( "fl7_gs11.u3",   0x0000, 0x8000, CRC(dfa8d16a) SHA1(fb8647da54901431beac627618733fe11c5d02f0) )
+
+	// Proper bipolar PROM dump
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "am27s29.u1", 0x0000, 0x0100, CRC(3fe7e369) SHA1(cf4ae287cb58581a4bf9e9ff1994426461fb38cc) )
+	ROM_CONTINUE(           0x0000, 0x0100)  // palette data is stored in the second half.
+
+	ROM_REGION(0x8, "fl7w4_id", 0)  // Electronic Serial. Hand built to match our ROM set
+	ROM_LOAD( "ds1994l-f5_500.bin", 0x0000, 0x0008, CRC(b34d646f) SHA1(bcd6c4475412ecb1904b6732cf44e8f6bfce9d90) )
+ROM_END
+
+/*
+  Flaming 7's
+  Cyberdyne Systems.
+
+  Cyberdyne Systems 7V5.00 (CB500), 500 bonus.
+  Custom Hardware.
+
+  GS12: Harley Davidson White, Diamonds 7's, Cherry Bonus, Nevada Numbers.
+
+*/
+ROM_START( fl7_500_gs12 )  // Serial 000000125873.
+	ROM_REGION( 0x8000, "maincpu", 0 )
+	ROM_LOAD( "500-main.u22",  0x0000, 0x8000, CRC(e2c82c67) SHA1(951b0044de9b6104f51aa5a3176d0ea475415f7c) )
+
+	ROM_REGION( 0x20000, "gfx1", 0 )
+	ROM_LOAD( "27c1001.u6",  0x00000, 0x20000, CRC(00eac3c1) SHA1(1a955f8bc044e17f0885b4b126a66d7ad191e410) )
+
+	ROM_REGION( 0x8000, "gfx2", 0 )
+	ROM_LOAD( "fl7_gs12.u3",   0x0000, 0x8000, CRC(c38835e0) SHA1(e6528fb9f7084e6f6b6a5faf6ffd434010b831dd) )
+
+	// Proper bipolar PROM dump
+	ROM_REGION( 0x200, "proms", 0 )
+	ROM_LOAD( "am27s29.u1", 0x0000, 0x0100, CRC(3fe7e369) SHA1(cf4ae287cb58581a4bf9e9ff1994426461fb38cc) )
+	ROM_CONTINUE(           0x0000, 0x0100)  // palette data is stored in the second half.
+
+	ROM_REGION(0x8, "fl7w4_id", 0)  // Electronic Serial. Hand built to match our ROM set
+	ROM_LOAD( "ds1994l-f5_500.bin", 0x0000, 0x0008, CRC(b34d646f) SHA1(bcd6c4475412ecb1904b6732cf44e8f6bfce9d90) )
+ROM_END
+
 
 /*
   Flaming 7's (unknown version)
@@ -35394,6 +35465,8 @@ GAME(  199?, fl7_500_gs07, fl7_50, flaming7, flaming7, wingco_state,   init_flam
 GAME(  199?, fl7_500_gs08, fl7_50, flaming7, flaming7, wingco_state,   init_flaming7,  ROT0, "Cyberdyne Systems", "Flaming 7's (500 bonus, GS08: Flaming 7's, Diamonds 7's, Cherry Bonus, Nevada Numbers)",               0 )
 GAME(  199?, fl7_500_gs09, fl7_50, flaming7, flaming7, wingco_state,   init_flaming7,  ROT0, "Cyberdyne Systems", "Flaming 7's (500 bonus, GS09: Golden Treasure, Flaming 7's #2, Cherry Bonus, Nevada Numbers)",         0 )
 GAME(  199?, fl7_500_gs10, fl7_50, flaming7, flaming7, wingco_state,   init_flaming7,  ROT0, "Cyberdyne Systems", "Flaming 7's (500 bonus, GS10: Greenbacks, Lucky Shamrock, Red White & Blue 7's, Nevada Numbers)",      0 )
+GAME(  199?, fl7_500_gs11, fl7_50, flaming7, flaming7, wingco_state,   init_flaming7,  ROT0, "Cyberdyne Systems", "Flaming 7's (500 bonus, GS11: Harley Davidson Black, Diamonds 7's, Cherry Bonus, Nevada Numbers)",     0 )
+GAME(  199?, fl7_500_gs12, fl7_50, flaming7, flaming7, wingco_state,   init_flaming7,  ROT0, "Cyberdyne Systems", "Flaming 7's (500 bonus, GS12: Harley Davidson White, Diamonds 7's, Cherry Bonus, Nevada Numbers)",     0 )
 
 // special 7 sets
 GAME(  199?, special7,   0,        flam7_tw, flaming7, wingco_state,   init_special7,  ROT0, "unknown",           "Special 7 (Taiwanese Hardware, encrypted, set 1)",         0 )

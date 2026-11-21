@@ -18592,6 +18592,7 @@ mjfriday
 mjreach
 mjreacha
 mjreachbl
+mjreachbl2
 mjreachp2
 mjtkp2
 mjwitomo
@@ -21032,6 +21033,12 @@ z22
 @source:heathzenith/z29.cpp
 z29
 
+@source:heathzenith/z39.cpp
+z39
+
+@source:heathzenith/z49.cpp
+z49
+
 @source:heathzenith/z100.cpp
 z100
 
@@ -21788,6 +21795,8 @@ fl7_500_gs07
 fl7_500_gs08
 fl7_500_gs09
 fl7_500_gs10
+fl7_500_gs11
+fl7_500_gs12
 fl7_1000
 fl7_2000
 fl7_2k16
@@ -32097,6 +32106,7 @@ goldnpkg
 goldnpkh
 goldnpki
 goldnpkr
+goldpnew
 goodluck
 gp_jpn22
 gp_ped42_70
@@ -33750,6 +33760,7 @@ baibians
 btlfront
 cjmx
 crzclass
+ddzzcs
 hzniqiu
 kxddz
 xbnz
@@ -40940,6 +40951,7 @@ sandaha
 @source:sealy/sealy_z80.cpp
 bbddz
 bbddza
+clonek2
 ddz1
 ddz2
 ddz2a
@@ -44297,6 +44309,7 @@ hazl1552
 hazl1420
 
 @source:skeleton/highway_m68k.cpp
+dlzc
 tzfx
 
 @source:skeleton/hkcastle.cpp
